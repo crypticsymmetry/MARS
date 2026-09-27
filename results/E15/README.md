@@ -77,3 +77,21 @@ Instances + schemas at θ = 0.6: R@P≥0.6 **0.476**, R@P≥0.8 0.192.
 
 - Consolidation **adds** schema cases to memory and keeps the instances. Confidence stays **corroboration** across the combined pool; schema fact probabilities are reported, not used as confidence.
 - SAGE schema/entity names now come from a stable per-generalization id and a per-pool namespace (`SageConfig::namespace`). Previously they came from the vector index, which is reused after merges, and two pools in one KB collided.
+
+## Addendum: significance-gated assimilation (after E16)
+
+Table: [E15-s1-t4-z9.md](E15-s1-t4-z9.md). Reproduce with `mars-bench e15 --templates 100,1000 --pools sym,both --assimilate 0.4 --min-z 9`.
+
+`SageConfig::min_z` additionally requires the best match to be *significant*: the z of its fused score against the fused scores of fingerprint ranks 32–63 of the pool (E16's local null).
+
+| assimilation | T = 100: purity / completeness | T = 1,000: purity / completeness | instances + schemas at T = 1,000: R@P≥0.6 / R@P≥0.8 |
+|---|---|---|---|
+| θ = 0.4 | 0.964 / 0.812 | **0.868** / 0.787 | 0.448 / 0.178 |
+| θ = 0.4 and z ≥ 9 | 0.967 / 0.782 | **0.978** / 0.684 | **0.464 / 0.200** |
+| θ = 0.3 and z ≥ 12 | 0.971 / 0.765 | 0.986 / 0.525 | — |
+
+- The gate makes schema **purity memory-size invariant**, as the local null did for retrieval precision in E16.
+- The information limit reappears as falling completeness: more fragmentation at 10⁴.
+- In the recommended combined pool it is a small net gain at 10⁴ and neutral at 10³ (R@P≥0.6 0.505 vs 0.511).
+- Recommended when schemas are meant to be *interpretable* abstractions, where purity matters. It stays off by default, so E7 reproduces.
+- Cost: 32 extra FAC evaluations per assimilation (build 0.3 → 0.6 ms/case at 10³, 0.7 → 1.7 ms/case at 10⁴).

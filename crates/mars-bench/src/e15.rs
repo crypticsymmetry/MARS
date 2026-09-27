@@ -186,6 +186,8 @@ pub fn run(args: &Args) -> Result<(), String> {
     let theta = args.f64("assimilate", 0.4);
     let cov_theta = args.f64("cov-theta", 0.5);
     let prefilter = args.usize("prefilter", 16);
+    // Optional local-null significance gate on assimilation (E16).
+    let min_z: Option<f64> = args.opt("min-z").map(|v| v.parse().unwrap());
     let templates: Vec<usize> = args.str("templates", "100,1000").split(',').map(|x| x.parse().unwrap()).collect();
     let out_dir = args.str("out", "results/E15");
     let which = args.str("pools", "inst,sym,cov,both");
@@ -233,7 +235,8 @@ pub fn run(args: &Args) -> Result<(), String> {
         if want("inst") {
             pools.push(("instances".into(), mem.iter().map(|&c| Item { case: c, tmpl: tmpl_of[&c], counts: None }).collect(), 0.0, None));
         }
-        for (label, cov) in [(format!("schemas, symmetric θ={theta}"), false), (format!("schemas, coverage θ={cov_theta}"), true)] {
+        let zlabel = min_z.map(|z| format!(", z≥{z}")).unwrap_or_default();
+        for (label, cov) in [(format!("schemas, symmetric θ={theta}{zlabel}"), false), (format!("schemas, coverage θ={cov_theta}{zlabel}"), true)] {
             let needed = want(if cov { "cov" } else { "sym" }) || (!cov && want("both"));
             if !needed {
                 continue;
@@ -241,7 +244,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             let tb = Instant::now();
             let mut order = mem.clone();
             Rng::new(seed ^ 0xE15).shuffle(&mut order);
-            let mut sage = Sage::new(SageConfig { assimilate: if cov { cov_theta } else { theta }, coverage: cov, namespace: if cov { "cschema".into() } else { "sschema".into() }, ..Default::default() }, stats.clone(), sk.clone(), FeatureConfig::default());
+            let mut sage = Sage::new(SageConfig { assimilate: if cov { cov_theta } else { theta }, coverage: cov, namespace: if cov { "cschema".into() } else { "sschema".into() }, min_z, ..Default::default() }, stats.clone(), sk.clone(), FeatureConfig::default());
             for &c in &order {
                 sage.add(&mut kb, c);
             }
@@ -271,7 +274,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                 // Instances and schemas side by side: corroboration spans both.
                 let mut b: Vec<Item> = items.iter().map(|i| Item { case: i.case, tmpl: i.tmpl, counts: i.counts.clone() }).collect();
                 b.extend(mem.iter().map(|&c| Item { case: c, tmpl: tmpl_of[&c], counts: None }));
-                pools.push((format!("instances + schemas (θ={theta})"), b, build_ms, None));
+                pools.push((format!("instances + schemas (θ={theta}{zlabel})"), b, build_ms, None));
             }
             if !want(if cov { "cov" } else { "sym" }) {
                 continue;

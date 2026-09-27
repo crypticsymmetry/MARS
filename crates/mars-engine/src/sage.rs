@@ -35,11 +35,17 @@ pub struct SageConfig {
     pub coverage: bool,
     /// Prefix for schema case and entity names (several pools may share a KB).
     pub namespace: String,
+    /// Also require the best match to be *significant*: its fused score's z
+    /// against the fused scores of fingerprint ranks `null_k/2..null_k` of
+    /// the pool (local null, E16) must reach this. Skipped while the pool
+    /// has fewer than 16 items.
+    pub min_z: Option<f64>,
+    pub null_k: usize,
 }
 
 impl Default for SageConfig {
     fn default() -> Self {
-        SageConfig { assimilate: 0.5, drop_below: 0.2, min_members: 5, view: 0.5, prefilter: 8, map: MapConfig::default(), coverage: false, namespace: "schema".into() }
+        SageConfig { assimilate: 0.5, drop_below: 0.2, min_members: 5, view: 0.5, prefilter: 8, map: MapConfig::default(), coverage: false, namespace: "schema".into(), min_z: None, null_k: 64 }
     }
 }
 
@@ -85,11 +91,13 @@ pub struct Sage {
     fp_cache: FxHashMap<(CaseId, u64), Vec<u64>>,
     self_cache: FxHashMap<(CaseId, u64), f32>,
     next_id: usize,
+    /// Local-null z of the last `best_match` (when `min_z` is set).
+    pub last_z: Option<f64>,
 }
 
 impl Sage {
     pub fn new(cfg: SageConfig, stats: FeatureStats, sketcher: Sketcher, fcfg: FeatureConfig) -> Self {
-        Sage { cfg, gens: Vec::new(), outliers: Vec::new(), stats, sketcher, profile: Profile::analogy(), fcfg, fp_cache: FxHashMap::default(), self_cache: FxHashMap::default(), next_id: 0 }
+        Sage { cfg, gens: Vec::new(), outliers: Vec::new(), stats, sketcher, profile: Profile::analogy(), fcfg, fp_cache: FxHashMap::default(), self_cache: FxHashMap::default(), next_id: 0, last_z: None }
     }
 
     fn fp(&mut self, kb: &Kb, c: CaseId) -> Vec<u64> {
@@ -154,6 +162,14 @@ impl Sage {
             cands.push((false, i, c, self.profile.score(&mars_encode::channel_sims(&layout, &fx, &fc))));
         }
         cands.sort_by(|a, b| b.3.total_cmp(&a.3));
+        self.last_z = None;
+        let tail: Vec<(CaseId, f64)> = if self.cfg.min_z.is_some() && cands.len() >= 16 {
+            let k = self.cfg.null_k.min(cands.len());
+            cands[k / 2..k].iter().map(|c| (c.2, c.3)).collect()
+        } else {
+            Vec::new()
+        };
+        let null: Vec<f64> = tail.into_iter().map(|(c, fp)| 0.5 * self.fac(kb, c, x) + 0.5 * fp).collect();
         cands.truncate(self.cfg.prefilter);
         let mut best: Option<(bool, usize, f64, f64)> = None;
         for (g, i, c, fp) in cands {
@@ -163,14 +179,28 @@ impl Sage {
                 best = Some((g, i, fused, fac));
             }
         }
+        if let (Some(b), false) = (best, null.is_empty()) {
+            let m = null.iter().sum::<f64>() / null.len() as f64;
+            let sd = (null.iter().map(|v| (v - m) * (v - m)).sum::<f64>() / (null.len() - 1) as f64).sqrt().max(1e-9);
+            self.last_z = Some((b.2 - m) / sd);
+        }
         best
+    }
+
+    fn significant(&self) -> bool {
+        match (self.cfg.min_z, self.last_z) {
+            (Some(z0), Some(z)) => z >= z0,
+            _ => true,
+        }
     }
 
     /// Add a case to the pool: assimilate, seed a generalization, or keep as outlier.
     pub fn add(&mut self, kb: &mut Kb, x: CaseId) {
-        match self.best_match(kb, x) {
-            Some((true, gi, _, fac)) if fac >= self.cfg.assimilate => self.assimilate(kb, gi, x),
-            Some((false, oi, _, fac)) if fac >= self.cfg.assimilate => {
+        let m = self.best_match(kb, x);
+        let sig = self.significant();
+        match m {
+            Some((true, gi, _, fac)) if fac >= self.cfg.assimilate && sig => self.assimilate(kb, gi, x),
+            Some((false, oi, _, fac)) if fac >= self.cfg.assimilate && sig => {
                 let o = self.outliers.swap_remove(oi);
                 let gi = self.seed(kb, o);
                 self.assimilate(kb, gi, x);

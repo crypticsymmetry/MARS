@@ -72,6 +72,9 @@ impl Args {
     pub fn f64(&self, k: &str, default: f64) -> f64 {
         self.map.get(k).map(|v| v.parse().expect("float")).unwrap_or(default)
     }
+    pub fn opt(&self, k: &str) -> Option<&str> {
+        self.map.get(k).map(|v| v.as_str())
+    }
 }
 
 fn sample(args: &Args) -> Result<(), String> {

@@ -70,7 +70,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] Near-miss memory + difference fingerprints (E7c)
 - [x] **E15 schema-level retrieval vs corroboration** → [results/E15](../results/E15/README.md): schemas *complement* instances (instances + schemas best at 10³ and 10⁴; R@P≥0.6 0.45–0.48 vs 0.39 at 10⁴); schema-only pools collapse at scale (purity 0.96 → 0.87 at fixed θ); schema fact probability is uncalibrated, corroboration is; coverage assimilation negative
 - [x] **E16 match significance** → [results/E16](../results/E16/README.md): a local-null z (top-1 vs the tail of its own candidate list) keeps precision 0.90–0.95 from 10³ to 10⁶ cases with a fixed threshold; raw scores fall to 0.44 and accept 79% of absent-template queries. `Engine::query_significance`, `SIGNIFICANT_Z`, `serve` abstains
-- [ ] Local-null assimilation criterion for SAGE (E15 finding 2); indexed SAGE candidate scan (≥ 10⁴ cases)
+- [x] Local-null assimilation gate for SAGE (`SageConfig::min_z`) → [E15 addendum](../results/E15/README.md#addendum-significance-gated-assimilation-after-e16): purity invariant with memory size (0.967 → 0.978 vs 0.964 → 0.868), completeness falls; small gain in the combined pool at 10⁴
+- [ ] Indexed SAGE candidate scan (≥ 10⁴ cases; the scan is linear in the pool)
 - [ ] Hierarchical generalization to reduce fragmentation
 - [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
 - [ ] P7b representation normalization for code (loop canonicalization, idioms, def-use dataflow); per-domain profile tuning
