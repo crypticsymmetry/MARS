@@ -1,0 +1,71 @@
+{
+  "core_p": 0.7,
+  "per": 10,
+  "rows": [
+    {
+      "auc": 0.9646359707446809,
+      "best_correct": 0.94,
+      "recall_p90": 0.78,
+      "recall_p95": 0.76,
+      "score": "symmetric FAC (SAGE default)",
+      "templates": 100
+    },
+    {
+      "auc": 0.9395046439628483,
+      "best_correct": 0.95,
+      "recall_p90": 0.61,
+      "recall_p95": 0.38,
+      "score": "coverage S(g→x)/S(g→g)",
+      "templates": 100
+    },
+    {
+      "auc": 0.8547961412449946,
+      "best_correct": 0.82,
+      "recall_p90": 0.0,
+      "recall_p95": 0.0,
+      "score": "core fraction (p ≥ 0.7)",
+      "templates": 100
+    },
+    {
+      "auc": 0.9499766642623786,
+      "best_correct": 0.91,
+      "recall_p90": 0.69,
+      "recall_p95": 0.55,
+      "score": "√(core × symmetric)",
+      "templates": 100
+    },
+    {
+      "auc": 0.9082884876527687,
+      "best_correct": 0.826,
+      "recall_p90": 0.674,
+      "recall_p95": 0.588,
+      "score": "symmetric FAC (SAGE default)",
+      "templates": 1000
+    },
+    {
+      "auc": 0.8740084460423444,
+      "best_correct": 0.792,
+      "recall_p90": 0.526,
+      "recall_p95": 0.386,
+      "score": "coverage S(g→x)/S(g→g)",
+      "templates": 1000
+    },
+    {
+      "auc": 0.6789431924062427,
+      "best_correct": 0.636,
+      "recall_p90": 0.0,
+      "recall_p95": 0.0,
+      "score": "core fraction (p ≥ 0.7)",
+      "templates": 1000
+    },
+    {
+      "auc": 0.8831964285714285,
+      "best_correct": 0.8,
+      "recall_p90": 0.554,
+      "recall_p95": 0.424,
+      "score": "√(core × symmetric)",
+      "templates": 1000
+    }
+  ],
+  "seed": 1
+}

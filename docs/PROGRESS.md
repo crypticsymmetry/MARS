@@ -18,8 +18,7 @@ Latest:
 - Representation granularity trades fingerprint strength against mapper strength, and different views restore different inferences (E18).
 
 Candidate next steps:
-1. Vocabulary alignment on knowledge graphs with independently developed schemas (E13 on real data where names block FAC).
-2. Core-based (partial-mapping) assimilation for more identifiable schemas (E21).
+1. Vocabulary alignment on knowledge graphs with independently developed schemas: **blocked** in this environment (only PyPI/npm reachable; no packaged KG pair found).
 
 ## Task board
 
@@ -78,6 +77,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] Local-null assimilation gate for SAGE (`SageConfig::min_z`) → [E15 addendum](../results/E15/README.md#addendum-significance-gated-assimilation-after-e16): purity invariant with memory size (0.967 → 0.978 vs 0.964 → 0.868), completeness falls; small gain in the combined pool at 10⁴
 - [x] Indexed SAGE candidate scan: Mode K index over the pool (generalizations + outliers) maintained on every pool mutation, exact re-scoring of candidates with the old tie-break; E7/E15 reproduce exactly; build 0.74 → 0.56 ms/case at 10⁴ (coverage 1.17 → 0.76); 10⁵-case pool built in 171 s vs 788 s before (4.6×, identical results). `Sage::push_outlier` replaces direct writes to `outliers`
 - [-] **E21 hierarchical generalization** → [results/E21](../results/E21/README.md): negative. Level-2 SAGE over level-1 schemas trades purity for completeness on the same curve (10⁴: purity 0.87 → 0.59–0.81 for completeness 0.79 → 0.80–0.84); no inference gain. Diagnosis: fragments rank above strangers (AUC 0.975) but the base rate is 0.06% at 10⁴ (unrelated pairs outnumber true ones ~34:1 above the same-template median): an identifiability limit, not an algorithmic gap
+- [-] **E22 membership scores** → [results/E22](../results/E22/README.md): negative. SAGE's symmetric FAC is the best membership test (10⁴: AUC 0.908, recall 0.674 at precision 0.9); coverage and schema-core scores are worse (core AUC 0.679): small cores are not identifying
 - [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
 - [x] **E17 candidate inference on real code** → [results/E17](../results/E17/README.md): deleted control statements restored exactly for 7.6% (lexical 4.6%, random 0.1%); shape overlap 0.243 vs 0.180 lexical vs 0.026 chance; the structurally nearest function beats the same algorithm by another author as an inference source; support calibrated (0.02 → 0.09 → 0.33)
 - [x] **E18 representation granularity (nested vs flat blocks)** → [results/E18](../results/E18/README.md): flattening improves FAC retrieval +25% but weakens the fingerprint (best fusion weight 0.3 → 0.7; best-vs-best equal); nested restores more statements (0.189 vs 0.106), flat more placements; union restores 0.136 in context (1.7×)
@@ -127,6 +127,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E22 | 2026-09-27 | level-1 schemas at 10³/10⁴; fresh present + absent-template cases; 4 membership scores | symmetric FAC best (AUC 0.965 / 0.908; recall@P≥0.9 0.780 / 0.674); core fraction worst (0.855 / 0.679) | [results/E22](../results/E22/README.md) |
 | E21 | 2026-09-27 | E15 memories (10³, 10⁴); level-2 SAGE over level-1 schemas, θ₂ 0.15–0.5, ± significance gate | best level 2 at 10⁴: purity 0.810 / completeness 0.800 vs level 1 0.868 / 0.787; R@P≥0.6 0.452 vs 0.448; schema-pair AUC 0.975 but base rate 0.06% | [results/E21](../results/E21/README.md) |
 | E20 | 2026-09-27 | ~100 concepts, 10 positives, k ∈ {0,1,2,5} re-wired near-misses, 5+5 test; severities 1–2, seeds 1–3 | balanced acc. at k = 2: threshold 0.713, hard rules 0.705, 1-NN 0.679, emphasis 0.758; k = 5: 1-NN 0.781, emphasis 0.774 | [results/E20](../results/E20/README.md) |
 | E19 | 2026-09-27 | both views of 1,308 functions; retrieval (33 other-package, 52 other-language queries); 700 inference queries | best single view (flat 0.7) beats all view fusions (0.375 / 0.198 MRR); role split: top-1 precision 0.637 vs 0.555, support ≥ 2 recall 0.124 vs 0.116 at 0.77 precision; cross-view agreement precision 0.58–0.60 | [results/E19](../results/E19/README.md) |
