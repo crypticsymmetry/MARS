@@ -12,10 +12,15 @@ This is the working document: current status, the task board, the decision log a
   - schemas complement instances but don't replace them (E15);
   - a local-null significance makes accept/abstain decisions memory-size invariant (E16).
 
+Latest:
+- Mode K kernel v2: 1.8× batched throughput, bit-identical results.
+- Real-code inference works well above chance, though exact restoration is rare (E17).
+- Representation granularity trades fingerprint strength against mapper strength, and different views restore different inferences (E18).
+
 Candidate next steps:
-1. The local-null criterion for SAGE assimilation.
+1. Multi-view cases, fused at score and proposal level (E18).
 2. Indexed SAGE candidate scan.
-3. Mode K kernel speed-ups.
+3. Recall at 10⁶ under significance gating (E16).
 4. Near-miss memory.
 
 ## Task board
