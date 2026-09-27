@@ -2,7 +2,10 @@
 """Convert short natural-language stories into MARS relational cases with an
 LLM (OpenRouter chat API; key from $OPENROUTER_API_KEY, never stored).
 
-    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M1,M2,...] [--batch 8] [--reasoning low]
+    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M1,M2,...] [--batch 8] [--reasoning low] [--prompt v1|v2] [--temperature T]
+
+--prompt v2: abstraction-first (a topic-free 'pattern:' line per story, then the
+facts; the pattern is stored in the cache).
 
 Several comma-separated models form a fallback chain: a batch that fails on
 one model (free models are often throttled or overloaded) is retried on the
@@ -107,11 +110,46 @@ Convert each story below. For each, output a line '### <id>' followed by its fac
 {stories}"""
 
 
+PROMPT_V2 = """You convert short stories into relational facts for a structural analogy engine.
+The engine compares stories by their ABSTRACT STRUCTURE (who acts on what, what causes, enables or
+prevents what, in what order), ignoring topic words. Two stories about different topics with the same
+causal pattern must get facts with the same shape.
+
+For each story:
+1. Write one line 'pattern: <sentence>' describing the story's abstract causal/temporal pattern WITHOUT
+   any topic-specific nouns (e.g. 'an agent adds a resource step by step until a threshold triggers a change').
+2. Then write the facts, following that pattern:
+- Entities: short lowercase identifiers for the participants, e.g. wind, hail, person, coin.
+- Events/states are expressions (predicate arg ...). Use ONLY these first-order predicates (arity in brackets):
+{fo}
+- Connect events with these higher-order predicates, whose arguments are event expressions:
+{ho}
+- Every story must have at least one higher-order fact linking two events, so the causal/temporal
+  skeleton is explicit. Choose the most abstract fitting predicate.
+- One top-level fact per line as an s-expression; nest events inside higher-order facts.
+- 3 to 8 top-level facts per story. No comments, no other prose.
+
+Example story: "The dam holds back the river. When heavy rain raises the water, the dam breaks and the valley floods."
+Example output:
+pattern: a barrier holds back a force until the force grows beyond it, the barrier fails and the force spreads
+(block dam river)
+(cause (increase water) (destroy water dam))
+(cause (destroy water dam) (ptrans water water valley))
+(then (block dam river) (destroy water dam))
+
+Convert each story below. For each, output a line '### <id>', then its pattern line, then its facts.
+
+{stories}"""
+
+PROMPT_VERSION = "v1"
+TEMPERATURE = 0.0
+
+
 def build_prompt(batch):
     fo = "\n".join(f"  {n} [{a}]: {d}" for n, (a, d) in FO.items())
     ho = "\n".join(f"  {n} [{a if a else 'n'}]: {d}" for n, (a, d) in HO.items())
     stories = "\n\n".join(f"### {s['id']}\n{s['text']}" for s in batch)
-    return PROMPT.format(fo=fo, ho=ho, stories=stories)
+    return (PROMPT_V2 if PROMPT_VERSION == "v2" else PROMPT).format(fo=fo, ho=ho, stories=stories)
 
 
 # Optional reasoning effort for reasoning models (--reasoning low|medium|high).
@@ -132,7 +170,7 @@ def call(model, prompt, retries=2, timeout=150):
     import signal
     signal.signal(signal.SIGALRM, _alarm)
     key = os.environ["OPENROUTER_API_KEY"]
-    req_body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}
+    req_body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": TEMPERATURE}
     if REASONING:
         req_body["reasoning"] = {"effort": REASONING}
     body = json.dumps(req_body).encode()
@@ -158,7 +196,11 @@ def call(model, prompt, retries=2, timeout=150):
     raise RuntimeError(f"LLM call failed after {retries} attempts")
 
 
+PATTERNS = {}
+
+
 def split_output(text):
+    """Facts per story id; pattern lines (v2 prompt) are collected in PATTERNS."""
     out, cur = {}, None
     for line in text.splitlines():
         m = re.match(r"^\s*#+\s*(\S+)", line)
@@ -167,6 +209,8 @@ def split_output(text):
             out[cur] = []
         elif cur is not None and line.strip().startswith("("):
             out[cur].append(line.strip())
+        elif cur is not None and line.strip().lower().startswith("pattern:"):
+            PATTERNS[cur] = line.strip()[8:].strip()
     return out
 
 
@@ -229,6 +273,12 @@ def main():
         model = args[args.index("--model") + 1]
     if "--batch" in args:
         batch_size = int(args[args.index("--batch") + 1])
+    if "--prompt" in args:
+        global PROMPT_VERSION
+        PROMPT_VERSION = args[args.index("--prompt") + 1]
+    if "--temperature" in args:
+        global TEMPERATURE
+        TEMPERATURE = float(args[args.index("--temperature") + 1])
     if "--reasoning" in args:
         global REASONING
         REASONING = args[args.index("--reasoning") + 1]
@@ -260,7 +310,9 @@ def main():
                 print("  all models failed for this batch; stopping (rerun to resume)", file=sys.stderr, flush=True)
                 break
             for s in batch:
-                r = {"id": s["id"], "model": used, "facts": out.get(s["id"], [])}
+                r = {"id": s["id"], "model": used, "prompt": PROMPT_VERSION, "facts": out.get(s["id"], [])}
+                if s["id"] in PATTERNS:
+                    r["pattern"] = PATTERNS[s["id"]]
                 cache[s["id"]] = r
                 cf.write(json.dumps(r) + "\n")
             cf.flush()
