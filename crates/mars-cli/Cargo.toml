@@ -1,0 +1,19 @@
+[package]
+name = "mars-cli"
+description = "Command-line interface: find analogues, map cases, show candidate inferences with provenance"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "mars"
+path = "src/main.rs"
+
+[dependencies]
+mars-rel.workspace = true
+mars-encode.workspace = true
+mars-map.workspace = true
+mars-engine.workspace = true
+
+[lints]
+workspace = true

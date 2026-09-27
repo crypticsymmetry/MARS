@@ -10,7 +10,10 @@ Research codebase for a structural analogical memory (see `README.md`, `docs/DES
 ```bash
 cargo build --release                      # all crates
 cargo test --workspace -q                  # unit/property tests (fast)
-cargo run --release -p mars-bench -- e0    # experiment E0 (see docs/EXPERIMENTS.md)
+cargo run --release -p mars-bench -- e0    # experiments: e0 e2 e3 e5 e6 e7 e9, bw (see crates/mars-bench/src/main.rs)
+./target/release/mars analogies data/examples/classic.mars --case rutherford-atom   # CLI demo
+scripts/e4_sweep.sh                        # E4 perturbation sweep
+tools/fetch_e9_corpus.sh                   # real-code corpus for E9 (PyPI; sources git-ignored)
 cargo clippy --workspace --all-targets     # lint
 ```
 
@@ -19,4 +22,5 @@ cargo clippy --workspace --all-targets     # lint
 - Determinism: every random choice derives from an explicit `u64` seed (`mars_hv::Rng`, `mars_hv::rng::hash_*`). Never use time or thread-dependent randomness.
 - Feature hashes are name-based (`hash_str`), so they are stable across knowledge bases.
 - Hot loops work on `&[u64]` word slices; `count_ones()` compiles to VPOPCNTQ via `.cargo/config.toml` (`target-cpu=native`).
-- Crates: `mars-hv` (bits) → `mars-rel` (representation) → `mars-encode` (features + fingerprints) → `mars-gen` (synthetic data) → `mars-bench` (experiments). Later: `mars-map`, `mars-index`, `mars-tms`, `mars-engine`.
+- Crates: `mars-hv` (bits) → `mars-rel` (representation) → `mars-encode` (features + fingerprints) → `mars-index` (retrieval) / `mars-map` (mapper) → `mars-tms` → `mars-engine` (incremental memory, SAGE) → `mars-bench` (experiments), `mars-cli` (tool); `mars-gen` generates synthetic data.
+- Never `pkill -f` a pattern that also appears in your own shell command line (it kills the shell). Never use `GROUPS` as a bash variable (it is reserved).

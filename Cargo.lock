@@ -57,6 +57,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-cli"
+version = "0.1.0"
+dependencies = [
+ "mars-encode",
+ "mars-engine",
+ "mars-map",
+ "mars-rel",
+]
+
+[[package]]
 name = "mars-encode"
 version = "0.1.0"
 dependencies = [

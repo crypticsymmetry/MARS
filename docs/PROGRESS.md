@@ -30,6 +30,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] Gold cases as unit tests (solar/atom, water/heat, 1:1 consistency); E2 → [results/E2](../results/E2/README.md)
 - [ ] SMTB comparison (needs the CRE Python package; network permitting)
 
+### Tooling
+- [x] `mars-cli`: `mars analogies | map | stats` over `.mars` files; `data/examples/classic.mars` (Rutherford, water/heat flow, supply-chain/chokepoint, mere-appearance foil)
+
 ### Later phases
 - [x] P3 `mars-index` Mode K (SoA per segment, fused AVX-512 weighted kernel, L1 tiling, integer admission threshold)
 - [x] E4 perturbation robustness → [results/E4](../results/E4/README.md)

@@ -1,0 +1,69 @@
+;; Classic analogies from the structure-mapping literature, hand-encoded for
+;; demos and regression tests. Try:
+;;   cargo run --release -p mars-cli -- analogies data/examples/classic.mars --case rutherford-atom
+;;   cargo run --release -p mars-cli -- map data/examples/classic.mars --base water-flow --target heat-flow
+
+(defpredicate cause :arity 2 :kind relation :parents (causal))
+(defpredicate enable :arity 2 :kind relation :parents (causal))
+(defpredicate and :arity * :kind logical :commutative t)
+(defpredicate greater :arity 2 :kind relation :parents (comparison))
+(defpredicate attracts :arity 2 :kind relation :parents (force))
+(defpredicate repels :arity 2 :kind relation :parents (force))
+(defpredicate revolve-around :arity 2 :kind relation :parents (motion))
+(defpredicate flow :arity 4 :kind relation :parents (transfer))
+(defpredicate controls :arity 2 :kind relation :parents (control))
+(defpredicate depends-on :arity 2 :kind relation :parents (dependency))
+(defpredicate supplies :arity 2 :kind relation :parents (transfer))
+(defpredicate vulnerable :arity 1 :kind relation)
+(defpredicate mass :arity 1 :kind function :parents (quantity))
+(defpredicate charge :arity 1 :kind function :parents (quantity))
+(defpredicate temperature :arity 1 :kind function :parents (quantity))
+(defpredicate pressure :arity 1 :kind function :parents (quantity))
+(defpredicate diameter :arity 1 :kind function :parents (quantity))
+(defpredicate flat-top :arity 1 :kind attribute)
+(defpredicate liquid :arity 1 :kind attribute)
+(defpredicate yellow :arity 1 :kind attribute)
+(defpredicate hot :arity 1 :kind attribute)
+(defpredicate massive :arity 1 :kind attribute)
+
+(defcase solar-system
+  (yellow sun) (hot sun) (massive sun)
+  (attracts sun planet)
+  (greater (mass sun) (mass planet))
+  (greater (temperature sun) (temperature planet))
+  (revolve-around planet sun)
+  (cause (and (attracts sun planet) (greater (mass sun) (mass planet)))
+         (revolve-around planet sun)))
+
+(defcase rutherford-atom
+  (attracts nucleus electron)
+  (greater (mass nucleus) (mass electron))
+  (revolve-around electron nucleus))
+
+(defcase water-flow
+  (liquid water) (flat-top water)
+  (flow beaker vial water pipe)
+  (greater (pressure beaker) (pressure vial))
+  (greater (diameter beaker) (diameter vial))
+  (cause (greater (pressure beaker) (pressure vial)) (flow beaker vial water pipe)))
+
+(defcase heat-flow
+  (liquid coffee) (flat-top coffee)
+  (flow coffee ice-cube heat bar)
+  (greater (temperature coffee) (temperature ice-cube)))
+
+(defcase supply-chain
+  (controls company-a supplier-b)
+  (supplies supplier-b company-a)
+  (depends-on competitor-d supplier-b)
+  (cause (and (controls company-a supplier-b) (depends-on competitor-d supplier-b))
+         (vulnerable competitor-d)))
+
+(defcase port-chokepoint
+  (controls country-x port-y)
+  (depends-on company-z port-y))
+
+(defcase mere-appearance-sun
+  (yellow sun) (hot sun) (massive sun)
+  (repels sun planet)
+  (greater (temperature sun) (temperature planet)))

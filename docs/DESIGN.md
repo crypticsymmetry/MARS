@@ -4,9 +4,28 @@
 
 | | |
 |---|---|
-| Status | Draft v0.1, concept and design stage. No code yet. |
+| Status | v0.2: design plus a working prototype. **Where the experiments changed the design, [§0](#0-what-the-experiments-changed) takes precedence over the original text.** |
 | Date | 2026-09-27 |
 | Companion docs | [CONCEPT_REVIEW.md](CONCEPT_REVIEW.md) (what changed from the original idea and why) · [PRIOR_ART.md](PRIOR_ART.md) (literature and novelty map) · [EXPERIMENTS.md](EXPERIMENTS.md) (benchmarks, protocols, gates) · [ORIGINAL_CONCEPT.md](ORIGINAL_CONCEPT.md) (the unedited starting idea) |
+
+---
+
+## 0. What the experiments changed
+
+This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evidence is in `results/`.
+
+| Area | Original design | Current design | Evidence |
+|---|---|---|---|
+| Feature channels | C0–C3 | **C0–C4**: added C4 topology (predicate-agnostic WL). Default layout 1024/1024/3072/2048/1024 | E0 |
+| Predicate identity | taxonomy-graded vectors | **canonical resolution**: structural channels use the nearest *canonical* ancestor; non-canonical names → C0; unresolved → anonymized (kind, arity). Taxonomy grading = multi-resolution features | E0 |
+| Co-argument features | weight 1 | **weight 0.25** (fragile under distractors) | E0 |
+| FAC ranking | structural score | **fused ½ normalized FAC + ½ fingerprint score** (MAC and FAC fail in complementary ways) | E4, E3 |
+| SDM | modes A/B/H in the core | **dropped from the core** (G4). Learned-address buckets (= IVF) kept as the sublinear index; SDM prototypes ≈ k-NN bundling | E5 |
+| Standing queries | exact top-k | **pipeline semantics** by default (exact incremental fingerprint top-64 + fused re-rank; tie-inclusive boundary). Exact-fused mode kept (≈10× costlier) | E6 |
+| Consolidation | SAGE-style | as designed; assimilation θ = 0.4, merge threshold 0.6 (stricter than θ) | E7 |
+| Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
+
+Not yet built: persistence (event log / snapshots), cascade/MIH indexes, Mode H transition memory, near-miss memory, Python bindings, and LLM front ends.
 
 ---
 
