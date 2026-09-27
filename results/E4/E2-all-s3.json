@@ -1,0 +1,133 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "DeleteFact",
+      "InsertIntermediate",
+      "SubstitutePredicate",
+      "SwapArgs",
+      "AddHo"
+    ],
+    "seed": 1,
+    "severity": 3
+  },
+  "runtime_s": 0.398993374,
+  "splits": [
+    {
+      "ci_recall": 0.291,
+      "ci_struct_precision": 0.17324290998766953,
+      "fac_ta_top": 0.6325,
+      "fac_win_for": 0.717,
+      "fac_win_ma": 0.73,
+      "fp_ta_top": 0.7245,
+      "fused_ta_top": 0.764,
+      "greedy_over_optimal": 0.9833010048766925,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n": 1000,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 0.8349666666666659,
+      "ta_r": 0.7307333333333336
+    },
+    {
+      "ci_recall": 0.3339160839160839,
+      "ci_struct_precision": 0.19792746113989637,
+      "fac_ta_top": 0.631993006993007,
+      "fac_win_for": 0.7097902097902098,
+      "fac_win_ma": 0.7141608391608392,
+      "fp_ta_top": 0.7132867132867133,
+      "fused_ta_top": 0.7534965034965035,
+      "greedy_over_optimal": 0.9851112347864089,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n": 572,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 0.8167832167832176,
+      "ta_r": 0.6939102564102575
+    },
+    {
+      "ci_recall": 0.2336448598130841,
+      "ci_struct_precision": 0.136986301369863,
+      "fac_ta_top": 0.633177570093458,
+      "fac_win_for": 0.7266355140186916,
+      "fac_win_ma": 0.7511682242990654,
+      "fp_ta_top": 0.7394859813084113,
+      "fused_ta_top": 0.7780373831775701,
+      "greedy_over_optimal": 0.980881725651559,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n": 428,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 0.8592679127725862,
+      "ta_r": 0.7799454828660444
+    },
+    {
+      "ci_recall": 0.5219512195121951,
+      "ci_struct_precision": 0.3103953147877013,
+      "fac_ta_top": 0.948780487804878,
+      "fac_win_for": 0.9682926829268292,
+      "fac_win_ma": 0.973170731707317,
+      "fp_ta_top": 0.8463414634146341,
+      "fused_ta_top": 0.9804878048780488,
+      "greedy_over_optimal": 0.9962766873875082,
+      "ls_p": 1.0,
+      "ls_r": 0.994308943089431,
+      "n": 410,
+      "n_optimal": 410,
+      "split": "discriminable",
+      "ta_p": 0.9465447154471547,
+      "ta_r": 0.863943089430895
+    }
+  ],
+  "tag": "all-s3",
+  "timing": [
+    {
+      "hi": 20,
+      "lo": 0,
+      "mean_us": 8.2652,
+      "n": 5,
+      "p95_us": 10.899000000000001
+    },
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 15.00992456896553,
+      "n": 928,
+      "p95_us": 21.694
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 20.882704693611455,
+      "n": 1534,
+      "p95_us": 31.133999999999997
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 30.438750469043153,
+      "n": 533,
+      "p95_us": 47.545
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "AddHo"
+    ],
+    "seed": 1,
+    "severity": 3
+  },
+  "runtime_s": 0.438536753,
+  "splits": [
+    {
+      "ci_recall": 0.342,
+      "ci_struct_precision": 0.9970845481049563,
+      "fac_ta_top": 0.9815,
+      "fac_win_for": 0.9905,
+      "fac_win_ma": 0.9905,
+      "fp_ta_top": 0.936,
+      "fused_ta_top": 0.981,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n": 1000,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 1.0,
+      "ta_r": 0.9937333333333334
+    },
+    {
+      "ci_recall": 0.34615384615384615,
+      "ci_struct_precision": 0.9949748743718593,
+      "fac_ta_top": 0.9702797202797203,
+      "fac_win_for": 0.986013986013986,
+      "fac_win_ma": 0.9833916083916084,
+      "fp_ta_top": 0.916083916083916,
+      "fused_ta_top": 0.972027972027972,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n": 572,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 1.0,
+      "ta_r": 1.0
+    },
+    {
+      "ci_recall": 0.3364485981308411,
+      "ci_struct_precision": 1.0,
+      "fac_ta_top": 0.9964953271028038,
+      "fac_win_for": 0.9964953271028038,
+      "fac_win_ma": 1.0,
+      "fp_ta_top": 0.9626168224299065,
+      "fused_ta_top": 0.9929906542056075,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n": 428,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 1.0,
+      "ta_r": 0.9853582554517135
+    },
+    {
+      "ci_recall": 0.3450413223140496,
+      "ci_struct_precision": 0.9970149253731343,
+      "fac_ta_top": 0.9989669421487604,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 0.9989669421487604,
+      "fp_ta_top": 0.9514462809917356,
+      "fused_ta_top": 0.9989669421487604,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9933195592286501,
+      "n": 968,
+      "n_optimal": 968,
+      "split": "discriminable",
+      "ta_p": 1.0,
+      "ta_r": 0.993526170798898
+    }
+  ],
+  "tag": "add-ho-s3",
+  "timing": [
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 15.370186700767261,
+      "n": 782,
+      "p95_us": 22.836
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 22.044992400253307,
+      "n": 1579,
+      "p95_us": 34.894
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 30.663607198748043,
+      "n": 639,
+      "p95_us": 51.601000000000006
+    }
+  ]
+}

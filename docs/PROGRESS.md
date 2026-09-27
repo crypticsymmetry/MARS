@@ -15,11 +15,12 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] `mars-hv`: packed HVs, bind/permute/Hamming, seeded RNG, i32 accumulator, **bit-sliced weighted majority** (property-tested against the accumulator, including ties)
 - [x] `mars-rel`: interner, vocabulary + taxonomy, hash-consed expression DAG (commutative canonicalization, relational order), cases, s-expression loader and renderer
 - [x] `mars-encode`: feature channels C0–C3, taxonomy multi-resolution features, IDF stats (epochs), segmented sketcher, profiles; solar/atom sanity tests
-- [ ] Popcount scan microbenchmark vs memory bandwidth (G0 criterion: ≥ 70% of measured bandwidth)
+- [x] Popcount scan microbenchmark vs memory bandwidth: single query 79% of probe (G0 pass); batched 6.6 ms/query at 10⁶ rows on 4 cores → [results/bw](../results/bw/)
+- [ ] Mode K kernel: query register-blocking / transposed layout (currently about 55 cycles per row per query)
 
 ### P1 Fingerprint feasibility
 - [x] `mars-gen`: vocabulary (54 FO preds in 9 categories, HO, functions, comparisons), 12 domains, random templates in 7 structural families, Gentner variants (LS/TA/MA/FOR/RND) with HO re-wiring, distractors, naming modes (canonical/synonyms/unresolved), ground-truth var→entity maps
-- [ ] `mars-gen`: perturbation operators for E4 (delete-edge, insert-intermediate, predicate-substitute, swap-args, ...)
+- [x] `mars-gen`: perturbation operators (delete-fact, insert-intermediate, substitute-predicate, swap-args, add-ho) + ground-truth higher-order overlap / *discriminable* flag
 - [x] `mars-bench e0`: pooled AUC + per-group win rates, channel mixes, feature ablations, D sweep, distance distributions
 - [x] E0 results → `results/E0/`; **G1 passed** (per-group TA-top 0.97 on held-out families; pooled AUC borderline, see finding 7)
 - [ ] `e1`: exhaustive retrieval at 10³–10⁵ with baselines (lexical, MAC, exact cosine, fingerprint)
@@ -30,7 +31,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] SMTB comparison (needs the CRE Python package; network permitting)
 
 ### Later phases
-- [ ] P3 Mode K batched index, cascade, MIH; E3/E4
+- [x] P3 `mars-index` Mode K (SoA per segment, fused AVX-512 weighted kernel, L1 tiling, integer admission threshold)
+- [x] E4 perturbation robustness → [results/E4](../results/E4/README.md)
+- [ ] E3 end-to-end MAC→FAC (fused re-rank) at 10³–10⁶ with baselines; cascade; MIH
 - [ ] P4 SDM modes; E5 (keep/drop gate)
 - [ ] P5 TMS, event log, standing queries; E6
 - [ ] P6 consolidation (SAGE-style), near-miss memory; E7
@@ -49,6 +52,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | **FAC re-ranks with a fused score** ½·normalized structural score + ½·fingerprint profile score | E4: MAC and FAC fail in complementary ways (role noise vs spurious additions); fusion ≥ both, 0.96–1.00 on discriminable groups |
+| 2026-09-27 | Mode K integer-weighted fused kernel, TILE = 32 rows | 1.7–2× over the per-segment kernel; TILE 32 best among 32/64/256 |
 | 2026-09-27 | Generator re-wiring check sorts commutative (`and`) arguments | E2 found ~7% of deep-ho FOR/MA variants were isomorphic to the base (label noise), which explained the deep-ho "ceiling" in E0 and E2 |
 
 ## Experiment log
@@ -56,4 +61,6 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | Exp | Date | Config | Headline | Link |
 |---|---|---|---|---|
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
+| bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
+| E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
 | E2 | 2026-09-27 | 1000 groups, distractors 0/2/5/10 | entity corr. P≈1.0 R≈0.99; FAC TA-top 1.000; greedy = optimal; deleted-fact re-inference 0.99 (0.92 at d=10); 16–38 µs/pair | [results/E2](../results/E2/README.md) |

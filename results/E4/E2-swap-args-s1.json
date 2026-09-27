@@ -1,0 +1,122 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "SwapArgs"
+    ],
+    "seed": 1,
+    "severity": 1
+  },
+  "runtime_s": 0.354893338,
+  "splits": [
+    {
+      "ci_recall": 0.409,
+      "ci_struct_precision": 0.25138291333743085,
+      "fac_ta_top": 0.8205,
+      "fac_win_for": 0.8615,
+      "fac_win_ma": 0.865,
+      "fp_ta_top": 0.998,
+      "fused_ta_top": 0.991,
+      "greedy_over_optimal": 0.9841743102087133,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n": 1000,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 0.9658333333333334,
+      "ta_r": 0.8727666666666664
+    },
+    {
+      "ci_recall": 0.45104895104895104,
+      "ci_struct_precision": 0.25748502994011974,
+      "fac_ta_top": 0.8295454545454546,
+      "fac_win_for": 0.8645104895104895,
+      "fac_win_ma": 0.8636363636363636,
+      "fp_ta_top": 0.9965034965034965,
+      "fused_ta_top": 0.986013986013986,
+      "greedy_over_optimal": 0.9864253244450614,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n": 572,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 0.9681818181818181,
+      "ta_r": 0.8563519813519815
+    },
+    {
+      "ci_recall": 0.352803738317757,
+      "ci_struct_precision": 0.2416,
+      "fac_ta_top": 0.8084112149532711,
+      "fac_win_for": 0.8574766355140186,
+      "fac_win_ma": 0.866822429906542,
+      "fp_ta_top": 1.0,
+      "fused_ta_top": 0.9976635514018691,
+      "greedy_over_optimal": 0.9811659453881724,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n": 428,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 0.9626947040498446,
+      "ta_r": 0.8947040498442376
+    },
+    {
+      "ci_recall": 0.5827123695976155,
+      "ci_struct_precision": 0.34786476868327404,
+      "fac_ta_top": 0.9970193740685543,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 0.9970193740685543,
+      "fp_ta_top": 0.9970193740685543,
+      "fused_ta_top": 0.9985096870342772,
+      "greedy_over_optimal": 0.9971500122669799,
+      "ls_p": 1.0,
+      "ls_r": 0.993591654247392,
+      "n": 671,
+      "n_optimal": 671,
+      "split": "discriminable",
+      "ta_p": 0.9933184302036763,
+      "ta_r": 0.9115996025832097
+    }
+  ],
+  "tag": "swap-args-s1",
+  "timing": [
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 14.461684319833848,
+      "n": 963,
+      "p95_us": 20.599999999999998
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 21.085899503722075,
+      "n": 1612,
+      "p95_us": 30.809
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 31.05797176470591,
+      "n": 425,
+      "p95_us": 46.467
+    }
+  ]
+}

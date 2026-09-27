@@ -15,6 +15,7 @@ mars-rel.workspace = true
 mars-encode.workspace = true
 mars-gen.workspace = true
 mars-map.workspace = true
+mars-index.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true

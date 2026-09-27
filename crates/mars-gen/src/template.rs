@@ -388,3 +388,226 @@ mod tests {
         assert!(ok > 180, "rewire succeeded only {ok}/210");
     }
 }
+
+// ------------------------------------------------------------ perturbations
+
+/// Structural perturbation operators (docs/EXPERIMENTS.md §1.4).
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum PerturbOp {
+    /// Delete a fact node; nodes that reference it are deleted too.
+    DeleteFact,
+    /// `r(a,b)` → `r(a,x)` + `r'(x,b)` with a new variable x.
+    InsertIntermediate,
+    /// Replace a first-order predicate: a taxonomy sibling (p=0.5) or a random one.
+    SubstitutePredicate,
+    /// Reverse the arguments of a first-order fact.
+    SwapArgs,
+    /// Add a spurious higher-order link between two first-order facts.
+    AddHo,
+}
+
+impl PerturbOp {
+    pub const ALL: [PerturbOp; 5] =
+        [PerturbOp::DeleteFact, PerturbOp::InsertIntermediate, PerturbOp::SubstitutePredicate, PerturbOp::SwapArgs, PerturbOp::AddHo];
+    pub fn name(self) -> &'static str {
+        match self {
+            PerturbOp::DeleteFact => "delete-fact",
+            PerturbOp::InsertIntermediate => "insert-intermediate",
+            PerturbOp::SubstitutePredicate => "substitute-predicate",
+            PerturbOp::SwapArgs => "swap-args",
+            PerturbOp::AddHo => "add-ho",
+        }
+    }
+    pub fn parse(s: &str) -> Option<PerturbOp> {
+        PerturbOp::ALL.iter().copied().find(|o| o.name() == s)
+    }
+}
+
+fn fo_nodes(t: &Template) -> Vec<usize> {
+    (0..t.nodes.len()).filter(|&i| matches!(t.nodes[i].pred, PredRef::Fo(_))).collect()
+}
+
+/// Remove node `i` and, transitively, every node referencing a removed node.
+fn delete_cascade(t: &mut Template, i: usize) {
+    let n = t.nodes.len();
+    let mut dead = vec![false; n];
+    dead[i] = true;
+    for j in 0..n {
+        if !dead[j] && t.nodes[j].args.iter().any(|a| matches!(a, TArg::Node(c) if dead[*c])) {
+            dead[j] = true;
+        }
+    }
+    let mut remap = vec![usize::MAX; n];
+    let mut nodes = Vec::new();
+    for j in 0..n {
+        if !dead[j] {
+            remap[j] = nodes.len();
+            let mut nd = t.nodes[j].clone();
+            for a in nd.args.iter_mut() {
+                if let TArg::Node(c) = a {
+                    *c = remap[*c];
+                }
+            }
+            nodes.push(nd);
+        }
+    }
+    // Drop orphaned non-fact helper nodes (functions / conjunctions no longer used).
+    t.nodes = nodes;
+    loop {
+        let used: Vec<bool> = {
+            let mut u = vec![false; t.nodes.len()];
+            for nd in &t.nodes {
+                for a in &nd.args {
+                    if let TArg::Node(c) = a {
+                        u[*c] = true;
+                    }
+                }
+            }
+            u
+        };
+        match (0..t.nodes.len()).find(|&j| !t.nodes[j].pred.is_fact() && !used[j]) {
+            Some(j) => delete_cascade(t, j),
+            None => break,
+        }
+    }
+}
+
+/// Apply `severity` random operators drawn from `ops`. Variables introduced by
+/// perturbation are appended (indices ≥ the original `n_vars`), so ground
+/// truth for original variables is preserved.
+pub fn perturb(t: &Template, ops: &[PerturbOp], severity: usize, rng: &mut Rng) -> Template {
+    let fos_all = fo_predicates();
+    let mut t = t.clone();
+    if ops.is_empty() {
+        return t;
+    }
+    for _ in 0..severity {
+        let op = ops[rng.index(ops.len())];
+        match op {
+            PerturbOp::DeleteFact => {
+                let facts: Vec<usize> = (0..t.nodes.len()).filter(|&i| t.nodes[i].pred.is_fact()).collect();
+                if facts.len() > 2 {
+                    delete_cascade(&mut t, facts[rng.index(facts.len())]);
+                }
+            }
+            PerturbOp::InsertIntermediate => {
+                let cands: Vec<usize> = fo_nodes(&t).into_iter().filter(|&i| t.nodes[i].args.iter().all(|a| matches!(a, TArg::Var(_)))).collect();
+                if let Some(&i) = cands.get(rng.index(cands.len().max(1))) {
+                    let x = t.n_vars;
+                    t.n_vars += 1;
+                    let (a, b) = (t.nodes[i].args[0], t.nodes[i].args[1]);
+                    t.nodes[i].args = vec![a, TArg::Var(x)];
+                    let p2 = PredRef::Fo(fos_all[rng.index(fos_all.len())]);
+                    // Insert right after i to keep FO-level nodes before the HO layer.
+                    t.nodes.insert(i + 1, TNode { pred: p2, args: vec![TArg::Var(x), b] });
+                    for nd in t.nodes.iter_mut() {
+                        for arg in nd.args.iter_mut() {
+                            if let TArg::Node(c) = arg {
+                                if *c > i {
+                                    *c += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            PerturbOp::SubstitutePredicate => {
+                let cands = fo_nodes(&t);
+                if !cands.is_empty() {
+                    let i = cands[rng.index(cands.len())];
+                    let PredRef::Fo(p) = t.nodes[i].pred else { unreachable!() };
+                    let newp = if rng.bernoulli(0.5) {
+                        let cat = crate::vocab::FO_CATEGORIES.iter().find(|(_, ps)| ps.contains(&p)).unwrap().1;
+                        let sibs: Vec<&'static str> = cat.iter().copied().filter(|&q| q != p).collect();
+                        sibs[rng.index(sibs.len())]
+                    } else {
+                        fos_all[rng.index(fos_all.len())]
+                    };
+                    t.nodes[i].pred = PredRef::Fo(newp);
+                }
+            }
+            PerturbOp::SwapArgs => {
+                let cands = fo_nodes(&t);
+                if !cands.is_empty() {
+                    let i = cands[rng.index(cands.len())];
+                    t.nodes[i].args.reverse();
+                }
+            }
+            PerturbOp::AddHo => {
+                let fl: Vec<usize> = (0..t.nodes.len()).filter(|&i| t.nodes[i].pred.is_fo_level()).collect();
+                if fl.len() >= 2 {
+                    let ij = rng.sample_indices(fl.len(), 2);
+                    t.nodes.push(TNode { pred: ho(rng), args: vec![TArg::Node(fl[ij[0]]), TArg::Node(fl[ij[1]])] });
+                }
+            }
+        }
+    }
+    t
+}
+
+#[cfg(test)]
+mod perturb_tests {
+    use super::*;
+
+    #[test]
+    fn perturbations_keep_templates_valid() {
+        let mut rng = Rng::new(5);
+        for fam in Family::ALL {
+            for _ in 0..40 {
+                let t = generate(fam, &mut rng);
+                for op in PerturbOp::ALL {
+                    let p = perturb(&t, &[op], 3, &mut rng);
+                    assert!(p.n_vars >= t.n_vars);
+                    for (i, n) in p.nodes.iter().enumerate() {
+                        for a in &n.args {
+                            match *a {
+                                TArg::Node(c) => assert!(c < i, "{op:?} not topological"),
+                                TArg::Var(v) => assert!(v < p.n_vars),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Canonical descriptions of the higher-order facts of a template, with
+/// variables kept by index (ground-truth correspondence across a group).
+pub fn ho_keys(t: &Template) -> Vec<String> {
+    fn desc(t: &Template, i: usize) -> String {
+        let n = &t.nodes[i];
+        let mut args: Vec<String> = n
+            .args
+            .iter()
+            .map(|a| match *a {
+                TArg::Var(v) => format!("v{v}"),
+                TArg::Node(c) => desc(t, c),
+            })
+            .collect();
+        if n.pred == PredRef::And {
+            args.sort();
+        }
+        format!("{}({})", n.pred.canonical(), args.join(","))
+    }
+    let mut keys: Vec<String> = (0..t.nodes.len()).filter(|&i| matches!(t.nodes[i].pred, PredRef::Ho(_))).map(|i| desc(t, i)).collect();
+    keys.sort();
+    keys
+}
+
+/// Size of the multiset intersection of two sorted key lists.
+pub fn overlap(a: &[String], b: &[String]) -> usize {
+    let (mut i, mut j, mut n) = (0, 0, 0);
+    while i < a.len() && j < b.len() {
+        match a[i].cmp(&b[j]) {
+            std::cmp::Ordering::Less => i += 1,
+            std::cmp::Ordering::Greater => j += 1,
+            std::cmp::Ordering::Equal => {
+                n += 1;
+                i += 1;
+                j += 1;
+            }
+        }
+    }
+    n
+}

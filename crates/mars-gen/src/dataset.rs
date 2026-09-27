@@ -11,7 +11,7 @@
 //! MA and FOR keep the higher-order predicate multiset, so TA vs FOR differs
 //! only in *which* facts the higher-order relations connect.
 
-use crate::template::{self, Family, PredRef, TArg, Template};
+use crate::template::{self, Family, PerturbOp, PredRef, TArg, Template};
 use crate::vocab::{self, attribute_name, entity_name, fo_predicates, Naming, ADJECTIVES, DOMAINS, NOUNS};
 use mars_hv::Rng;
 use mars_rel::{CaseId, CaseKind, ExprId, Kb, Sym, Term};
@@ -53,6 +53,10 @@ pub struct GenConfig {
     pub attrs_per_entity: (usize, usize),
     /// Random-template variants per group.
     pub n_rnd: usize,
+    /// Perturbation operators applied (independently) to TA, MA and FOR.
+    pub perturb_ops: Vec<PerturbOp>,
+    /// Number of perturbation operators applied per variant.
+    pub severity: usize,
 }
 
 impl Default for GenConfig {
@@ -65,6 +69,8 @@ impl Default for GenConfig {
             distractors: 2,
             attrs_per_entity: (1, 2),
             n_rnd: 3,
+            perturb_ops: Vec::new(),
+            severity: 0,
         }
     }
 }
@@ -79,6 +85,9 @@ pub struct Item {
     /// Template variable → entity. Ground-truth correspondences between
     /// members of a group are given by equal variable indices (for LS/TA).
     pub entities: Vec<Sym>,
+    /// Number of the base's higher-order facts preserved (under ground-truth
+    /// variable correspondence) in this variant's template.
+    pub ho_overlap: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -93,6 +102,13 @@ pub struct Group {
 }
 
 impl Group {
+    /// True if TA preserves strictly more of the base's higher-order facts
+    /// than MA and FOR do, i.e. the analogy is still identifiable in principle.
+    pub fn discriminable(&self, ds: &Dataset) -> bool {
+        let o = |i: usize| ds.items[i].ho_overlap;
+        o(self.ta) > o(self.ma).max(o(self.for_))
+    }
+
     pub fn members(&self) -> Vec<(VariantClass, usize)> {
         let mut v = vec![
             (VariantClass::LS, self.ls),
@@ -150,6 +166,19 @@ impl Builder<'_> {
             }
         }
         Surface { domain, entities, attrs }
+    }
+
+    /// Add fresh entities for variables introduced by perturbation.
+    fn extend_surface(&mut self, rng: &mut Rng, s: &Surface, n_vars: usize) -> Surface {
+        let mut s = s.clone();
+        let d = DOMAINS[s.domain];
+        while s.entities.len() < n_vars {
+            let e = self.kb.sym(&entity_name(d, rng.index(NOUNS.len())));
+            if !s.entities.contains(&e) {
+                s.entities.push(e);
+            }
+        }
+        s
     }
 
     fn instantiate(&mut self, t: &Template, s: &Surface) -> Vec<ExprId> {
@@ -228,20 +257,27 @@ pub fn generate(cfg: &GenConfig) -> Dataset {
         };
         let d = rng.index(DOMAINS.len());
         let base_s = b.fresh_surface(&mut rng, d, t.n_vars);
+        let base_keys = template::ho_keys(&t);
         let mut push = |b: &mut Builder, rng: &mut Rng, class: VariantClass, tmpl: &Template, s: &Surface, tag: &str| {
             let case = b.make_case(&format!("g{g}-{tag}"), tmpl, s, rng);
-            items.push(Item { case, group: g, class, family: tmpl.family, domain: s.domain, entities: s.entities.clone() });
+            let ho_overlap = template::overlap(&base_keys, &template::ho_keys(tmpl));
+            items.push(Item { case, group: g, class, family: tmpl.family, domain: s.domain, entities: s.entities.clone(), ho_overlap });
             items.len() - 1
         };
         let base = push(&mut b, &mut rng, VariantClass::Base, &t, &base_s, "base");
         let ls = push(&mut b, &mut rng, VariantClass::LS, &t, &base_s, "LS");
+        let (ops, sev) = (&cfg.perturb_ops, cfg.severity);
+        let t_ta = template::perturb(&t, ops, sev, &mut rng);
+        let r_ma = template::perturb(&r, ops, sev, &mut rng);
+        let r_for = template::perturb(&r, ops, sev, &mut rng);
         let d_ta = other_domain(&mut rng, d);
-        let ta_s = b.fresh_surface(&mut rng, d_ta, t.n_vars);
-        let ta = push(&mut b, &mut rng, VariantClass::TA, &t, &ta_s, "TA");
-        let ma = push(&mut b, &mut rng, VariantClass::MA, &r, &base_s, "MA");
+        let ta_s = b.fresh_surface(&mut rng, d_ta, t_ta.n_vars);
+        let ta = push(&mut b, &mut rng, VariantClass::TA, &t_ta, &ta_s, "TA");
+        let ma_s = b.extend_surface(&mut rng, &base_s, r_ma.n_vars);
+        let ma = push(&mut b, &mut rng, VariantClass::MA, &r_ma, &ma_s, "MA");
         let d_for = other_domain(&mut rng, d);
-        let for_s = b.fresh_surface(&mut rng, d_for, r.n_vars);
-        let for_ = push(&mut b, &mut rng, VariantClass::FOR, &r, &for_s, "FOR");
+        let for_s = b.fresh_surface(&mut rng, d_for, r_for.n_vars);
+        let for_ = push(&mut b, &mut rng, VariantClass::FOR, &r_for, &for_s, "FOR");
         let mut rnd = Vec::new();
         for i in 0..cfg.n_rnd {
             let others: Vec<Family> = Family::ALL.iter().copied().filter(|&f| f != family).collect();

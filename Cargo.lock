@@ -46,6 +46,7 @@ dependencies = [
  "mars-encode",
  "mars-gen",
  "mars-hv",
+ "mars-index",
  "mars-map",
  "mars-rel",
  "rayon",
@@ -77,6 +78,15 @@ dependencies = [
 [[package]]
 name = "mars-hv"
 version = "0.1.0"
+
+[[package]]
+name = "mars-index"
+version = "0.1.0"
+dependencies = [
+ "mars-encode",
+ "mars-hv",
+ "rayon",
+]
 
 [[package]]
 name = "mars-map"

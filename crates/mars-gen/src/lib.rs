@@ -9,5 +9,5 @@ pub mod template;
 pub mod vocab;
 
 pub use dataset::{generate, Dataset, GenConfig, Group, Item, VariantClass};
-pub use template::{Family, Template};
+pub use template::{Family, PerturbOp, Template};
 pub use vocab::Naming;

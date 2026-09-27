@@ -3,9 +3,11 @@
 //! ```text
 //! mars-bench sample [--groups N] [--naming canonical|synonyms|unresolved]
 //! mars-bench e2 [--groups 1000] [--distractors 2]
+//! mars-bench bw [--rows 1000000]
 //! mars-bench e0 [--groups 1000] [--seed 1] [--naming canonical] [--distractors 2] [--out results/E0] [--tag NAME]
 //! ```
 
+mod bw;
 mod e0;
 mod e2;
 pub mod metrics;
@@ -37,6 +39,16 @@ impl Args {
     }
     pub fn u64(&self, k: &str, default: u64) -> u64 {
         self.map.get(k).map(|v| v.parse().expect("integer")).unwrap_or(default)
+    }
+    /// `--ops all|none|op1,op2` and `--severity k` → (ops, severity).
+    pub fn perturbation(&self) -> (Vec<mars_gen::PerturbOp>, usize) {
+        let sev = self.usize("severity", 0);
+        let ops = match self.str("ops", "all").as_str() {
+            "none" => vec![],
+            "all" => mars_gen::PerturbOp::ALL.to_vec(),
+            list => list.split(',').map(|s| mars_gen::PerturbOp::parse(s).unwrap_or_else(|| panic!("unknown op {s}"))).collect(),
+        };
+        (if sev == 0 { vec![] } else { ops }, sev)
     }
     pub fn f64(&self, k: &str, default: f64) -> f64 {
         self.map.get(k).map(|v| v.parse().expect("float")).unwrap_or(default)
@@ -78,6 +90,7 @@ fn main() {
     let r = match cmd.as_str() {
         "sample" => sample(&args),
         "e0" => e0::run(&args),
+        "bw" => bw::run(&args),
         "e2" => e2::run(&args),
         other => Err(format!("unknown command {other}")),
     };

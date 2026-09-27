@@ -148,6 +148,40 @@ pub fn hamming_words(a: &[u64], b: &[u64]) -> u32 {
     acc[0] + acc[1] + acc[2] + acc[3] + tail
 }
 
+/// Hamming distance, written as a single u64 reduction so LLVM can vectorize
+/// it (VPOPCNTQ on AVX-512 VPOPCNTDQ targets).
+#[inline]
+pub fn hamming_words_vec(a: &[u64], b: &[u64]) -> u32 {
+    debug_assert_eq!(a.len(), b.len());
+    a.iter().zip(b).map(|(x, y)| (x ^ y).count_ones() as u64).sum::<u64>() as u32
+}
+
+/// Explicit AVX-512 VPOPCNTQ kernel (x86-64 with avx512f + avx512vpopcntdq).
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vpopcntdq"))]
+#[inline]
+pub fn hamming_words_avx512(a: &[u64], b: &[u64]) -> u32 {
+    use std::arch::x86_64::*;
+    debug_assert_eq!(a.len(), b.len());
+    let n = a.len();
+    let mut i = 0;
+    // SAFETY: target features are enabled at compile time (cfg above); loads are unaligned-safe.
+    unsafe {
+        let mut acc = _mm512_setzero_si512();
+        while i + 8 <= n {
+            let x = _mm512_loadu_si512(a.as_ptr().add(i) as *const _);
+            let y = _mm512_loadu_si512(b.as_ptr().add(i) as *const _);
+            acc = _mm512_add_epi64(acc, _mm512_popcnt_epi64(_mm512_xor_si512(x, y)));
+            i += 8;
+        }
+        let mut total = _mm512_reduce_add_epi64(acc) as u32;
+        while i < n {
+            total += (a[i] ^ b[i]).count_ones();
+            i += 1;
+        }
+        total
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

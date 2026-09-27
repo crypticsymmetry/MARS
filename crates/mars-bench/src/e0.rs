@@ -42,10 +42,14 @@ pub struct Summary {
 }
 
 fn summarize(ds: &Dataset, scores: &GroupScores, keep: impl Fn(Family) -> bool) -> Summary {
+    summarize_groups(ds, scores, |g| keep(g.family))
+}
+
+fn summarize_groups(ds: &Dataset, scores: &GroupScores, keep: impl Fn(&mars_gen::Group) -> bool) -> Summary {
     let (mut ta, mut ma, mut fr, mut rnd) = (vec![], vec![], vec![], vec![]);
     let (mut p_ma, mut p_for, mut top) = (vec![], vec![], vec![]);
     for (g, s) in ds.groups.iter().zip(scores) {
-        if !keep(g.family) {
+        if !keep(g) {
             continue;
         }
         let get = |c: VariantClass| s.iter().filter(|x| x.0 == c).map(|x| x.1).collect::<Vec<_>>();
@@ -114,11 +118,12 @@ pub fn run(args: &Args) -> Result<(), String> {
         other => return Err(format!("unknown naming {other}")),
     };
     let distractors = args.usize("distractors", 2);
+    let (ops, severity) = args.perturbation();
     let out_dir = args.str("out", "results/E0");
     let tag = args.str("tag", &format!("{}-d{}", args.str("naming", "canonical"), distractors));
 
     let t0 = std::time::Instant::now();
-    let gcfg = GenConfig { seed, n_groups: groups, naming, distractors, ..Default::default() };
+    let gcfg = GenConfig { seed, n_groups: groups, naming, distractors, perturb_ops: ops, severity, ..Default::default() };
     let ds = generate(&gcfg);
     eprintln!("[e0] generated {} cases in {:.2?}", ds.items.len(), t0.elapsed());
 
@@ -228,24 +233,27 @@ pub fn run(args: &Args) -> Result<(), String> {
     )
     .unwrap();
     writeln!(md, "Metrics: pooled ROC-AUC of TA against MA / FOR / RND scores; per-group win rates P(TA > MA), P(TA > FOR); **TA-top** = P(TA outscores MA, FOR and all RND of its group). Ties count 1/2. LS is excluded (it is a legitimate match).\n").unwrap();
-    writeln!(md, "| method | AUC TA/MA | AUC TA/FOR | AUC TA/RND | win TA>MA | win TA>FOR | TA-top (all) | TA-top (dev fam.) | TA-top (test fam.) |").unwrap();
-    writeln!(md, "|---|---|---|---|---|---|---|---|---|").unwrap();
+    let n_disc = ds.groups.iter().filter(|g| g.discriminable(&ds)).count();
+    writeln!(md, "Discriminable groups (TA preserves more base higher-order facts than MA and FOR): {n_disc}/{}.\n", ds.groups.len()).unwrap();
+    writeln!(md, "| method | AUC TA/MA | AUC TA/FOR | AUC TA/RND | win TA>MA | win TA>FOR | TA-top (all) | TA-top (dev fam.) | TA-top (test fam.) | TA-top (discriminable) |").unwrap();
+    writeln!(md, "|---|---|---|---|---|---|---|---|---|---|").unwrap();
     let mut jmethods = Vec::new();
     for m in &methods {
         let all = summarize(&ds, &m.scores, |_| true);
         let dev = summarize(&ds, &m.scores, is_dev);
         let test = summarize(&ds, &m.scores, is_test);
+        let disc = summarize_groups(&ds, &m.scores, |g| g.discriminable(&ds));
         writeln!(
             md,
-            "| {} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} |",
-            m.name, all.auc_ma, all.auc_for, all.auc_rnd, all.win_ma, all.win_for, all.ta_top, dev.ta_top, test.ta_top
+            "| {} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} | {:.3} |",
+            m.name, all.auc_ma, all.auc_for, all.auc_rnd, all.win_ma, all.win_for, all.ta_top, dev.ta_top, test.ta_top, disc.ta_top
         )
         .unwrap();
         let fams: Vec<Value> = Family::ALL
             .iter()
             .map(|&f| json!({"family": f.name(), "summary": summary_json(&summarize(&ds, &m.scores, |x| x == f))}))
             .collect();
-        jmethods.push(json!({"method": m.name, "all": summary_json(&all), "dev": summary_json(&dev), "test": summary_json(&test), "per_family": fams}));
+        jmethods.push(json!({"method": m.name, "all": summary_json(&all), "dev": summary_json(&dev), "test": summary_json(&test), "discriminable": summary_json(&disc), "per_family": fams}));
     }
 
     // Per-family breakdown for the headline methods.
@@ -285,7 +293,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     std::fs::write(&md_path, &md).map_err(|e| e.to_string())?;
     let j = json!({
         "experiment": "E0", "tag": tag, "gen_config": gcfg, "feature_config": base_cfg,
-        "layout": layout, "methods": jmethods, "distances": jdist,
+        "layout": layout, "methods": jmethods, "distances": jdist, "n_discriminable": n_disc,
         "runtime_s": t0.elapsed().as_secs_f64(),
     });
     std::fs::write(&json_path, serde_json::to_string_pretty(&j).unwrap()).map_err(|e| e.to_string())?;

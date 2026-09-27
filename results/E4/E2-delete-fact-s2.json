@@ -1,0 +1,129 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "DeleteFact"
+    ],
+    "seed": 1,
+    "severity": 2
+  },
+  "runtime_s": 0.309316988,
+  "splits": [
+    {
+      "ci_recall": 0.433,
+      "ci_struct_precision": 0.1962283384301733,
+      "fac_ta_top": 0.5885,
+      "fac_win_for": 0.699,
+      "fac_win_ma": 0.686,
+      "fp_ta_top": 0.515,
+      "fused_ta_top": 0.576,
+      "greedy_over_optimal": 0.9965222714888247,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n": 1000,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 0.9817666666666667,
+      "ta_r": 0.8317500000000001
+    },
+    {
+      "ci_recall": 0.4527972027972028,
+      "ci_struct_precision": 0.21187139323990106,
+      "fac_ta_top": 0.6013986013986014,
+      "fac_win_for": 0.7115384615384616,
+      "fac_win_ma": 0.6958041958041958,
+      "fp_ta_top": 0.5122377622377622,
+      "fused_ta_top": 0.5734265734265734,
+      "greedy_over_optimal": 0.9952333658990734,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n": 572,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 0.9746503496503495,
+      "ta_r": 0.7917249417249431
+    },
+    {
+      "ci_recall": 0.40654205607476634,
+      "ci_struct_precision": 0.17089452603471295,
+      "fac_ta_top": 0.5712616822429907,
+      "fac_win_for": 0.6822429906542056,
+      "fac_win_ma": 0.6728971962616822,
+      "fp_ta_top": 0.5186915887850467,
+      "fused_ta_top": 0.5794392523364486,
+      "greedy_over_optimal": 0.998244827557371,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n": 428,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 0.9912772585669782,
+      "ta_r": 0.885241433021808
+    },
+    {
+      "ci_recall": 0.961340206185567,
+      "ci_struct_precision": 0.3623336745138178,
+      "fac_ta_top": 0.9742268041237113,
+      "fac_win_for": 0.979381443298969,
+      "fac_win_ma": 0.9922680412371134,
+      "fp_ta_top": 0.9020618556701031,
+      "fused_ta_top": 0.9819587628865979,
+      "greedy_over_optimal": 0.9995486127267241,
+      "ls_p": 1.0,
+      "ls_r": 0.9940721649484536,
+      "n": 388,
+      "n_optimal": 388,
+      "split": "discriminable",
+      "ta_p": 0.9969072164948454,
+      "ta_r": 0.8965635738831621
+    }
+  ],
+  "tag": "delete-fact-s2",
+  "timing": [
+    {
+      "hi": 20,
+      "lo": 0,
+      "mean_us": 7.658249999999999,
+      "n": 52,
+      "p95_us": 10.584999999999999
+    },
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 11.91706323024055,
+      "n": 1455,
+      "p95_us": 18.018
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 18.98594886363635,
+      "n": 1232,
+      "p95_us": 28.629
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 28.95133333333333,
+      "n": 261,
+      "p95_us": 40.899
+    }
+  ]
+}
