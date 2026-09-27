@@ -1,0 +1,87 @@
+{
+ "retrieval": [
+  {
+   "retriever": "lexical TF-IDF",
+   "r1": 0.058333333333333334,
+   "r5": 0.20555555555555555,
+   "r10": 0.31666666666666665,
+   "mrr50": 0.12832104383142653,
+   "analogy_above_noun": 0.15555555555555556
+  },
+  {
+   "retriever": "sentence embedding (bge-small)",
+   "r1": 0.04722222222222222,
+   "r5": 0.1,
+   "r10": 0.16111111111111112,
+   "mrr50": 0.0828294393284683,
+   "analogy_above_noun": 0.10833333333333334
+  },
+  {
+   "retriever": "MARS analogy \u2212 0.5\u00b7surface",
+   "r1": 0.06944444444444445,
+   "r5": 0.12777777777777777,
+   "r10": 0.16666666666666666,
+   "mrr50": 0.10055162741476847,
+   "analogy_above_noun": 0.26944444444444443
+  },
+  {
+   "retriever": "MARS fingerprint analogy",
+   "r1": 0.075,
+   "r5": 0.13055555555555556,
+   "r10": 0.16944444444444445,
+   "mrr50": 0.1075954365411723,
+   "analogy_above_noun": 0.2833333333333333
+  },
+  {
+   "retriever": "MARS fused FAC + (analogy \u2212 0.5\u00b7surface)",
+   "r1": 0.06666666666666667,
+   "r5": 0.1361111111111111,
+   "r10": 0.175,
+   "mrr50": 0.10105115988904861,
+   "analogy_above_noun": 0.275
+  },
+  {
+   "retriever": "MARS fused FAC + fingerprint analogy",
+   "r1": 0.06666666666666667,
+   "r5": 0.14166666666666666,
+   "r10": 0.17777777777777778,
+   "mrr50": 0.10280972239795373,
+   "analogy_above_noun": 0.2833333333333333
+  },
+  {
+   "retriever": "RRF(MARS fused, lexical)",
+   "r1": 0.10833333333333334,
+   "r5": 0.22777777777777777,
+   "r10": 0.3111111111111111,
+   "mrr50": 0.18047490983884187,
+   "analogy_above_noun": 0.2722222222222222
+  }
+ ],
+ "verification": [
+  {
+   "retriever": "lexical TF-IDF",
+   "in_topk": 0.31666666666666665,
+   "end_to_end": 0.2111111111111111,
+   "picks_noun": 0.09722222222222222
+  },
+  {
+   "retriever": "sentence embedding (bge-small)",
+   "in_topk": 0.16111111111111112,
+   "end_to_end": 0.08888888888888889,
+   "picks_noun": 0.13055555555555556
+  },
+  {
+   "retriever": "MARS fused FAC + fingerprint analogy",
+   "in_topk": 0.17777777777777778,
+   "end_to_end": 0.14722222222222223,
+   "picks_noun": 0.03888888888888889
+  },
+  {
+   "retriever": "RRF(MARS fused, lexical)",
+   "in_topk": 0.3111111111111111,
+   "end_to_end": 0.2222222222222222,
+   "picks_noun": 0.08055555555555556
+  }
+ ],
+ "k": 10
+}
