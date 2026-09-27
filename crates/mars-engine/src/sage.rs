@@ -58,7 +58,61 @@ pub struct Generalization {
     pub case: CaseId,
     /// Stable id (names are derived from it; indices change on merges).
     pub id: usize,
+    /// Labeled near-misses: cases that resemble the schema but are *not*
+    /// instances of it (E20).
+    pub near_misses: Vec<CaseId>,
     next_entity: usize,
+}
+
+/// A near-miss-trained test for membership in a generalization (E20): each
+/// schema fact weighted by how much better it separates members from
+/// near-misses, P(matched | member) − P(matched | near-miss).
+#[derive(Clone, Debug)]
+pub struct Diagnostic {
+    pub schema: CaseId,
+    /// (schema fact, emphasis ≥ 0)
+    pub weights: Vec<(ExprId, f64)>,
+    /// Midpoint between the members' and the near-misses' mean scores.
+    pub threshold: f64,
+}
+
+impl Diagnostic {
+    /// Train on labeled positives and near-misses of `schema`.
+    pub fn train(kb: &Kb, map: &MapConfig, schema: CaseId, positives: &[CaseId], near_misses: &[CaseId]) -> Diagnostic {
+        use std::collections::HashSet;
+        let pm: Vec<HashSet<ExprId>> = positives.iter().map(|&x| matched_facts(kb, map, schema, x)).collect();
+        let nm: Vec<HashSet<ExprId>> = near_misses.iter().map(|&x| matched_facts(kb, map, schema, x)).collect();
+        let frac = |ms: &[HashSet<ExprId>], f: &ExprId| ms.iter().filter(|m| m.contains(f)).count() as f64 / ms.len().max(1) as f64;
+        let weights: Vec<(ExprId, f64)> = kb.case(schema).facts.iter().map(|f| (*f, (frac(&pm, f) - frac(&nm, f)).max(0.0))).collect();
+        let total: f64 = weights.iter().map(|w| w.1).sum();
+        let score = |m: &HashSet<ExprId>| if total == 0.0 { 0.0 } else { weights.iter().filter(|w| m.contains(&w.0)).map(|w| w.1).sum::<f64>() / total };
+        let mean = |v: &[HashSet<ExprId>]| v.iter().map(score).sum::<f64>() / v.len().max(1) as f64;
+        let threshold = (mean(&pm) + mean(&nm)) / 2.0;
+        Diagnostic { schema, weights, threshold }
+    }
+
+    /// Weighted fraction of emphasized schema facts that `x` matches.
+    pub fn score(&self, kb: &Kb, map: &MapConfig, x: CaseId) -> f64 {
+        let matched = matched_facts(kb, map, self.schema, x);
+        let total: f64 = self.weights.iter().map(|w| w.1).sum();
+        if total == 0.0 {
+            return 0.0;
+        }
+        self.weights.iter().filter(|w| matched.contains(&w.0)).map(|w| w.1).sum::<f64>() / total
+    }
+
+    pub fn accepts(&self, kb: &Kb, map: &MapConfig, x: CaseId) -> bool {
+        self.score(kb, map, x) >= self.threshold
+    }
+}
+
+/// Facts of `base` that the best mapping base → target places in correspondence.
+fn matched_facts(kb: &Kb, map: &MapConfig, base: CaseId, target: CaseId) -> std::collections::HashSet<ExprId> {
+    let facts: std::collections::HashSet<ExprId> = kb.case(base).facts.iter().copied().collect();
+    Mapper::new(kb, map.clone())
+        .best(base, target)
+        .map(|m| m.correspondences.iter().filter_map(|(b, _)| if let Term::Expr(e) = b { facts.contains(e).then_some(*e) } else { None }).collect())
+        .unwrap_or_default()
 }
 
 impl Generalization {
@@ -232,7 +286,7 @@ impl Sage {
             facts.push((g, 1u32));
         }
         let case = kb.add_case(&format!("{ns}{id}"), CaseKind::Schema, facts.iter().map(|x| x.0));
-        self.gens.push(Generalization { facts, members: vec![a], case, id, next_entity: next });
+        self.gens.push(Generalization { facts, members: vec![a], case, id, near_misses: Vec::new(), next_entity: next });
         gi
     }
 
@@ -333,6 +387,22 @@ impl Sage {
         (absorbed, merged)
     }
 
+    /// Record `x` as a near-miss of generalization `gi`.
+    pub fn add_near_miss(&mut self, gi: usize, x: CaseId) {
+        self.gens[gi].near_misses.push(x);
+    }
+
+    /// Membership test for generalization `gi` trained on its members and
+    /// near-misses (`positives` overrides the member list, e.g. to include
+    /// labeled positives that were not assimilated). `None` without near-misses.
+    pub fn diagnostic(&self, kb: &Kb, gi: usize, positives: Option<&[CaseId]>) -> Option<Diagnostic> {
+        let g = &self.gens[gi];
+        if g.near_misses.is_empty() {
+            return None;
+        }
+        Some(Diagnostic::train(kb, &self.cfg.map, g.case, positives.unwrap_or(&g.members), &g.near_misses))
+    }
+
     /// Merge generalization `from` into `into` (then remove `from`).
     fn merge(&mut self, kb: &mut Kb, from: usize, into: usize) {
         let (fcase, icase) = (self.gens[from].case, self.gens[into].case);
@@ -364,6 +434,8 @@ impl Sage {
         self.gens[into].next_entity = next;
         let members = std::mem::take(&mut self.gens[from].members);
         self.gens[into].members.extend(members);
+        let nms = std::mem::take(&mut self.gens[from].near_misses);
+        self.gens[into].near_misses.extend(nms);
         let n = self.gens[into].members.len() as f64;
         if self.gens[into].members.len() >= self.cfg.min_members {
             let drop = self.cfg.drop_below;
@@ -442,4 +514,42 @@ mod tests {
         // Schema view (p ≥ 0.5) contains exactly the core.
         assert_eq!(kb.case(g.case).facts.len(), 3, "{}", kb.render_case(g.case));
     }
+
+    #[test]
+    fn near_miss_emphasis_rejects_rewired_structure() {
+        // Members share causal structure A→B→C; the near-miss has the same
+        // first-order facts but the causal link C→A instead.
+        let mut kb = Kb::new();
+        kb.load_str(
+            r#"(defpredicate cause :arity 2 :kind relation)
+               (defcase a (push a1 a2) (move a2 a3) (heat a3 a1) (cause (push a1 a2) (move a2 a3)) (cause (move a2 a3) (heat a3 a1)))
+               (defcase b (push b1 b2) (move b2 b3) (heat b3 b1) (cause (push b1 b2) (move b2 b3)) (cause (move b2 b3) (heat b3 b1)))
+               (defcase c (push c1 c2) (move c2 c3) (heat c3 c1) (cause (push c1 c2) (move c2 c3)) (cause (move c2 c3) (heat c3 c1)))
+               (defcase nm (push n1 n2) (move n2 n3) (heat n3 n1) (cause (heat n3 n1) (push n1 n2)) (cause (move n2 n3) (heat n3 n1)))
+               (defcase nm2 (push m1 m2) (move m2 m3) (heat m3 m1) (cause (heat m3 m1) (push m1 m2)) (cause (move m2 m3) (heat m3 m1)))
+               (defcase d (push d1 d2) (move d2 d3) (heat d3 d1) (cause (push d1 d2) (move d2 d3)) (cause (move d2 d3) (heat d3 d1)))"#,
+        )
+        .unwrap();
+        let id = |kb: &Kb, n: &str| kb.case_by_name(n).unwrap();
+        let cases: Vec<CaseId> = ["a", "b", "c"].iter().map(|n| id(&kb, n)).collect();
+        let stats = {
+            let fx = FeatureExtractor::new(&kb, FeatureConfig::default());
+            FeatureStats::fit(cases.iter().map(|&c| fx.extract(c)).collect::<Vec<_>>().iter())
+        };
+        let mut sage = Sage::new(SageConfig::default(), stats, Sketcher::new(Layout::default(), 1), FeatureConfig::default());
+        for &c in &cases {
+            sage.add(&mut kb, c);
+        }
+        assert_eq!(sage.gens.len(), 1);
+        assert!(sage.diagnostic(&kb, 0, None).is_none());
+        sage.add_near_miss(0, id(&kb, "nm"));
+        let d = sage.diagnostic(&kb, 0, None).unwrap();
+        // The emphasized fact is the causal link the near-miss lacks.
+        let top = d.weights.iter().max_by(|a, b| a.1.total_cmp(&b.1)).unwrap();
+        assert!(kb.render_expr(top.0).starts_with("(cause (push"), "{}", kb.render_expr(top.0));
+        let map = MapConfig::default();
+        assert!(d.accepts(&kb, &map, id(&kb, "d")));
+        assert!(!d.accepts(&kb, &map, id(&kb, "nm2")));
+    }
+
 }

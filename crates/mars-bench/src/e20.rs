@@ -25,7 +25,7 @@
 use crate::metrics::mean;
 use crate::Args;
 use mars_encode::{FeatureConfig, FeatureExtractor, FeatureStats, Layout, Sketcher};
-use mars_engine::sage::{Sage, SageConfig};
+use mars_engine::sage::{Diagnostic, Sage, SageConfig};
 use mars_gen::{concept_instances, GenConfig, Naming, PerturbOp};
 use mars_map::{MapConfig, Mapper};
 use mars_rel::{CaseId, ExprId, Kb, Term};
@@ -119,24 +119,8 @@ pub fn run(args: &Args) -> Result<(), String> {
                 let frac = |m: &HashSet<ExprId>| if crit.is_empty() { 1.0 } else { crit.iter().filter(|f| m.contains(f)).count() as f64 / crit.len() as f64 };
                 let tau = pos_train.iter().map(|(_, m)| frac(m)).fold(f64::INFINITY, f64::min);
                 critical.push((crit.len(), crit.iter().filter(|&&f| kb.order(f) >= 2).count()));
-                // D: emphasis weights from positives vs near-misses.
-                let w: Vec<(ExprId, f64)> = schema_facts
-                    .iter()
-                    .map(|f| {
-                        let pp = pos_train.iter().filter(|(_, m)| m.contains(f)).count() as f64 / p_train as f64;
-                        let pn = if k == 0 { 0.0 } else { nm_maps.iter().filter(|m| m.contains(f)).count() as f64 / k as f64 };
-                        (*f, (pp - pn).max(0.0))
-                    })
-                    .collect();
-                let wsum: f64 = w.iter().map(|x| x.1).sum();
-                let dscore = |m: &HashSet<ExprId>| if wsum == 0.0 { 0.0 } else { w.iter().filter(|x| m.contains(&x.0)).map(|x| x.1).sum::<f64>() / wsum };
-                let d_theta = if k == 0 {
-                    None
-                } else {
-                    let mp_ = mean(&pos_train.iter().map(|(_, m)| dscore(m)).collect::<Vec<_>>());
-                    let mn_ = mean(&nm_maps.iter().map(&dscore).collect::<Vec<_>>());
-                    Some((mp_ + mn_) / 2.0)
-                };
+                // D: emphasis weights (mars_engine::sage::Diagnostic).
+                let diag = (k > 0).then(|| Diagnostic::train(&kb, &MapConfig::default(), s, &p[..p_train], &n[..k]));
                 let labeled: Vec<(CaseId, bool)> = p[..p_train].iter().map(|&x| (x, true)).chain(n[..k].iter().map(|&x| (x, false))).collect();
                 let mut c3 = [(0usize, 0usize, 0usize, 0usize); 4];
                 for (ti, &(x, label)) in tests.iter().enumerate() {
@@ -144,8 +128,8 @@ pub fn run(args: &Args) -> Result<(), String> {
                     let a = *score >= theta;
                     let b = a && frac(m) >= tau;
                     let c = labeled.iter().map(|&(y, l)| (fac(y, x), l)).max_by(|u, v| u.0.total_cmp(&v.0).then(v.1.cmp(&u.1))).map(|u| u.1).unwrap_or(true);
-                    let d = match d_theta {
-                        Some(t) => dscore(m) >= t,
+                    let d = match &diag {
+                        Some(dg) => dg.accepts(&kb, &MapConfig::default(), x),
                         None => a,
                     };
                     for (j, pred) in [a, b, c, d].into_iter().enumerate() {

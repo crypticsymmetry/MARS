@@ -19,7 +19,6 @@ Latest:
 
 Candidate next steps:
 1. Indexed SAGE candidate scan.
-2. Per-fact near-miss emphasis in SAGE (E20).
 
 ## Task board
 
@@ -71,7 +70,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] Reverse index over standing queries (for ≥ 10³ SQs)
 - [x] P6 `mars-engine::sage`: SAGE-style generalization (assimilation threshold, fact probabilities, wear-away, schema materialization), sleep consolidation (outlier re-offer + merge); E7 → [results/E7](../results/E7/README.md). **H4 supported** for few-shot inference
 - [x] **E20 near-miss learning** (`mars_gen::concept_instances`) → [results/E20](../results/E20/README.md): schema thresholds accept ~half of structural near-misses; hard Winston must-have rules fail under noise; soft emphasis weights (P(match|pos) − P(match|near-miss)) beat 1-NN with 1–2 near-misses (+0.04–0.09 balanced accuracy, 3 seeds, 2 severities), tie at 5
-- [ ] Per-fact emphasis in SAGE generalizations (from near-misses; E20)
+- [x] Near-miss emphasis in SAGE: `Generalization::near_misses`, `Sage::add_near_miss`, `Sage::diagnostic`, `sage::Diagnostic::{train, score, accepts}` (E20's classifier D now runs through it; identical results; unit test)
 - [x] **E15 schema-level retrieval vs corroboration** → [results/E15](../results/E15/README.md): schemas *complement* instances (instances + schemas best at 10³ and 10⁴; R@P≥0.6 0.45–0.48 vs 0.39 at 10⁴); schema-only pools collapse at scale (purity 0.96 → 0.87 at fixed θ); schema fact probability is uncalibrated, corroboration is; coverage assimilation negative
 - [x] **E16 match significance** → [results/E16](../results/E16/README.md): a local-null z (top-1 vs the tail of its own candidate list) keeps precision 0.90–0.95 from 10³ to 10⁶ cases with a fixed threshold; raw scores fall to 0.44 and accept 79% of absent-template queries. `Engine::query_significance`, `SIGNIFICANT_Z`, `serve` abstains
 - [x] E16 addendum → [results/E16](../results/E16/README.md#addendum-can-recall-at-10-be-recovered): recall at 10⁶ is information-limited (local z ≈ E-value over the whole memory); sibling pooling (Stouffer) recovers +3 points (0.492 → 0.523 at precision 0.945); sibling count alone is uninformative
