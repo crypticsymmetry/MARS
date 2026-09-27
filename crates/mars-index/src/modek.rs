@@ -175,42 +175,44 @@ impl ModeK {
         self.search_batch(&[q], s, k).pop().unwrap()
     }
 
-    /// Batched exhaustive search: rows are processed in cache-sized tiles,
-    /// each tile scored against every query before moving on.
-    pub fn search_batch(&self, queries: &[&[u64]], s: &Scorer, k: usize) -> Vec<Vec<Hit>> {
+    /// Score rows `lo..hi` against every query, in L1-sized tiles.
+    fn scan(&self, queries: &[&[u64]], s: &Scorer, k: usize, lo: usize, hi: usize) -> Vec<TopK> {
         const TILE: usize = 32;
-        const CHUNK: usize = TILE * 128;
+        let mut tops: Vec<TopK> = (0..queries.len()).map(|_| TopK::new(k)).collect();
+        let mut t = lo;
+        while t < hi {
+            let te = (t + TILE).min(hi);
+            for (qi, q) in queries.iter().enumerate() {
+                let top = &mut tops[qi];
+                // Integer admission threshold: skip rows that cannot enter the top-k.
+                let mut thr = u64::MAX;
+                if let Some(th) = top.threshold() {
+                    thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
+                }
+                for r in t..te {
+                    let d = self.wdist(s, q, r);
+                    if d > thr {
+                        continue;
+                    }
+                    top.push(r as u32, s.base - (d as f64 / QSCALE) as f32);
+                    if let Some(th) = top.threshold() {
+                        thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
+                    }
+                }
+            }
+            t = te;
+        }
+        tops
+    }
+
+    /// Batched exhaustive search, parallel over row chunks: each L1-sized
+    /// tile of rows is scored against every query before moving on.
+    pub fn search_batch(&self, queries: &[&[u64]], s: &Scorer, k: usize) -> Vec<Vec<Hit>> {
+        const CHUNK: usize = 4096;
         let nq = queries.len();
         let n_chunks = self.n.div_ceil(CHUNK);
-        let partials: Vec<Vec<TopK>> = (0..n_chunks)
-            .into_par_iter()
-            .map(|ch| {
-                let mut tops: Vec<TopK> = (0..nq).map(|_| TopK::new(k)).collect();
-                let lo = ch * CHUNK;
-                let hi = ((ch + 1) * CHUNK).min(self.n);
-                let mut t = lo;
-                while t < hi {
-                    let te = (t + TILE).min(hi);
-                    for (qi, q) in queries.iter().enumerate() {
-                        let top = &mut tops[qi];
-                        // Integer admission threshold: skip rows that cannot enter the top-k.
-                        let mut thr = u64::MAX;
-                        for r in t..te {
-                            let d = self.wdist(s, q, r);
-                            if d > thr {
-                                continue;
-                            }
-                            top.push(r as u32, s.base - (d as f64 / QSCALE) as f32);
-                            if let Some(th) = top.threshold() {
-                                thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
-                            }
-                        }
-                    }
-                    t = te;
-                }
-                tops
-            })
-            .collect();
+        let partials: Vec<Vec<TopK>> =
+            (0..n_chunks).into_par_iter().map(|ch| self.scan(queries, s, k, ch * CHUNK, ((ch + 1) * CHUNK).min(self.n))).collect();
         let mut out: Vec<TopK> = (0..nq).map(|_| TopK::new(k)).collect();
         for p in partials {
             for (o, t) in out.iter_mut().zip(p) {
@@ -218,6 +220,16 @@ impl ModeK {
             }
         }
         out.into_iter().map(TopK::into_sorted).collect()
+    }
+
+    /// Single-threaded batched search (for use inside parallel callers).
+    pub fn search_batch_serial(&self, queries: &[&[u64]], s: &Scorer, k: usize) -> Vec<Vec<Hit>> {
+        self.scan(queries, s, k, 0, self.n).into_iter().map(TopK::into_sorted).collect()
+    }
+
+    /// Single-threaded single-query search.
+    pub fn search_serial(&self, q: &[u64], s: &Scorer, k: usize) -> Vec<Hit> {
+        self.search_batch_serial(&[q], s, k).pop().unwrap()
     }
 }
 

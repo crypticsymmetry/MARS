@@ -4,7 +4,7 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**P3 done → P4/P5.** H0, H1 and H2 hold on synthetic data up to 10⁶ cases (E0, E3), the mapper is validated (E2), and robustness is characterized (E4). The open weakness is partial analogues degrading with corpus size (E3 finding 5). Next: SDM modes (P4, keep/drop gate E5), then incremental maintenance + TMS (P5, E6), then schemas (P6), which may also address the scaling weakness.
+**P5 next.** H0, H1 and H2 hold on synthetic data up to 10⁶ cases (E0, E3); the mapper is validated (E2); robustness is characterized (E4); SDM failed its gate and is dropped from the core (E5). Open weakness: partial analogues degrade with corpus size (E3 finding 5). Next: incremental maintenance + JTMS + standing queries (P5, E6), then schemas/consolidation (P6), which may also address the scaling weakness.
 
 ## Task board
 
@@ -35,7 +35,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] E4 perturbation robustness → [results/E4](../results/E4/README.md)
 - [x] E3 end-to-end MAC→FAC (fused re-rank) at 10⁴–10⁶ with sparse baselines (B2/B4/B5) and exhaustive upper bound → [results/E3](../results/E3/README.md)
 - [ ] Cascade (1024-bit pre-scan), MIH / IVF comparisons (needed only at ≥10⁷)
-- [ ] P4 SDM modes; E5 (keep/drop gate)
+- [x] P4 SDM: Mode B (buckets; random / data / k-means addresses), Mode A (autoassociative i16 counters, parallel batch writes); E5 → [results/E5](../results/E5/README.md). **G4: SDM dropped from core** (learned-address buckets kept as IVF)
 - [ ] P5 TMS, event log, standing queries; E6
 - [ ] P6 consolidation (SAGE-style), near-miss memory; E7
 - [ ] P7 real data (Karla, ARN), program analogy; E8/E9
@@ -53,6 +53,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | **G4: SDM Mode A and random-address SDM dropped from the core**; learned-address buckets (= IVF) kept as the sublinear index | E5: random addresses fail (R@64 ≤ 0.8 at 19% scanned); Mode A cleanup destroys partial cues at 10⁵ load; SDM prototypes ≈ kNN-bundle(50) |
 | 2026-09-27 | **FAC re-ranks with a fused score** ½·normalized structural score + ½·fingerprint profile score | E4: MAC and FAC fail in complementary ways (role noise vs spurious additions); fusion ≥ both, 0.96–1.00 on discriminable groups |
 | 2026-09-27 | Mode K integer-weighted fused kernel, TILE = 32 rows | 1.7–2× over the per-segment kernel; TILE 32 best among 32/64/256 |
 | 2026-09-27 | Generator re-wiring check sorts commutative (`and`) arguments | E2 found ~7% of deep-ho FOR/MA variants were isomorphic to the base (label noise), which explained the deep-ho "ceiling" in E0 and E2 |
@@ -64,5 +65,6 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E5 | 2026-09-27 | 100K corpus; 100 templates × 100 instances | k-means buckets R@64 1.000 at 0.47% scanned (random addresses ≤ 0.8); Mode A cleanup 0.02 vs 0.95 raw; SDM prototype 0.713 ≈ kNN-bundle 0.704 → SDM dropped | [results/E5](../results/E5/README.md) |
 | E3 | 2026-09-27 | 10⁴/10⁵/10⁶ cases, 1000 queries, severity 0–2 | clean: fused acc@1 0.994 at 10⁶, TA in top-64 100%; MAC content vectors 0.35 at 10⁵; pipeline = exhaustive-FAC bound at 1/1100 the cost; partial analogues degrade with N (0.91→0.75) | [results/E3](../results/E3/README.md) |
 | E2 | 2026-09-27 | 1000 groups, distractors 0/2/5/10 | entity corr. P≈1.0 R≈0.99; FAC TA-top 1.000; greedy = optimal; deleted-fact re-inference 0.99 (0.92 at d=10); 16–38 µs/pair | [results/E2](../results/E2/README.md) |

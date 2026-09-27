@@ -210,6 +210,10 @@ impl Builder<'_> {
     }
 
     fn make_case(&mut self, name: &str, t: &Template, s: &Surface, rng: &mut Rng) -> CaseId {
+        self.make_case_d(name, t, s, rng, self.cfg.distractors)
+    }
+
+    fn make_case_d(&mut self, name: &str, t: &Template, s: &Surface, rng: &mut Rng, distractors: usize) -> CaseId {
         let mut facts = self.instantiate(t, s);
         for &(a, v) in &s.attrs {
             facts.push(self.kb.intern_expr(a, [Term::Ent(s.entities[v])]));
@@ -224,7 +228,7 @@ impl Builder<'_> {
                 break;
             }
         }
-        for _ in 0..self.cfg.distractors {
+        for _ in 0..distractors {
             let p = self.fos[rng.index(self.fos.len())];
             let f = self.kb.sym(&vocab::surface_pred(self.cfg.naming, d, p));
             let ij = rng.sample_indices(pool.len(), 2);
@@ -291,6 +295,41 @@ pub fn generate(cfg: &GenConfig) -> Dataset {
         templates.push(t);
     }
     Dataset { kb: b.kb, items, groups, templates, config: cfg.clone() }
+}
+
+/// Many noisy instances of a few hidden templates (for prototype / schema
+/// experiments). Each template also gets one *clean* instance (no
+/// distractors, no perturbation) that serves as its reference prototype.
+pub struct InstanceSet {
+    pub kb: Kb,
+    /// (case, template index, is_clean)
+    pub cases: Vec<(CaseId, usize, bool)>,
+    pub templates: Vec<Template>,
+}
+
+pub fn template_instances(cfg: &GenConfig, n_templates: usize, per_template: usize) -> InstanceSet {
+    let mut kb = Kb::new();
+    vocab::declare_vocabulary(&mut kb, cfg.naming);
+    let mut b = Builder { kb, cfg, fos: fo_predicates() };
+    let mut cases = Vec::new();
+    let mut templates = Vec::new();
+    for ti in 0..n_templates {
+        let mut rng = Rng::derive(cfg.seed ^ 0x1257, ti as u64);
+        let t = template::generate(cfg.families[ti % cfg.families.len()], &mut rng);
+        let d = rng.index(DOMAINS.len());
+        let s = b.fresh_surface(&mut rng, d, t.n_vars);
+        let clean = b.make_case_d(&format!("t{ti}-clean"), &t, &s, &mut rng, 0);
+        cases.push((clean, ti, true));
+        for j in 0..per_template {
+            let tp = template::perturb(&t, &cfg.perturb_ops, cfg.severity, &mut rng);
+            let d = rng.index(DOMAINS.len());
+            let s = b.fresh_surface(&mut rng, d, tp.n_vars);
+            let c = b.make_case(&format!("t{ti}-i{j}"), &tp, &s, &mut rng);
+            cases.push((c, ti, false));
+        }
+        templates.push(t);
+    }
+    InstanceSet { kb: b.kb, cases, templates }
 }
 
 #[cfg(test)]
