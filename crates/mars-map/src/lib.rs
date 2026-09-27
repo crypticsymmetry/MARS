@@ -4,7 +4,7 @@ pub mod bitset;
 pub mod mapper;
 
 pub use bitset::BitSet;
-pub use mapper::{CandidateInference, Grounding, Kernel, MapConfig, Mapper, Mapping, MatchSet, Mh, Proj};
+pub use mapper::{predicate_idf, CandidateInference, Grounding, Kernel, MapConfig, Mapper, Mapping, MatchSet, Mh, Proj};
 
 #[cfg(test)]
 mod tests {

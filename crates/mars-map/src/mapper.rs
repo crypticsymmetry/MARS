@@ -34,6 +34,9 @@ pub struct MapConfig {
     pub max_mappings: usize,
     /// Safety cap on the number of MHs per pair.
     pub max_mhs: usize,
+    /// Optional informativeness weight per structural functor, multiplied
+    /// into the local score of relation MHs (e.g. normalized IDF). `None` = 1.
+    pub pred_weights: Option<std::sync::Arc<FxHashMap<Sym, f32>>>,
 }
 
 impl Default for MapConfig {
@@ -46,6 +49,7 @@ impl Default for MapConfig {
             include_attributes: false,
             max_mappings: 3,
             max_mhs: 50_000,
+            pred_weights: None,
         }
     }
 }
@@ -309,12 +313,14 @@ impl<'a> Mapper<'a> {
             }
         }
         let mut b = Builder { kb, cfg: &self.cfg, mhs: Vec::new(), index: FxHashMap::default(), truncated: false };
+        let weight = |f: Sym| -> f32 { self.cfg.pred_weights.as_ref().and_then(|w| w.get(&f).copied()).unwrap_or(1.0) };
         // Post-order: children before parents, so child MHs exist when needed.
         for &be in &bexprs {
             let f = kb.vocab.structural(kb.expr(be).functor);
+            let wf = weight(f);
             if let Some(ts) = by_fun.get(&f) {
                 for &te in ts {
-                    b.try_pair(be, te, 1.0);
+                    b.try_pair(be, te, wf);
                 }
             }
             if self.cfg.ascension && kb.vocab.kind(f) == PredKind::Relation {
@@ -322,7 +328,7 @@ impl<'a> Mapper<'a> {
                     if let Some(ts) = by_parent.get(&p) {
                         for &te in ts {
                             if kb.vocab.structural(kb.expr(te).functor) != f {
-                                b.try_pair(be, te, self.cfg.ascension_score);
+                                b.try_pair(be, te, self.cfg.ascension_score * wf);
                             }
                         }
                     }
@@ -616,4 +622,23 @@ fn project(kb: &Kb, t: Term, fwd: &FxHashMap<Term, Term>, has_skolem: &mut bool)
             Proj::Expr { functor: ex.functor, args: ex.args.iter().map(|a| project(kb, *a, fwd, has_skolem)).collect() }
         }
     }
+}
+
+/// Normalized IDF weights over structural functors: `idf(p) / mean idf`,
+/// where df(p) = number of cases containing p (structural name).
+pub fn predicate_idf(kb: &Kb, cases: &[CaseId]) -> FxHashMap<Sym, f32> {
+    let mut df: FxHashMap<Sym, u32> = FxHashMap::default();
+    for &c in cases {
+        let mut seen = FxHashSet::default();
+        for e in kb.case_exprs(c) {
+            let f = kb.vocab.structural(kb.expr(e).functor);
+            if seen.insert(f) {
+                *df.entry(f).or_insert(0) += 1;
+            }
+        }
+    }
+    let n = cases.len() as f64;
+    let idf: FxHashMap<Sym, f64> = df.iter().map(|(&p, &d)| (p, ((n + 1.0) / (d as f64 + 1.0)).ln() + 1.0)).collect();
+    let mean = idf.values().sum::<f64>() / idf.len().max(1) as f64;
+    idf.into_iter().map(|(p, v)| (p, (v / mean) as f32)).collect()
 }

@@ -611,3 +611,78 @@ pub fn overlap(a: &[String], b: &[String]) -> usize {
     }
     n
 }
+
+/// Compose several templates into one: variables are renumbered disjointly
+/// except that each template's first variable is identified with the
+/// previous template's last variable (so the result is connected). Nodes are
+/// reordered so every first-order-level node precedes the higher-order layer
+/// (required by `rewire`).
+pub fn compose(parts: &[Template]) -> Template {
+    assert!(!parts.is_empty());
+    let mut nodes: Vec<TNode> = Vec::new();
+    let mut var_off = 0usize;
+    let mut n_vars = 0usize;
+    for (pi, t) in parts.iter().enumerate() {
+        let node_off = nodes.len();
+        // Share one variable with the previous part.
+        let shift = |v: usize| -> usize {
+            if pi > 0 && v == 0 {
+                var_off - 1
+            } else {
+                var_off + v - usize::from(pi > 0)
+            }
+        };
+        for n in &t.nodes {
+            let args = n.args.iter().map(|a| match *a {
+                TArg::Var(v) => TArg::Var(shift(v)),
+                TArg::Node(c) => TArg::Node(c + node_off),
+            }).collect();
+            nodes.push(TNode { pred: n.pred, args });
+        }
+        let used = t.n_vars - usize::from(pi > 0);
+        var_off += used;
+        n_vars = var_off;
+    }
+    // Stable partition: first-order level + helper function terms first.
+    let first = |n: &TNode| n.pred.is_fo_level() || matches!(n.pred, PredRef::Func(_));
+    let order: Vec<usize> = (0..nodes.len()).filter(|&i| first(&nodes[i])).chain((0..nodes.len()).filter(|&i| !first(&nodes[i]))).collect();
+    let mut remap = vec![0usize; nodes.len()];
+    for (new, &old) in order.iter().enumerate() {
+        remap[old] = new;
+    }
+    let mut out: Vec<TNode> = order.iter().map(|&i| nodes[i].clone()).collect();
+    for n in out.iter_mut() {
+        for a in n.args.iter_mut() {
+            if let TArg::Node(c) = a {
+                *c = remap[*c];
+            }
+        }
+    }
+    // Topological sanity: first-order nodes only reference function terms,
+    // which sit in the same (earlier) block in original relative order.
+    Template { family: parts[0].family, n_vars, nodes: out }
+}
+
+#[cfg(test)]
+mod compose_tests {
+    use super::*;
+
+    #[test]
+    fn composed_templates_are_valid_and_rewirable() {
+        let mut rng = Rng::new(11);
+        for _ in 0..100 {
+            let parts: Vec<Template> = (0..3).map(|i| generate(Family::ALL[(i * 3) % 7], &mut rng)).collect();
+            let c = compose(&parts);
+            assert_eq!(c.nodes.len(), parts.iter().map(|p| p.nodes.len()).sum::<usize>());
+            for (i, n) in c.nodes.iter().enumerate() {
+                for a in &n.args {
+                    match *a {
+                        TArg::Node(x) => assert!(x < i, "not topological"),
+                        TArg::Var(v) => assert!(v < c.n_vars),
+                    }
+                }
+            }
+            assert!(rewire(&c, &mut rng).is_some());
+        }
+    }
+}

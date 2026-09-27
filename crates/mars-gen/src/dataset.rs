@@ -57,6 +57,8 @@ pub struct GenConfig {
     pub perturb_ops: Vec<PerturbOp>,
     /// Number of perturbation operators applied per variant.
     pub severity: usize,
+    /// Templates composed into each base case (1 = single template).
+    pub compose: usize,
 }
 
 impl Default for GenConfig {
@@ -71,6 +73,7 @@ impl Default for GenConfig {
             n_rnd: 3,
             perturb_ops: Vec::new(),
             severity: 0,
+            compose: 1,
         }
     }
 }
@@ -102,6 +105,11 @@ pub struct Group {
 }
 
 impl Group {
+    /// Index of this group (its base item's group field).
+    pub fn base_group(&self, ds: &Dataset) -> usize {
+        ds.items[self.base].group
+    }
+
     /// True if TA preserves strictly more of the base's higher-order facts
     /// than MA and FOR do, i.e. the analogy is still identifiable in principle.
     pub fn discriminable(&self, ds: &Dataset) -> bool {
@@ -254,7 +262,14 @@ pub fn generate(cfg: &GenConfig) -> Dataset {
         let mut rng = Rng::derive(cfg.seed, g as u64);
         let family = cfg.families[g % cfg.families.len()];
         let (t, r) = loop {
-            let t = template::generate(family, &mut rng);
+            let t = if cfg.compose <= 1 {
+                template::generate(family, &mut rng)
+            } else {
+                let parts: Vec<Template> = (0..cfg.compose)
+                    .map(|i| template::generate(cfg.families[(g + i) % cfg.families.len()], &mut rng))
+                    .collect();
+                template::compose(&parts)
+            };
             if let Some(r) = template::rewire(&t, &mut rng) {
                 break (t, r);
             }
@@ -286,7 +301,12 @@ pub fn generate(cfg: &GenConfig) -> Dataset {
         for i in 0..cfg.n_rnd {
             let others: Vec<Family> = Family::ALL.iter().copied().filter(|&f| f != family).collect();
             let f2 = others[rng.index(others.len())];
-            let t2 = template::generate(f2, &mut rng);
+            let t2 = if cfg.compose <= 1 {
+                template::generate(f2, &mut rng)
+            } else {
+                let parts: Vec<Template> = (0..cfg.compose).map(|_| template::generate(others[rng.index(others.len())], &mut rng)).collect();
+                template::compose(&parts)
+            };
             let d2 = rng.index(DOMAINS.len());
             let s2 = b.fresh_surface(&mut rng, d2, t2.n_vars);
             rnd.push(push(&mut b, &mut rng, VariantClass::RND, &t2, &s2, &format!("RND{i}")));

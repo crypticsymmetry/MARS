@@ -19,7 +19,8 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Feature channels | C0–C3 | **C0–C4**: added C4 topology (predicate-agnostic WL). Default layout 1024/1024/3072/2048/1024 | E0 |
 | Predicate identity | taxonomy-graded vectors | **canonical resolution**: structural channels use the nearest *canonical* ancestor; non-canonical names → C0; unresolved → anonymized (kind, arity). Taxonomy grading = multi-resolution features | E0 |
 | Co-argument features | weight 1 | **weight 0.25** (fragile under distractors) | E0 |
-| FAC ranking | structural score | **fused ½ normalized FAC + ½ fingerprint score** (MAC and FAC fail in complementary ways) | E4, E3 |
+| FAC ranking | structural score | **fused 0.3·normalized FAC + 0.7·fingerprint score** (MAC and FAC fail in complementary ways; weight tuned in E10) | E4, E3, E10 |
+| Case size | 5–200 facts | **≥ ~10 connected facts** for identifiability at 10⁶ (tiny cases collide with chance matches) | E10 |
 | SDM | modes A/B/H in the core | **dropped from the core** (G4). Learned-address buckets (= IVF) kept as the sublinear index; SDM prototypes ≈ k-NN bundling | E5 |
 | Standing queries | exact top-k | **pipeline semantics** by default (exact incremental fingerprint top-64 + fused re-rank; tie-inclusive boundary). Exact-fused mode kept (≈10× costlier) | E6 |
 | Consolidation | SAGE-style | as designed; assimilation θ = 0.4, merge threshold 0.6 (stricter than θ) | E7 |

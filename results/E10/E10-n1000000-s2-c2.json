@@ -1,0 +1,118 @@
+{
+  "failures": {
+    "other-group FOR": 1,
+    "other-group FOR (TA not in top-k)": 1,
+    "other-group LS": 1,
+    "other-group RND": 1,
+    "other-group TA (TA not in top-k)": 1,
+    "own MA": 1
+  },
+  "mac_recall": 0.998,
+  "rows": [
+    {
+      "acc_by_w": [
+        0.978,
+        0.996,
+        0.994,
+        0.987,
+        0.97
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.997948717948718,
+      "mapper": "plain",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.995,
+        0.994,
+        0.987,
+        0.97
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.9969230769230769,
+      "mapper": "plain",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.989,
+        0.992,
+        0.974,
+        0.956
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9948717948717949,
+      "mapper": "plain",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.995,
+        0.994,
+        0.983,
+        0.953
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.9969230769230769,
+      "mapper": "plain",
+      "norm": "candidate-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.995,
+        0.995,
+        0.985,
+        0.963
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9969230769230769,
+      "mapper": "IDF-weighted",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.995,
+        0.995,
+        0.984,
+        0.962
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9969230769230769,
+      "mapper": "IDF-weighted",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.988,
+        0.985,
+        0.976,
+        0.946
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.9907692307692307,
+      "mapper": "IDF-weighted",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.978,
+        0.996,
+        0.995,
+        0.983,
+        0.949
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.997948717948718,
+      "mapper": "IDF-weighted",
+      "norm": "candidate-coverage"
+    }
+  ],
+  "tag": "n1000000-s2-c2"
+}

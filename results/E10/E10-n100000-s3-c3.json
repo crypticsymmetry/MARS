@@ -1,0 +1,111 @@
+{
+  "failures": {},
+  "mac_recall": 1.0,
+  "rows": [
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        1.0,
+        0.999
+      ],
+      "best_w": 0.7,
+      "disc_acc_best_w": 1.0,
+      "mapper": "plain",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        1.0,
+        0.999
+      ],
+      "best_w": 0.7,
+      "disc_acc_best_w": 1.0,
+      "mapper": "plain",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        0.999,
+        0.999,
+        0.995
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 1.0,
+      "mapper": "plain",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        1.0,
+        0.992
+      ],
+      "best_w": 0.7,
+      "disc_acc_best_w": 1.0,
+      "mapper": "plain",
+      "norm": "candidate-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        0.998,
+        0.988
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 1.0,
+      "mapper": "IDF-weighted",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        0.998,
+        0.988
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 1.0,
+      "mapper": "IDF-weighted",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        0.997,
+        0.994,
+        0.983
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 1.0,
+      "mapper": "IDF-weighted",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.999,
+        1.0,
+        1.0,
+        0.997,
+        0.981
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 1.0,
+      "mapper": "IDF-weighted",
+      "norm": "candidate-coverage"
+    }
+  ],
+  "tag": "n100000-s3-c3"
+}

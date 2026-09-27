@@ -62,7 +62,7 @@ impl Default for EngineConfig {
             seed: 0xF1,
             map: MapConfig::default(),
             profile: Profile::analogy(),
-            fac_weight: 0.5,
+            fac_weight: 0.3,
             slack: 8,
             sq_mode: SqMode::Pipeline { mac_k: 64 },
         }

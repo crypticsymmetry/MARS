@@ -1,0 +1,113 @@
+{
+  "failures": {
+    "own MA": 1
+  },
+  "mac_recall": 1.0,
+  "rows": [
+    {
+      "acc_by_w": [
+        0.989,
+        0.999,
+        0.999,
+        0.996,
+        0.976
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9989743589743589,
+      "mapper": "plain",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.999,
+        0.999,
+        0.996,
+        0.978
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9989743589743589,
+      "mapper": "plain",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.995,
+        0.997,
+        0.988,
+        0.967
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9989743589743589,
+      "mapper": "plain",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.999,
+        0.999,
+        0.99,
+        0.967
+      ],
+      "best_w": 0.5,
+      "disc_acc_best_w": 0.9989743589743589,
+      "mapper": "plain",
+      "norm": "candidate-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.998,
+        0.997,
+        0.991,
+        0.956
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.997948717948718,
+      "mapper": "IDF-weighted",
+      "norm": "geometric"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.998,
+        0.997,
+        0.99,
+        0.954
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.997948717948718,
+      "mapper": "IDF-weighted",
+      "norm": "dice"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.993,
+        0.988,
+        0.978,
+        0.934
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.9938461538461538,
+      "mapper": "IDF-weighted",
+      "norm": "query-coverage"
+    },
+    {
+      "acc_by_w": [
+        0.989,
+        0.998,
+        0.997,
+        0.982,
+        0.938
+      ],
+      "best_w": 0.3,
+      "disc_acc_best_w": 0.997948717948718,
+      "mapper": "IDF-weighted",
+      "norm": "candidate-coverage"
+    }
+  ],
+  "tag": "n10000-s2-c2"
+}

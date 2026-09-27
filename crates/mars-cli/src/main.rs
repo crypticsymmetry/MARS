@@ -126,7 +126,7 @@ fn main() {
             let n = kb.n_cases();
             let mut e = Engine::new(kb, EngineConfig { profile, sq_mode: SqMode::Pipeline { mac_k: 64 }, slack: 8, ..Default::default() });
             let sq = e.add_standing_query(q, k.min(n.saturating_sub(1)).max(1));
-            println!("analogues of {name} (fused = ½ structural + ½ fingerprint):");
+            println!("analogues of {name} (fused = 0.3·structural + 0.7·fingerprint):");
             let top: Vec<_> = e.standing(sq).top().to_vec();
             for (rank, (c, s)) in top.iter().enumerate() {
                 let fac = e.fac(q, *c);
