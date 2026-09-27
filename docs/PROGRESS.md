@@ -33,6 +33,10 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 ### P8 Hardening round 2
 - [x] E10 scoring study → [results/E10](../results/E10/README.md): normalization/IDF ≈ no effect; fusion weight 0.3 best (new default); E3 degradation explained as an information-per-case limit (2-template cases: 0.996 at 10⁶)
 - [x] `mars-gen` template composition (`compose`); `MapConfig::pred_weights` (IDF option)
+- [x] E9 follow-up: syntactic normalization passes for code (negative result); fusion 0.3 also best on real code (MRR 0.359)
+- [x] **Persistence**: snapshot (`kb.mars` + `meta.txt`) + frozen IDF epoch (`epoch.idf`) + append-only op log, replay on open; round-trip test reproduces results and inferences exactly
+- [x] **`mars serve`**: line protocol (case/fact/unfact/retire/declare/query/watch/top/infer/explain/map/events/checkpoint/stats); `data/examples/session.txt`
+- [x] **Corroborated inferences**: inferences drawn from the top-3 analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
 
 ### Tooling
 - [x] `mars-cli`: `mars analogies | map | stats` over `.mars` files; `data/examples/classic.mars` (Rutherford, water/heat flow, supply-chain/chokepoint, mere-appearance foil)
@@ -44,7 +48,6 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] Cascade (1024-bit pre-scan), MIH / IVF comparisons (needed only at ≥10⁷)
 - [x] P4 SDM: Mode B (buckets; random / data / k-means addresses), Mode A (autoassociative i16 counters, parallel batch writes); E5 → [results/E5](../results/E5/README.md). **G4: SDM dropped from core** (learned-address buckets kept as IVF)
 - [x] P5 `mars-tms` (JTMS, well-founded support, circular-support test), `mars-engine` (live Mode K with soft delete, frozen IDF epoch, memoized FAC by case versions, standing queries in pipeline and exact-fused modes, TMS-maintained inferences with provenance, events, work counters); E6 → [results/E6](../results/E6/README.md). **G5 passed**
-- [ ] Event log + snapshot persistence (currently in-memory only)
 - [ ] Reverse index over standing queries (for ≥ 10³ SQs)
 - [x] P6 `mars-engine::sage`: SAGE-style generalization (assimilation threshold, fact probabilities, wear-away, schema materialization), sleep consolidation (outlier re-offer + merge); E7 → [results/E7](../results/E7/README.md). **H4 supported** for few-shot inference
 - [ ] Near-miss memory + difference fingerprints (E7c)
@@ -66,6 +69,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Inferences from the **top-3 analogues**, one justification each | Demo showed a single-analogue policy drops a well-supported inference when the top analogue changes; the TMS naturally models corroboration |
 | 2026-09-27 | **Fusion weight w = 0.3** (structural) / 0.7 (fingerprint) | E10: best at every severity (e.g. 0.692 vs 0.645 at severity 2) |
 | 2026-09-27 | Case-size guidance: ≥ ~10 connected facts per case at 10⁶ scale | E10: single-template cases degrade with N; 2-template cases stay ≥ 0.996 up to 10⁶ |
 | 2026-09-27 | Profiles are **domain-dependent**: for code, the literal profile (with identifier names) + FAC fusion is best | E9: identifier conventions are informative across authors; the pure-analogy profile under-uses them |

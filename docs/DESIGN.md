@@ -26,7 +26,9 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Consolidation | SAGE-style | as designed; assimilation θ = 0.4, merge threshold 0.6 (stricter than θ) | E7 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
 
-Not yet built: persistence (event log / snapshots), cascade/MIH indexes, Mode H transition memory, near-miss memory, Python bindings, and LLM front ends.
+Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).
+
+Not yet built: cascade/MIH indexes, Mode H transition memory, near-miss memory, Python bindings, and LLM front ends.
 
 ---
 

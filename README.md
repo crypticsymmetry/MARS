@@ -46,6 +46,8 @@ cargo build --release
 ./target/release/mars analogies data/examples/classic.mars --case rutherford-atom
 ./target/release/mars analogies data/examples/classic.mars --case port-chokepoint
 ./target/release/mars map data/examples/classic.mars --base water-flow --target heat-flow
+# persistent session (snapshot + log in ./store; reopen later with just --store)
+./target/release/mars serve --store store data/examples/classic.mars < data/examples/session.txt
 # experiments
 cargo run --release -p mars-bench -- e0      # fingerprint separability (1 s)
 cargo run --release -p mars-bench -- e3 --groups 12500 --ops all --severity 1   # MAC→FAC at 10^5

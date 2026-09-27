@@ -104,3 +104,64 @@ mod tests {
         assert_eq!(cosine(&a, &[]), 0.0);
     }
 }
+
+impl FeatureStats {
+    /// Compact little-endian serialization (a frozen vocabulary epoch).
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(b"MARSIDF1");
+        out.extend_from_slice(&self.n_docs.to_le_bytes());
+        for c in 0..N_CHANNELS {
+            let mut entries: Vec<(&u64, &u32)> = self.df[c].iter().collect();
+            entries.sort();
+            out.extend_from_slice(&(entries.len() as u64).to_le_bytes());
+            for (h, d) in entries {
+                out.extend_from_slice(&h.to_le_bytes());
+                out.extend_from_slice(&d.to_le_bytes());
+            }
+        }
+        out
+    }
+
+    pub fn from_bytes(b: &[u8]) -> Result<Self, String> {
+        let bad = || "corrupt IDF epoch file".to_string();
+        if b.len() < 12 || &b[..8] != b"MARSIDF1" {
+            return Err(bad());
+        }
+        let mut pos = 8;
+        let mut take = |n: usize| -> Result<&[u8], String> {
+            let s = b.get(pos..pos + n).ok_or_else(bad)?;
+            pos += n;
+            Ok(s)
+        };
+        let n_docs = u32::from_le_bytes(take(4)?.try_into().unwrap());
+        let mut st = FeatureStats { n_docs, ..Default::default() };
+        for c in 0..N_CHANNELS {
+            let len = u64::from_le_bytes(take(8)?.try_into().unwrap()) as usize;
+            for _ in 0..len {
+                let h = u64::from_le_bytes(take(8)?.try_into().unwrap());
+                let d = u32::from_le_bytes(take(4)?.try_into().unwrap());
+                st.df[c].insert(h, d);
+            }
+        }
+        Ok(st)
+    }
+}
+
+#[cfg(test)]
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn roundtrip() {
+        let mut f = Features::default();
+        f.channels[2] = vec![(7, 1.0), (9, 2.0)];
+        f.channels[0] = vec![(1, 1.0)];
+        let s = FeatureStats::fit([&f, &f].into_iter());
+        let t = FeatureStats::from_bytes(&s.to_bytes()).unwrap();
+        assert_eq!(t.n_docs, 2);
+        assert_eq!(t.idf(2, 7), s.idf(2, 7));
+        assert_eq!(t.idf(0, 1), s.idf(0, 1));
+        assert!(FeatureStats::from_bytes(b"junk").is_err());
+    }
+}

@@ -75,6 +75,11 @@ impl Jtms {
         })
     }
 
+    /// Number of currently valid justifications of `n` (its corroboration).
+    pub fn support_count(&self, n: NodeId) -> usize {
+        self.nodes[n.0 as usize].justs.iter().filter(|&&j| self.just_holds(j)).count()
+    }
+
     /// Enable a node as a premise (assumption believed without justification).
     pub fn assume(&mut self, n: NodeId) {
         let node = &mut self.nodes[n.0 as usize];
@@ -133,7 +138,7 @@ impl Jtms {
         }
     }
 
-    fn just_holds(&self, j: JustId) -> bool {
+    pub fn just_holds(&self, j: JustId) -> bool {
         let just = &self.justs[j.0 as usize];
         just.active && just.antecedents.iter().all(|&a| self.nodes[a.0 as usize].is_in)
     }

@@ -4,6 +4,7 @@
 //! mars analogies <files...> --case NAME [-k 5] [--profile analogy|literal]
 //! mars map <files...> --base NAME --target NAME
 //! mars stats <files...>
+//! mars serve [--store DIR] [files...]      # line protocol on stdin; `help` lists commands
 //! ```
 
 use mars_encode::Profile;
@@ -142,6 +143,120 @@ fn main() {
                 }
             }
         }
+        "serve" => serve(&cli),
         other => die(&format!("unknown command {other}")),
+    }
+}
+
+const HELP: &str = "commands (one per line; every response ends with END):
+  case (defcase NAME facts...)      add a case
+  fact NAME (expr) | unfact NAME (expr) | retire NAME
+  declare (defpredicate ...)
+  query NAME [K]                    one-off analogues of NAME
+  watch NAME [K]                    register a standing query -> SQ id
+  top SQ | infer SQ | explain SQ TEXT
+  map BASE TARGET                   show a structural mapping
+  events                            drain result/inference change events
+  checkpoint | stats | help | quit";
+
+fn serve(cli: &Cli) {
+    use std::io::{BufRead, Write};
+    let store = cli.get("store").map(std::path::PathBuf::from);
+    let cfg = EngineConfig::default();
+    let mut e = match &store {
+        Some(dir) if dir.join("kb.mars").exists() => {
+            Engine::open(dir, cfg).unwrap_or_else(|err| die(&format!("open store: {err}")))
+        }
+        _ => {
+            let mut kb = Kb::new();
+            for f in &cli.files {
+                let src = std::fs::read_to_string(f).unwrap_or_else(|err| die(&format!("{f}: {err}")));
+                kb.load_str(&src).unwrap_or_else(|err| die(&format!("{f}: {err}")));
+            }
+            let mut e = Engine::new(kb, cfg);
+            if let Some(dir) = &store {
+                e.checkpoint(dir).unwrap_or_else(|err| die(&format!("checkpoint: {err}")));
+            }
+            e
+        }
+    };
+    let stdin = std::io::stdin();
+    let mut out = std::io::stdout();
+    for line in stdin.lock().lines() {
+        let Ok(line) = line else { break };
+        let line = line.trim();
+        if line.is_empty() || line.starts_with(';') {
+            continue;
+        }
+        let (cmd, rest) = line.split_once(' ').unwrap_or((line, ""));
+        let rest = rest.trim();
+        let name_of = |e: &Engine, c: mars_rel::CaseId| e.kb.name(e.kb.case(c).name).to_string();
+        let res: Result<(), String> = (|| {
+            match cmd {
+                "help" => println!("{HELP}"),
+                "quit" | "exit" => std::process::exit(0),
+                "case" => e.apply(&format!("add-case {rest}"))?,
+                "fact" => e.apply(&format!("add-fact {rest}"))?,
+                "unfact" => e.apply(&format!("remove-fact {rest}"))?,
+                "retire" => e.apply(&format!("remove-case {rest}"))?,
+                "declare" => e.apply(&format!("declare {rest}"))?,
+                "watch" => {
+                    e.apply(&format!("standing {}", if rest.contains(' ') { rest.to_string() } else { format!("{rest} 5") }))?;
+                    println!("SQ {}", e.n_standing() - 1);
+                }
+                "query" => {
+                    let (n, k) = rest.split_once(' ').unwrap_or((rest, "5"));
+                    let q = e.kb.case_by_name(n).ok_or(format!("unknown case {n}"))?;
+                    let k: usize = k.trim().parse().map_err(|x| format!("{x}"))?;
+                    for (c, s) in e.query(q, k) {
+                        println!("{:.4} {}", s, name_of(&e, c));
+                    }
+                }
+                "top" | "infer" | "explain" => {
+                    let (sq, text) = rest.split_once(' ').unwrap_or((rest, ""));
+                    let sq: usize = sq.parse().map_err(|x| format!("bad SQ id: {x}"))?;
+                    if sq >= e.n_standing() {
+                        return Err(format!("no standing query {sq}"));
+                    }
+                    match cmd {
+                        "top" => {
+                            for (c, s) in e.standing(sq).top().to_vec() {
+                                println!("{:.4} {}", s, name_of(&e, c));
+                            }
+                        }
+                        "infer" => {
+                            for t in e.inferences(sq) {
+                                println!("{t}");
+                            }
+                        }
+                        _ => println!("{}", e.explain(sq, text.trim()).ok_or("no such inference")?),
+                    }
+                }
+                "map" => {
+                    let (b, t) = rest.split_once(' ').ok_or("map BASE TARGET")?;
+                    let b = e.kb.case_by_name(b).ok_or("unknown base")?;
+                    let t = e.kb.case_by_name(t.trim()).ok_or("unknown target")?;
+                    print_mapping(&e.kb, b, t);
+                }
+                "events" => {
+                    for ev in e.drain_events() {
+                        println!("{ev:?}");
+                    }
+                }
+                "checkpoint" => {
+                    let dir = store.as_ref().ok_or("no --store given")?;
+                    e.checkpoint(dir)?;
+                    println!("checkpointed to {}", dir.display());
+                }
+                "stats" => println!("cases {} (live {}), standing queries {}, work {:?}", e.kb.n_cases(), e.n_live(), e.n_standing(), e.work),
+                other => return Err(format!("unknown command {other} (try help)")),
+            }
+            Ok(())
+        })();
+        if let Err(msg) = res {
+            println!("ERR {msg}");
+        }
+        println!("END");
+        let _ = out.flush();
     }
 }

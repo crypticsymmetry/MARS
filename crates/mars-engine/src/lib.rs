@@ -22,6 +22,7 @@
 //! * [`Work`] counts the units of work each update causes (E6).
 
 pub mod sage;
+mod store;
 
 use mars_encode::{symbol_hashes, FeatureConfig, FeatureExtractor, FeatureStats, Features, Layout, Profile, Sketcher, N_CHANNELS};
 use mars_index::{ModeK, Scorer};
@@ -42,6 +43,9 @@ pub struct EngineConfig {
     pub fac_weight: f64,
     /// Extra results kept beyond k in each standing query (exact buffer).
     pub slack: usize,
+    /// Candidate inferences are drawn from this many top analogues; each
+    /// analogue is a separate justification (corroboration).
+    pub infer_from: usize,
     /// Standing-query semantics.
     pub sq_mode: SqMode,
 }
@@ -64,6 +68,7 @@ impl Default for EngineConfig {
             profile: Profile::analogy(),
             fac_weight: 0.3,
             slack: 8,
+            infer_from: 3,
             sq_mode: SqMode::Pipeline { mac_k: 64 },
         }
     }
@@ -101,8 +106,9 @@ pub struct StandingQuery {
     /// Final ranking by fused score (top-k).
     ranked: Vec<(CaseId, f64)>,
     /// (analogue, analogue version, query version) of the current mapping.
-    mapped: Option<(CaseId, u64, u64)>,
-    mapping_node: Option<NodeId>,
+    /// (analogue, analogue version) list + query version of the current mappings.
+    mapped: Option<(Vec<(CaseId, u64)>, u64)>,
+    mapping_nodes: Vec<NodeId>,
 }
 
 impl StandingQuery {
@@ -129,21 +135,33 @@ pub struct Engine {
     /// (sq, projected text) → inference node.
     inf_nodes: FxHashMap<(usize, String), NodeId>,
     /// Provenance: inference node → (analogue case, base facts).
-    inf_prov: FxHashMap<NodeId, (CaseId, Vec<ExprId>)>,
+    inf_prov: FxHashMap<NodeId, Vec<(CaseId, Vec<ExprId>, mars_tms::JustId)>>,
     pub work: Work,
     events: Vec<Event>,
+    log: Option<std::io::BufWriter<std::fs::File>>,
+    replaying: bool,
 }
 
 impl Engine {
     /// Build from an existing KB: freeze an IDF epoch over its cases and index them all.
     pub fn new(kb: Kb, cfg: EngineConfig) -> Self {
+        let n = kb.n_cases();
+        let stats = {
+            let fx = FeatureExtractor::new(&kb, cfg.features.clone());
+            let raw: Vec<Features> = (0..n).into_par_iter().map(|c| fx.extract(CaseId(c as u32))).collect();
+            FeatureStats::fit(raw.iter())
+        };
+        Self::with_stats(kb, cfg, stats)
+    }
+
+    /// Build with a given (e.g. persisted) IDF epoch.
+    pub fn with_stats(kb: Kb, cfg: EngineConfig, stats: FeatureStats) -> Self {
         let sym_hash = symbol_hashes(&kb);
         let n = kb.n_cases();
         let raw: Vec<Features> = {
             let fx = FeatureExtractor::with_hashes(&kb, cfg.features.clone(), &sym_hash);
             (0..n).into_par_iter().map(|c| fx.extract(CaseId(c as u32))).collect()
         };
-        let stats = FeatureStats::fit(raw.iter());
         let sketcher = Sketcher::new(cfg.layout.clone(), cfg.seed);
         let fps: Vec<Vec<u64>> = raw
             .into_par_iter()
@@ -175,6 +193,8 @@ impl Engine {
             inf_prov: FxHashMap::default(),
             work: Work::default(),
             events: Vec::new(),
+            log: None,
+            replaying: false,
             cfg,
         }
     }
@@ -258,6 +278,22 @@ impl Engine {
         }
     }
 
+    /// One-off retrieval (not registered): top-k analogues of `q` by fused
+    /// score over the fingerprint top-`mac_k` candidates.
+    pub fn query(&mut self, q: CaseId, k: usize) -> Vec<(CaseId, f64)> {
+        let mac_k = match self.cfg.sq_mode {
+            SqMode::Pipeline { mac_k } => mac_k,
+            SqMode::ExactFused => 64,
+        };
+        let (top, _) = self.fp_top(q, mac_k + self.cfg.slack);
+        let cands = Self::pipeline_candidates(&top, mac_k);
+        let live: Vec<CaseId> = cands.into_iter().filter(|c| self.alive[c.0 as usize]).collect();
+        let mut r: Vec<(CaseId, f64)> = live.into_iter().map(|c| (c, self.fused(q, c))).collect();
+        sort_set(&mut r);
+        r.truncate(k);
+        r
+    }
+
     /// Pipeline candidates: the first `mac_k` of a fingerprint-sorted set,
     /// plus anything tied with the `mac_k`-th (tie-inclusive, so the result
     /// does not depend on how ties at the boundary were broken).
@@ -289,6 +325,8 @@ impl Engine {
 
     pub fn add_case(&mut self, name: &str, facts: Vec<ExprId>) -> CaseId {
         let c = self.kb.add_case(name, CaseKind::Episode, facts);
+        let rendered = self.kb.render_case(c);
+        self.log_line(format!("add-case {rendered}"));
         let fp = self.encode(c);
         let id = self.index.push(&fp);
         debug_assert_eq!(id, c.0);
@@ -304,6 +342,8 @@ impl Engine {
         if !self.alive[c.0 as usize] {
             return;
         }
+        let name = self.kb.name(self.kb.case(c).name).to_string();
+        self.log_line(format!("remove-case {name}"));
         self.alive[c.0 as usize] = false;
         self.index.remove(c.0);
         let facts = self.kb.case(c).facts.clone();
@@ -327,6 +367,8 @@ impl Engine {
         if !self.kb.add_fact(c, fact) {
             return false;
         }
+        let line = format!("add-fact {} {}", self.kb.name(self.kb.case(c).name), self.kb.render_expr(fact));
+        self.log_line(line);
         if let Some(&n) = self.fact_nodes.get(&(c, fact)) {
             let before = self.tms.touched;
             self.tms.assume(n);
@@ -340,6 +382,8 @@ impl Engine {
         if !self.kb.remove_fact(c, fact) {
             return false;
         }
+        let line = format!("remove-fact {} {}", self.kb.name(self.kb.case(c).name), self.kb.render_expr(fact));
+        self.log_line(line);
         if let Some(&n) = self.fact_nodes.get(&(c, fact)) {
             self.retract_premise(n);
         }
@@ -441,7 +485,9 @@ impl Engine {
     // ------------------------------------------------------------ standing queries
 
     pub fn add_standing_query(&mut self, case: CaseId, k: usize) -> usize {
-        self.sqs.push(StandingQuery { case, k, set: Vec::new(), floor: f64::NEG_INFINITY, ranked: Vec::new(), mapped: None, mapping_node: None });
+        let line = format!("standing {} {k}", self.kb.name(self.kb.case(case).name));
+        self.log_line(line);
+        self.sqs.push(StandingQuery { case, k, set: Vec::new(), floor: f64::NEG_INFINITY, ranked: Vec::new(), mapped: None, mapping_nodes: Vec::new() });
         let sq = self.sqs.len() - 1;
         self.full_recompute(sq);
         sq
@@ -520,37 +566,57 @@ impl Engine {
         n
     }
 
-    /// Keep the candidate inferences of the best analogue in sync (via the TMS).
+    /// Candidate inferences from the top-`infer_from` analogues, one mapping
+    /// per analogue. Returns (analogue, [(inference text, base facts)]).
+    fn analogue_inferences(&self, q: CaseId, analogues: &[CaseId]) -> Vec<(CaseId, Vec<(String, Vec<ExprId>)>)> {
+        let m = Mapper::new(&self.kb, self.cfg.map.clone());
+        analogues
+            .iter()
+            .map(|&a| {
+                let infs = m
+                    .best(a, q)
+                    .map(|mp| {
+                        mp.inferences
+                            .iter()
+                            .filter(|i| i.grounding == Grounding::Structural)
+                            .map(|i| (m.render_proj(&i.projected), vec![i.base_fact]))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                (a, infs)
+            })
+            .collect()
+    }
+
+    fn top_analogues(&self, sq: usize) -> Vec<CaseId> {
+        self.sqs[sq].ranked.iter().take(self.cfg.infer_from).map(|x| x.0).collect()
+    }
+
+    /// Keep candidate inferences in sync with the top analogues (via the TMS).
     fn update_inferences(&mut self, sq: usize) {
         let q = self.sqs[sq].case;
-        let best = self.sqs[sq].ranked.first().map(|x| x.0);
-        let key = best.map(|a| (a, self.kb.case(a).version, self.kb.case(q).version));
-        if key == self.sqs[sq].mapped {
+        let analogues = self.top_analogues(sq);
+        let key = (analogues.iter().map(|&a| (a, self.kb.case(a).version)).collect::<Vec<_>>(), self.kb.case(q).version);
+        if Some(&key) == self.sqs[sq].mapped.as_ref() {
             return;
         }
         self.work.remaps += 1;
         let before = self.tms.touched;
-        // Retire the old mapping premise.
-        if let Some(old) = self.sqs[sq].mapping_node.take() {
-            let out = self.tms.retract(old);
-            self.emit_outs(&out);
+        let in_before: Vec<String> = self.inferences(sq);
+        // Retire the old mapping premises (dependent inferences go OUT unless
+        // re-justified below).
+        for old in std::mem::take(&mut self.sqs[sq].mapping_nodes) {
+            self.tms.retract(old);
         }
-        self.sqs[sq].mapped = key;
-        if let Some(a) = best {
+        self.sqs[sq].mapped = Some(key);
+        let sq_nodes: Vec<NodeId> = self.inf_nodes.iter().filter(|((s, _), _)| *s == sq).map(|(_, &n)| n).collect();
+        for n in sq_nodes {
+            self.inf_prov.remove(&n);
+        }
+        for (a, infs) in self.analogue_inferences(q, &analogues) {
             let mapping_node = self.tms.add_node();
             self.tms.assume(mapping_node);
-            self.sqs[sq].mapping_node = Some(mapping_node);
-            let m = Mapper::new(&self.kb, self.cfg.map.clone());
-            let infs: Vec<(String, Vec<ExprId>)> = m
-                .best(a, q)
-                .map(|mp| {
-                    mp.inferences
-                        .iter()
-                        .filter(|i| i.grounding == Grounding::Structural)
-                        .map(|i| (m.render_proj(&i.projected), vec![i.base_fact]))
-                        .collect()
-                })
-                .unwrap_or_default();
+            self.sqs[sq].mapping_nodes.push(mapping_node);
             for (text, base_facts) in infs {
                 let key = (sq, text.clone());
                 let node = match self.inf_nodes.get(&key) {
@@ -561,19 +627,28 @@ impl Engine {
                         n
                     }
                 };
-                let was_in = self.tms.is_in(node);
                 let mut ants = vec![mapping_node];
                 for &bf in &base_facts {
                     ants.push(self.fact_node(a, bf));
                 }
-                self.tms.justify(node, &ants);
-                self.inf_prov.insert(node, (a, base_facts));
-                if !was_in && self.tms.is_in(node) {
-                    self.events.push(Event::InferenceIn { sq, text });
-                }
+                let j = self.tms.justify(node, &ants);
+                self.inf_prov.entry(node).or_default().push((a, base_facts, j));
             }
         }
+        // Events: net change in the believed set.
+        let in_after = self.inferences(sq);
+        for t in in_before.iter().filter(|t| !in_after.contains(t)) {
+            self.events.push(Event::InferenceOut { sq, text: t.clone() });
+        }
+        for t in in_after.iter().filter(|t| !in_before.contains(t)) {
+            self.events.push(Event::InferenceIn { sq, text: t.clone() });
+        }
         self.work.tms_touched += self.tms.touched - before;
+    }
+
+    /// Number of analogues currently supporting an inference.
+    pub fn support(&self, sq: usize, text: &str) -> usize {
+        self.inf_nodes.get(&(sq, text.to_string())).map(|&n| self.tms.support_count(n)).unwrap_or(0)
     }
 
     /// Currently believed (IN) inferences of a standing query, sorted.
@@ -583,13 +658,20 @@ impl Engine {
         v
     }
 
-    /// Provenance of an inference: the analogue case and base facts it was projected from.
+    /// Provenance of an inference: every analogue currently supporting it
+    /// and the base facts it was projected from.
     pub fn explain(&self, sq: usize, text: &str) -> Option<String> {
         let n = *self.inf_nodes.get(&(sq, text.to_string()))?;
-        let (a, facts) = self.inf_prov.get(&n)?;
-        let mut s = format!("{text}\n  believed: {}\n  by analogy with case {}", self.tms.is_in(n), self.kb.name(self.kb.case(*a).name));
-        for f in facts {
-            s.push_str(&format!("\n  from base fact {}", self.kb.render_expr(*f)));
+        let provs = self.inf_prov.get(&n)?;
+        let mut s = format!("{text}\n  believed: {} (supported by {} analogue(s))", self.tms.is_in(n), self.tms.support_count(n));
+        for (a, facts, j) in provs {
+            if !self.tms.just_holds(*j) {
+                continue;
+            }
+            s.push_str(&format!("\n  by analogy with case {}", self.kb.name(self.kb.case(*a).name)));
+            for f in facts {
+                s.push_str(&format!("\n    from base fact {}", self.kb.render_expr(*f)));
+            }
         }
         Some(s)
     }
@@ -609,19 +691,14 @@ impl Engine {
                 r
             }
         };
-        let infs = match set.first() {
-            Some(&(a, _)) => {
-                let m = Mapper::new(&self.kb, self.cfg.map.clone());
-                let mut v: Vec<String> = m
-                    .best(a, q)
-                    .map(|mp| mp.inferences.iter().filter(|i| i.grounding == Grounding::Structural).map(|i| m.render_proj(&i.projected)).collect())
-                    .unwrap_or_default();
-                v.sort();
-                v.dedup();
-                v
-            }
-            None => Vec::new(),
-        };
+        let analogues: Vec<CaseId> = set.iter().take(self.cfg.infer_from).map(|x| x.0).collect();
+        let mut infs: Vec<String> = self
+            .analogue_inferences(q, &analogues)
+            .into_iter()
+            .flat_map(|(_, v)| v.into_iter().map(|(t, _)| t))
+            .collect();
+        infs.sort();
+        infs.dedup();
         (set, infs)
     }
 }

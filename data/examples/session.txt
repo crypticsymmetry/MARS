@@ -1,0 +1,14 @@
+; Demo session for `mars serve` (see README). Watch an open problem, then
+; teach the memory a new analogue and watch the inference appear; retract a
+; supporting fact and watch it disappear.
+watch port-chokepoint 3
+infer 0
+case (defcase canal-control (controls empire canal) (depends-on merchant canal) (cause (and (controls empire canal) (depends-on merchant canal)) (vulnerable merchant)))
+top 0
+unfact supply-chain (cause (and (controls company-a supplier-b) (depends-on competitor-d supplier-b)) (vulnerable competitor-d))
+events
+top 0
+infer 0
+explain 0 (cause (and (controls country-x port-y) (depends-on company-z port-y)) (vulnerable company-z))
+checkpoint
+stats
