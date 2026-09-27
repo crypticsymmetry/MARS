@@ -418,7 +418,7 @@ mod tests {
                         assert_eq!(par[qi], want, "parallel n={n} k={k} q={qi}");
                         assert_eq!(ser[qi], want, "serial n={n} k={k} q={qi}");
                         for h in &want {
-                            let row = if (3..n).contains(&(h.id as usize)) && (h.id as usize - 3) % 29 == 0 { HyperVector::random(total, 77_000 + h.id as u64) } else { HyperVector::random(total, h.id as u64) };
+                            let row = if (3..n).contains(&(h.id as usize)) && (h.id as usize - 3).is_multiple_of(29) { HyperVector::random(total, 77_000 + h.id as u64) } else { HyperVector::random(total, h.id as u64) };
                             assert_eq!(idx.score_pair(&s, q, row.words()), idx.score(&s, q, h.id));
                         }
                     }
