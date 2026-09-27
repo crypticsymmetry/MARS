@@ -11,6 +11,7 @@ higher-order relations):
 
 - `nemotron-3-super/`: nvidia/nemotron-3-super-120b-a12b (free tier; 1.6% of facts outside the vocabulary)
 - `glm-5.3-flash/`: z-ai/glm-5.3-flash (reasoning effort low; 7.8% of facts outside the vocabulary)
+- `glm-5.3-flash-v2/`: z-ai/glm-5.3-flash with the abstraction-first prompt (`--prompt v2`; 1.4% outside the vocabulary); `patterns.jsonl` holds the topic-free pattern sentence written for each story (E25)
 
 LLM output is not reproducible, so the converted cases are versioned here. Evaluate with
 `mars-bench e23 --data data/storyanalogy/<dir>` (multiple choice) and

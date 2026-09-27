@@ -22,6 +22,8 @@ import os
 import sys
 from collections import Counter
 
+sys.path.insert(0, os.path.dirname(__file__))
+
 E23_METHODS = ["fingerprint analogy profile", "analogy − 0.5·surface"]
 E24_METHOD = "MARS fused FAC + fingerprint analogy"
 
@@ -120,6 +122,32 @@ def main():
             rk[i] = order
         r1, r5, r10, mrr = ret_metrics(mc, rk)
         cover = sum(1 for n in names_all if n in pats) / len(names_all)
+        # Combinations: MARS (all front ends) with the pattern embedding and lexical TF-IDF.
+        from e24_pipeline import memory, tfidf_rank
+        mnames, mtexts = memory(mc)
+        qidx = [mnames.index(f"q{i}-s") for i in range(len(mc))]
+        lex = tfidf_rank(mtexts, qidx)
+        lexr = {i: [mnames[j] for j in lex[qidx[i]]] for i in range(len(mc))}
+        mars_all = {i: rrf([fes[n][1][i] for n in names]) for i in range(len(mc))}
+        combos2 = [("MARS ensemble + pattern embedding", [mars_all, rk]), ("MARS ensemble + lexical", [mars_all, lexr]), ("MARS ensemble + pattern embedding + lexical", [mars_all, rk, lexr]), ("pattern embedding + lexical", [rk, lexr])]
+        text += "\n**Rank fusion (RRF) with text signals** (retrieval R@1 / R@5 / R@10 / MRR):\n\n| combination | R@1 | R@5 | R@10 | MRR |\n|---|---|---|---|---|\n"
+        for label, lists in combos2:
+            fused = {i: rrf([l[i] for l in lists]) for i in range(len(mc))}
+            c1, c5, c10, cm = ret_metrics(mc, fused)
+            text += f"| {label} | {c1:.3f} | {c5:.3f} | {c10:.3f} | {cm:.3f} |\n"
+            rows.append({"combination": label, "retrieval": {"r1": c1, "r5": c5, "r10": c10, "mrr": cm}})
+        # Multiple choice: Borda (rank sum) of the MARS ensemble score and the pattern embedding.
+        ens = {i: [sum(fes[n][0][i]["analogy − 0.5·surface"][j] for n in names) for j in range(len(mc[i]["choices"]))] for i in range(len(mc))}
+        def ranks(v):
+            o = sorted(range(len(v)), key=lambda j: -v[j])
+            r = [0] * len(v)
+            for k, j in enumerate(o):
+                r[j] = k
+            return r
+        borda = {i: [-(ranks(ens[i])[j] + ranks(sc[i])[j]) + 1e-6 * ens[i][j] for j in range(len(mc[i]["choices"]))] for i in range(len(mc))}
+        ba, bn, br = mc_metrics(mc, borda)
+        text += f"\nMultiple choice, Borda of the MARS ensemble (analogy − 0.5·surface) and the pattern embedding: {ba:.3f} (target > noun {bn:.2f}, > random {br:.2f}).\n"
+        rows.append({"combination": "Borda(MARS ensemble, pattern embedding)", "mc": {"accuracy": ba, "target_over_noun": bn, "target_over_random": br}})
         text += f"\n**Pattern-embedding control** (the v2 front end's topic-free pattern sentences compared with bge-small embeddings, no MARS; {cover:.1%} of stories have a pattern): multiple choice {a:.3f} (target > noun {vn:.2f}, > random {vr:.2f}); retrieval R@1 {r1:.3f}, R@5 {r5:.3f}, R@10 {r10:.3f}, MRR {mrr:.3f}.\n"
         rows.append({"control": "pattern embedding", "mc": {"accuracy": a, "target_over_noun": vn, "target_over_random": vr}, "retrieval": {"r1": r1, "r5": r5, "r10": r10, "mrr": mrr}})
     open(os.path.join(out, "E25.md"), "w").write("# E25: LLM front-end variants and ensembles\n\n" + text)

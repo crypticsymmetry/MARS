@@ -1,0 +1,212 @@
+[
+ {
+  "front_ends": [
+   "nemotron"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.4583333333333333,
+   "target_over_noun": 0.6138888888888889,
+   "target_over_random": 0.6819444444444445
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.5138888888888888,
+   "target_over_noun": 0.7722222222222223,
+   "target_over_random": 0.6638888888888889
+  },
+  "retrieval": {
+   "r1": 0.06666666666666667,
+   "r5": 0.14166666666666666,
+   "r10": 0.17777777777777778,
+   "mrr": 0.10280972239795373
+  }
+ },
+ {
+  "front_ends": [
+   "glm-v1"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.41388888888888886,
+   "target_over_noun": 0.5666666666666667,
+   "target_over_random": 0.6916666666666667
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.4666666666666667,
+   "target_over_noun": 0.7666666666666667,
+   "target_over_random": 0.6569444444444444
+  },
+  "retrieval": {
+   "r1": 0.06666666666666667,
+   "r5": 0.11388888888888889,
+   "r10": 0.13333333333333333,
+   "mrr": 0.09101344429432226
+  }
+ },
+ {
+  "front_ends": [
+   "glm-v2"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.49166666666666664,
+   "target_over_noun": 0.6222222222222222,
+   "target_over_random": 0.7486111111111111
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.49444444444444446,
+   "target_over_noun": 0.8111111111111111,
+   "target_over_random": 0.6722222222222223
+  },
+  "retrieval": {
+   "r1": 0.08333333333333333,
+   "r5": 0.1527777777777778,
+   "r10": 0.20833333333333334,
+   "mrr": 0.12100543142796284
+  }
+ },
+ {
+  "front_ends": [
+   "nemotron",
+   "glm-v1"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.4777777777777778,
+   "target_over_noun": 0.5972222222222222,
+   "target_over_random": 0.7402777777777778
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.5388888888888889,
+   "target_over_noun": 0.8194444444444444,
+   "target_over_random": 0.6986111111111111
+  },
+  "retrieval": {
+   "r1": 0.06666666666666667,
+   "r5": 0.14722222222222223,
+   "r10": 0.20277777777777778,
+   "mrr": 0.1094672212364029
+  }
+ },
+ {
+  "front_ends": [
+   "nemotron",
+   "glm-v2"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.5194444444444445,
+   "target_over_noun": 0.6527777777777778,
+   "target_over_random": 0.7638888888888888
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.5638888888888889,
+   "target_over_noun": 0.8416666666666667,
+   "target_over_random": 0.7055555555555556
+  },
+  "retrieval": {
+   "r1": 0.09722222222222222,
+   "r5": 0.175,
+   "r10": 0.24444444444444444,
+   "mrr": 0.1459273171642004
+  }
+ },
+ {
+  "front_ends": [
+   "glm-v1",
+   "glm-v2"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.5083333333333333,
+   "target_over_noun": 0.6138888888888889,
+   "target_over_random": 0.7625
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.5444444444444444,
+   "target_over_noun": 0.8444444444444444,
+   "target_over_random": 0.7013888888888888
+  },
+  "retrieval": {
+   "r1": 0.06944444444444445,
+   "r5": 0.16111111111111112,
+   "r10": 0.23333333333333334,
+   "mrr": 0.11705327876289469
+  }
+ },
+ {
+  "front_ends": [
+   "nemotron",
+   "glm-v1",
+   "glm-v2"
+  ],
+  "fingerprint analogy profile": {
+   "accuracy": 0.5333333333333333,
+   "target_over_noun": 0.6333333333333333,
+   "target_over_random": 0.7736111111111111
+  },
+  "analogy \u2212 0.5\u00b7surface": {
+   "accuracy": 0.5916666666666667,
+   "target_over_noun": 0.8555555555555555,
+   "target_over_random": 0.7194444444444444
+  },
+  "retrieval": {
+   "r1": 0.08888888888888889,
+   "r5": 0.19444444444444445,
+   "r10": 0.24722222222222223,
+   "mrr": 0.14347495541684174
+  }
+ },
+ {
+  "combination": "MARS ensemble + pattern embedding",
+  "retrieval": {
+   "r1": 0.12777777777777777,
+   "r5": 0.25,
+   "r10": 0.3055555555555556,
+   "mrr": 0.1871786709078675
+  }
+ },
+ {
+  "combination": "MARS ensemble + lexical",
+  "retrieval": {
+   "r1": 0.12777777777777777,
+   "r5": 0.3111111111111111,
+   "r10": 0.36666666666666664,
+   "mrr": 0.21460106200612974
+  }
+ },
+ {
+  "combination": "MARS ensemble + pattern embedding + lexical",
+  "retrieval": {
+   "r1": 0.125,
+   "r5": 0.33611111111111114,
+   "r10": 0.39166666666666666,
+   "mrr": 0.22373720629482555
+  }
+ },
+ {
+  "combination": "pattern embedding + lexical",
+  "retrieval": {
+   "r1": 0.09166666666666666,
+   "r5": 0.25555555555555554,
+   "r10": 0.3611111111111111,
+   "mrr": 0.17200690273743416
+  }
+ },
+ {
+  "combination": "Borda(MARS ensemble, pattern embedding)",
+  "mc": {
+   "accuracy": 0.6055555555555555,
+   "target_over_noun": 0.8083333333333333,
+   "target_over_random": 0.7805555555555556
+  }
+ },
+ {
+  "control": "pattern embedding",
+  "mc": {
+   "accuracy": 0.44722222222222224,
+   "target_over_noun": 0.49722222222222223,
+   "target_over_random": 0.8125
+  },
+  "retrieval": {
+   "r1": 0.08888888888888889,
+   "r5": 0.17777777777777778,
+   "r10": 0.23055555555555557,
+   "mrr": 0.13375939468831283
+  }
+ }
+]
