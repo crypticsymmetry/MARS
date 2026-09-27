@@ -32,7 +32,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 | H1 retrieval keeps the true analogue in the top-k | ✅ 100% in top-64 at 10⁶ cases | [E3](results/E3/README.md) |
 | H2 cheap MAC + exact FAC matches exhaustive mapping | ✅ same accuracy at ~1/1100 of the cost (12 ms vs 14 s per query at 10⁶) | [E3](results/E3/README.md) |
 | H3 updates cost ∝ change, not memory size | ✅ ~300 µs per update from 10⁴ to 10⁶ cases, exact vs recompute, 21,000× cheaper | [E6](results/E6/README.md) |
-| H4 generalized schemas help | ✅ for few-shot inference (+41% deleted-fact recall); clusters fragment | [E7](results/E7/README.md) |
+| H4 generalized schemas help | ✅ as a *complement*: few-shot inference +41% (E7); schemas added alongside instances are best at 10³–10⁴ cases, while schema-only memory degrades at scale (fixed assimilation threshold) | [E7](results/E7/README.md), [E15](results/E15/README.md) |
 | H5 structure beats surface on adversarial / real data | ✅ synthetic; partial on real code (MRR 0.33 vs 0.15 lexical) | [E4](results/E4/README.md), [E9](results/E9/README.md) |
 | Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
 | Analogy can learn its own vocabulary alignment (re-representation) | ✅ synthetic: precision 1.000, retrieval 0.15 → 0.99. Partial on real code: frequent py↔js calls learned (len↔length, append↔push), long tail missed; alignment barely matters there because anonymous shapes already match | [E13](results/E13/README.md), [E14](results/E14/README.md) |

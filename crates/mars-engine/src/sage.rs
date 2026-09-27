@@ -28,11 +28,18 @@ pub struct SageConfig {
     /// Fingerprint prefilter size before FAC.
     pub prefilter: usize,
     pub map: MapConfig,
+    /// Score assimilation into an established generalization (≥ 2 members)
+    /// by *schema coverage* `S(g→x) / S(g→g)` — how much of the schema the
+    /// new case contains — instead of the symmetric normalization, which
+    /// penalizes a case for its own distractors and perturbations.
+    pub coverage: bool,
+    /// Prefix for schema case and entity names (several pools may share a KB).
+    pub namespace: String,
 }
 
 impl Default for SageConfig {
     fn default() -> Self {
-        SageConfig { assimilate: 0.5, drop_below: 0.2, min_members: 5, view: 0.5, prefilter: 8, map: MapConfig::default() }
+        SageConfig { assimilate: 0.5, drop_below: 0.2, min_members: 5, view: 0.5, prefilter: 8, map: MapConfig::default(), coverage: false, namespace: "schema".into() }
     }
 }
 
@@ -43,6 +50,8 @@ pub struct Generalization {
     pub members: Vec<CaseId>,
     /// Materialized schema case.
     pub case: CaseId,
+    /// Stable id (names are derived from it; indices change on merges).
+    pub id: usize,
     next_entity: usize,
 }
 
@@ -75,11 +84,12 @@ pub struct Sage {
     fcfg: FeatureConfig,
     fp_cache: FxHashMap<(CaseId, u64), Vec<u64>>,
     self_cache: FxHashMap<(CaseId, u64), f32>,
+    next_id: usize,
 }
 
 impl Sage {
     pub fn new(cfg: SageConfig, stats: FeatureStats, sketcher: Sketcher, fcfg: FeatureConfig) -> Self {
-        Sage { cfg, gens: Vec::new(), outliers: Vec::new(), stats, sketcher, profile: Profile::analogy(), fcfg, fp_cache: FxHashMap::default(), self_cache: FxHashMap::default() }
+        Sage { cfg, gens: Vec::new(), outliers: Vec::new(), stats, sketcher, profile: Profile::analogy(), fcfg, fp_cache: FxHashMap::default(), self_cache: FxHashMap::default(), next_id: 0 }
     }
 
     fn fp(&mut self, kb: &Kb, c: CaseId) -> Vec<u64> {
@@ -116,6 +126,17 @@ impl Sage {
         }
     }
 
+    /// Fraction of `base`'s structure found in `target`: `S(b→t) / S(b→b)`.
+    pub fn coverage(&mut self, kb: &Kb, base: CaseId, target: CaseId) -> f64 {
+        let raw = Mapper::new(kb, self.cfg.map.clone()).score(base, target) as f64;
+        let a = self.self_score(kb, base) as f64;
+        if raw == 0.0 || a == 0.0 {
+            0.0
+        } else {
+            (raw / a).min(1.0)
+        }
+    }
+
     /// Best pool item (generalization case or outlier) for `x` by fused score.
     /// Returns (is_generalization, index, fused, fac).
     pub fn best_match(&mut self, kb: &Kb, x: CaseId) -> Option<(bool, usize, f64, f64)> {
@@ -136,7 +157,7 @@ impl Sage {
         cands.truncate(self.cfg.prefilter);
         let mut best: Option<(bool, usize, f64, f64)> = None;
         for (g, i, c, fp) in cands {
-            let fac = self.fac(kb, c, x);
+            let fac = if g && self.cfg.coverage && self.gens[i].members.len() >= 2 { self.coverage(kb, c, x) } else { self.fac(kb, c, x) };
             let fused = 0.5 * fac + 0.5 * fp;
             if best.map(|b| fused > b.2).unwrap_or(true) {
                 best = Some((g, i, fused, fac));
@@ -165,6 +186,9 @@ impl Sage {
     /// Start a generalization from a single case (entities renamed into the schema namespace).
     fn seed(&mut self, kb: &mut Kb, a: CaseId) -> usize {
         let gi = self.gens.len();
+        let id = self.next_id;
+        self.next_id += 1;
+        let ns = self.cfg.namespace.clone();
         let mut ents: FxHashMap<Sym, Sym> = FxHashMap::default();
         let mut next = 0usize;
         let mut facts = Vec::new();
@@ -172,13 +196,13 @@ impl Sage {
             let g = rewrite(kb, f, &mut |kb: &mut Kb, s: Sym| {
                 *ents.entry(s).or_insert_with(|| {
                     next += 1;
-                    kb.sym(&format!("?g{gi}e{next}"))
+                    kb.sym(&format!("?{ns}{id}e{next}"))
                 })
             });
             facts.push((g, 1u32));
         }
-        let case = kb.add_case(&format!("schema{gi}"), CaseKind::Schema, facts.iter().map(|x| x.0));
-        self.gens.push(Generalization { facts, members: vec![a], case, next_entity: next });
+        let case = kb.add_case(&format!("{ns}{id}"), CaseKind::Schema, facts.iter().map(|x| x.0));
+        self.gens.push(Generalization { facts, members: vec![a], case, id, next_entity: next });
         gi
     }
 
@@ -200,6 +224,7 @@ impl Sage {
         }
         // Add x's unmatched facts, rewritten into the schema namespace.
         let mut next = self.gens[gi].next_entity;
+        let (ns, id) = (self.cfg.namespace.clone(), self.gens[gi].id);
         let mut fresh: FxHashMap<Sym, Sym> = FxHashMap::default();
         for f in Self::structural_facts(kb, x) {
             if matched_target.contains(&Term::Expr(f)) {
@@ -211,7 +236,7 @@ impl Sage {
                 }
                 *fresh.entry(s).or_insert_with(|| {
                     next += 1;
-                    kb.sym(&format!("?g{gi}e{next}"))
+                    kb.sym(&format!("?{ns}{id}e{next}"))
                 })
             });
             match self.gens[gi].facts.iter_mut().find(|y| y.0 == g) {
@@ -286,6 +311,7 @@ impl Sage {
         let ent_map: FxHashMap<Sym, Sym> = m.entity_map().into_iter().map(|(i, f)| (f, i)).collect();
         let from_facts = self.gens[from].facts.clone();
         let mut next = self.gens[into].next_entity;
+        let (ns, id) = (self.cfg.namespace.clone(), self.gens[into].id);
         let mut fresh: FxHashMap<Sym, Sym> = FxHashMap::default();
         for (f, cnt) in from_facts {
             let target = match from_to_into.get(&Term::Expr(f)) {
@@ -296,7 +322,7 @@ impl Sage {
                     }
                     *fresh.entry(s).or_insert_with(|| {
                         next += 1;
-                        kb.sym(&format!("?g{into}e{next}m"))
+                        kb.sym(&format!("?{ns}{id}e{next}m"))
                     })
                 }),
             };

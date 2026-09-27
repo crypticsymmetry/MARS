@@ -56,7 +56,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] Reverse index over standing queries (for ≥ 10³ SQs)
 - [x] P6 `mars-engine::sage`: SAGE-style generalization (assimilation threshold, fact probabilities, wear-away, schema materialization), sleep consolidation (outlier re-offer + merge); E7 → [results/E7](../results/E7/README.md). **H4 supported** for few-shot inference
 - [ ] Near-miss memory + difference fingerprints (E7c)
-- [ ] Hierarchical generalization to reduce fragmentation; schema-level retrieval at 10⁶ (E3 weakness)
+- [x] **E15 schema-level retrieval vs corroboration** → [results/E15](../results/E15/README.md): schemas *complement* instances (instances + schemas best at 10³ and 10⁴; R@P≥0.6 0.45–0.48 vs 0.39 at 10⁴); schema-only pools collapse at scale (purity 0.96 → 0.87 at fixed θ); schema fact probability is uncalibrated, corroboration is; coverage assimilation negative
+- [ ] Null-calibrated (E-value-like) assimilation criterion that scales with memory size (E15 finding 2); indexed SAGE candidate scan (≥ 10⁴ cases)
+- [ ] Hierarchical generalization to reduce fragmentation
 - [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
 - [ ] P7b representation normalization for code (loop canonicalization, idioms, def-use dataflow); per-domain profile tuning
 - [ ] P7c narrative analogies (ARN / Karla stories): blocked by network (datasets not reachable from this environment)
@@ -74,6 +76,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Consolidation adds schema cases alongside instances (never replaces them); confidence = corroboration over the combined pool; schema fact probabilities reported, not used as confidence | E15: combined pool best at every scale; schema-only pools lose at 10⁴ (purity drop); probability buckets flat |
+| 2026-09-27 | SAGE names from stable ids + per-pool namespace | E15 exposed name collisions (vector index reused after merges; two pools in one KB) |
 | 2026-09-27 | Keep anonymization of unresolved predicates as the default fallback; treat bootstrapped alignment as a precision tool for mapper-bound settings | E14: oracle alignment adds only +0.003 fused MRR on real code and lowers fingerprint-analogy MRR; learned alignment reaches the same FAC gain |
 | 2026-09-27 | Vocabulary alignment by analogical bootstrapping: wildcard mapping + mutual-best + one-per-domain constraint + EM re-estimation | E13: the constraint prevents transitive collapse; re-estimation prevents entrenchment; together they reach oracle-level retrieval |
 | 2026-09-27 | Inferences from the **top-5 analogues**; support ≥ 2 = "corroborated" | E11: support is calibrated (precision 0.07 → 0.86); 5 analogues with support ≥ 2 is a Pareto improvement over the single analogue |
@@ -95,6 +99,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E15 | 2026-09-27 | 10 instances × 100 / 1,000 templates, severity 1–2; pools: instances, schemas (symmetric / coverage), instances + schemas | instances + schemas best (10⁴: R@P≥0.6 0.448 vs 0.392, m=1 precision 0.60 vs 0.55); schema-only wins only at 10³ m=1 (recall 0.574 vs 0.374) and collapses at 10⁴ (purity 0.87) | [results/E15](../results/E15/README.md) |
 | E14 | 2026-09-27 | E12 corpus in raw mode (359 language-specific call predicates, 18 gold py↔js pairs), 52 queries | learned 14 pairs: 4 hand-map-correct, 2 same identifier, 0 judgeable-wrong (≈0.6 precision by inspection); fused MRR 0.152 → 0.153 (oracle 0.155, hand-mapped corpus 0.168) | [results/E14](../results/E14/README.md) |
 | E13 | 2026-09-27 | unresolved vocab (12 domains × 54 relations), 250–1000 groups, 2–10 distractors | 1000 groups: alignment precision 1.000, fused TA-top 0.151 → 0.993 (oracle 1.000); ≥ 0.938 in all settings | [results/E13](../results/E13/README.md) |
 | E12 | 2026-09-27 | 1308 functions (Python + npm JS); 52 cross-language same-algorithm queries | fused ½FAC+½FP-literal MRR 0.168 vs lexical 0.089 / MAC 0.114; R@5 0.35 vs 0.10; strategy-level differences unsolved | [results/E12](../results/E12/README.md) |

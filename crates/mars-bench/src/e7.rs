@@ -14,7 +14,7 @@ use serde_json::json;
 use std::fmt::Write as _;
 use std::time::Instant;
 
-fn stats_for(kb: &Kb, cases: &[CaseId]) -> FeatureStats {
+pub(crate) fn stats_for(kb: &Kb, cases: &[CaseId]) -> FeatureStats {
     let fx = FeatureExtractor::new(kb, FeatureConfig::default());
     let feats: Vec<_> = cases.iter().map(|&c| fx.extract(c)).collect();
     FeatureStats::fit(feats.iter())
@@ -32,7 +32,7 @@ fn fact_recall(kb: &Kb, a: CaseId, b: CaseId) -> f64 {
     facts.iter().filter(|&&f| mapped.contains(&Term::Expr(f))).count() as f64 / facts.len() as f64
 }
 
-fn root_ho_fact(kb: &Kb, c: CaseId) -> Option<ExprId> {
+pub(crate) fn root_ho_fact(kb: &Kb, c: CaseId) -> Option<ExprId> {
     let nested: std::collections::HashSet<ExprId> =
         kb.case_exprs(c).into_iter().flat_map(|e| kb.expr(e).args.iter().filter_map(|a| if let Term::Expr(x) = *a { Some(x) } else { None }).collect::<Vec<_>>()).collect();
     kb.case(c).facts.iter().copied().find(|&f| kb.order(f) >= 2 && !nested.contains(&f))

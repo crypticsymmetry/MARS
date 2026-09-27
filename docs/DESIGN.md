@@ -23,7 +23,7 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Case size | 5–200 facts | **≥ ~10 connected facts** for identifiability at 10⁶ (tiny cases collide with chance matches) | E10 |
 | SDM | modes A/B/H in the core | **dropped from the core** (G4). Learned-address buckets (= IVF) kept as the sublinear index; SDM prototypes ≈ k-NN bundling | E5 |
 | Standing queries | exact top-k | **pipeline semantics** by default (exact incremental fingerprint top-64 + fused re-rank; tie-inclusive boundary). Exact-fused mode kept (≈10× costlier) | E6 |
-| Consolidation | SAGE-style | as designed; assimilation θ = 0.4, merge threshold 0.6 (stricter than θ) | E7 |
+| Consolidation | SAGE-style | assimilation θ = 0.4, merge threshold 0.6 (stricter than θ). Schemas are **added alongside** instances, never replacing them; inference confidence = corroboration, not schema fact probability. A fixed θ loses purity as memory grows (needs null calibration) | E7, E15 |
 | Unresolved vocabularies | open problem (representation) | **analogical bootstrapping**: wildcard mappings between retrieved neighbours → mutual-best predicate correspondences (one per domain) → canonical clusters, re-estimated each round. On sparse real data it is a precision tool: it learns frequent correspondences, and anonymization remains the default fallback | E13, E14 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
 
