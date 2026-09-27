@@ -13,7 +13,7 @@ pub struct Layout {
 
 impl Default for Layout {
     fn default() -> Self {
-        Layout { dims: [1024, 1024, 4096, 2048] }
+        Layout { dims: [1024, 1024, 3072, 2048, 1024] }
     }
 }
 
@@ -124,16 +124,16 @@ impl Profile {
     }
     /// Far/cross-domain analogues: surface ignored.
     pub fn analogy() -> Self {
-        Profile::new("analogy", [0.0, 0.2, 0.5, 0.3])
+        Profile::new("analogy", [0.0, 0.1, 0.4, 0.4, 0.1])
     }
     pub fn literal() -> Self {
-        Profile::new("literal", [0.4, 0.2, 0.2, 0.2])
+        Profile::new("literal", [0.4, 0.15, 0.2, 0.2, 0.05])
     }
     pub fn surface_only() -> Self {
-        Profile::new("surface-only", [1.0, 0.0, 0.0, 0.0])
+        Profile::new("surface-only", [1.0, 0.0, 0.0, 0.0, 0.0])
     }
     pub fn structure_only() -> Self {
-        Profile::new("structure-only", [0.0, 0.0, 0.6, 0.4])
+        Profile::new("structure-only", [0.0, 0.0, 0.5, 0.4, 0.1])
     }
     pub fn score(&self, sims: &[f64; N_CHANNELS]) -> f64 {
         self.weights.iter().zip(sims).map(|(w, s)| w * s).sum()

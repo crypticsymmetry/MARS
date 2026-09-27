@@ -1,0 +1,15 @@
+[package]
+name = "mars-gen"
+description = "Synthetic relational-analogy generator with Gentner-style variant classes and ground truth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mars-hv.workspace = true
+mars-rel.workspace = true
+rustc-hash.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

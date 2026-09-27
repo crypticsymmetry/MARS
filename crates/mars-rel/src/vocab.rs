@@ -83,6 +83,11 @@ pub struct PredInfo {
     pub parents: Vec<Sym>,
     /// False when auto-declared from use.
     pub declared: bool,
+    /// Canonical predicates define the structural vocabulary. Non-canonical
+    /// predicates (e.g. domain-specific synonyms) are mapped to their nearest
+    /// canonical ancestor in structural channels, and their own identity is
+    /// treated as a surface feature.
+    pub canonical: bool,
 }
 
 #[derive(Default, Clone, Debug)]
@@ -112,6 +117,7 @@ impl Vocabulary {
             commutative: false,
             parents: Vec::new(),
             declared: false,
+            canonical: true,
         })
     }
 
@@ -121,6 +127,25 @@ impl Vocabulary {
 
     pub fn is_commutative(&self, p: Sym) -> bool {
         self.preds.get(&p).map(|i| i.commutative).unwrap_or(false)
+    }
+
+    pub fn set_canonical(&mut self, p: Sym, canonical: bool) {
+        if let Some(i) = self.preds.get_mut(&p) {
+            i.canonical = canonical;
+        }
+    }
+
+    pub fn is_canonical(&self, p: Sym) -> bool {
+        self.preds.get(&p).map(|i| i.canonical).unwrap_or(true)
+    }
+
+    /// Structural name of `p`: the nearest canonical ancestor-or-self along
+    /// primary parents; `p` itself if there is none.
+    pub fn structural(&self, p: Sym) -> Sym {
+        if self.is_canonical(p) {
+            return p;
+        }
+        self.ancestors(p).into_iter().find(|&a| self.is_canonical(a)).unwrap_or(p)
     }
 
     pub fn primary_parent(&self, p: Sym) -> Option<Sym> {

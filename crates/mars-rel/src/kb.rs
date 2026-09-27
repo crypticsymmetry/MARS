@@ -75,7 +75,7 @@ impl Kb {
     pub fn declare(&mut self, name: &str, arity: Option<u8>, kind: PredKind, commutative: bool, parents: &[&str]) -> Sym {
         let s = self.sym(name);
         let parents = parents.iter().map(|p| self.interner.intern(p)).collect();
-        self.vocab.declare(PredInfo { name: s, arity, kind, commutative, parents, declared: true });
+        self.vocab.declare(PredInfo { name: s, arity, kind, commutative, parents, declared: true, canonical: true });
         s
     }
 
@@ -267,6 +267,9 @@ impl Kb {
             s.push_str(&format!(" :kind {}", p.kind.as_str()));
             if p.commutative {
                 s.push_str(" :commutative t");
+            }
+            if !p.canonical {
+                s.push_str(" :canonical nil");
             }
             if !p.parents.is_empty() {
                 let ps: Vec<&str> = p.parents.iter().map(|x| self.name(*x)).collect();

@@ -49,6 +49,7 @@ impl Kb {
         let mut arity = None;
         let mut kind = PredKind::Relation;
         let mut commutative = false;
+        let mut canonical = true;
         let mut parents = Vec::new();
         let mut i = 2;
         while i < items.len() {
@@ -68,6 +69,7 @@ impl Kb {
                     kind = PredKind::parse(k).ok_or_else(|| LoadError(format!("bad kind {k} for {name}")))?;
                 }
                 ":commutative" | ":symmetric" => commutative = val.as_atom() == Some("t"),
+                ":canonical" => canonical = val.as_atom() != Some("nil"),
                 ":parents" => {
                     let list = val.as_list().ok_or_else(|| LoadError(format!(":parents must be a list in {name}")))?;
                     for p in list {
@@ -81,7 +83,7 @@ impl Kb {
         }
         let name_sym = self.sym(name);
         let parent_syms = parents.iter().map(|p| self.sym(p)).collect();
-        self.vocab.declare(PredInfo { name: name_sym, arity, kind, commutative, parents: parent_syms, declared: true });
+        self.vocab.declare(PredInfo { name: name_sym, arity, kind, commutative, parents: parent_syms, declared: true, canonical });
         Ok(())
     }
 

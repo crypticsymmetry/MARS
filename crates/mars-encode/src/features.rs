@@ -6,6 +6,12 @@
 //! * **C2 Relational n-grams**: parent→child functor links, entity-mediated
 //!   co-argument links, expression-mediated co-argument links. Entity-anonymous.
 //! * **C3 WL**: Weisfeiler–Lehman refined labels of the anonymous incidence graph.
+//! * **C4 Topology**: WL over predicate-agnostic labels (kind, arity, order):
+//!   pure shape, robust to unresolved predicate vocabularies.
+//!
+//! Structural channels use each predicate's *structural name*: its nearest
+//! canonical ancestor (see `Vocabulary::structural`). The identity of a
+//! non-canonical predicate (e.g. a domain-specific synonym) is emitted to C0.
 //!
 //! Taxonomy grading is implemented as *multi-resolution features*: each
 //! structural feature is also emitted with predicates replaced by their
@@ -17,7 +23,7 @@ use mars_rel::{CaseId, ExprId, Kb, PredKind, Sym, Term};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-pub const N_CHANNELS: usize = 4;
+pub const N_CHANNELS: usize = 5;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Channel {
@@ -25,16 +31,18 @@ pub enum Channel {
     Content = 1,
     Relational = 2,
     Wl = 3,
+    Topology = 4,
 }
 
 impl Channel {
-    pub const ALL: [Channel; N_CHANNELS] = [Channel::Surface, Channel::Content, Channel::Relational, Channel::Wl];
+    pub const ALL: [Channel; N_CHANNELS] = [Channel::Surface, Channel::Content, Channel::Relational, Channel::Wl, Channel::Topology];
     pub fn name(self) -> &'static str {
         match self {
             Channel::Surface => "C0-surface",
             Channel::Content => "C1-content",
             Channel::Relational => "C2-relational",
             Channel::Wl => "C3-wl",
+            Channel::Topology => "C4-topology",
         }
     }
 }
@@ -53,10 +61,16 @@ pub struct FeatureConfig {
     pub co_kmax: usize,
     /// Emit entity-mediated co-argument features.
     pub co_entity: bool,
+    /// Weight of entity-mediated co-argument features (first-order
+    /// co-occurrence is weaker evidence than higher-order structure, and is
+    /// shared by TA/MA/FOR alike; E0 found weight 1 fragile under distractors).
+    pub co_entity_weight: f32,
     /// Emit expression-mediated co-argument features (shared sub-expressions).
     pub co_expr: bool,
     /// Emit parent→child features.
     pub parent_child: bool,
+    /// WL depth for the predicate-agnostic topology channel (0 disables).
+    pub topo_depth: usize,
 }
 
 impl Default for FeatureConfig {
@@ -68,8 +82,10 @@ impl Default for FeatureConfig {
             taxonomy_alpha: 0.5,
             co_kmax: 16,
             co_entity: true,
+            co_entity_weight: 0.25,
             co_expr: true,
             parent_child: true,
+            topo_depth: 3,
         }
     }
 }
@@ -125,6 +141,9 @@ const T_WL_ENT: u64 = 0x09;
 const T_EDGE_ARG: u64 = 0x0A;
 const T_EDGE_PAR: u64 = 0x0B;
 const T_EDGE_IN: u64 = 0x0C;
+const T_SPRED: u64 = 0x0D;
+const T_TOPO0: u64 = 0x0E;
+const T_ANON: u64 = 0x0F;
 
 /// Stateless feature extractor bound to a knowledge base's vocabulary.
 pub struct FeatureExtractor<'a> {
@@ -152,11 +171,27 @@ impl<'a> FeatureExtractor<'a> {
     /// Predicate hash at taxonomy level 0 (itself) or 1 (primary parent, or itself if none).
     #[inline]
     fn ph(&self, p: Sym, level: usize) -> u64 {
-        if level == 0 {
-            self.h(p)
-        } else {
-            self.h(self.kb.vocab.primary_parent(p).unwrap_or(p))
+        let v = &self.kb.vocab;
+        let s = v.structural(p);
+        if !v.is_canonical(s) {
+            // No canonical ancestor: the name is domain-specific surface, so
+            // structural channels see only its shape (kind, arity).
+            let arity = v.get(s).and_then(|i| i.arity).unwrap_or(0) as u64;
+            return hash_words(&[T_ANON, v.kind(s) as u64, arity]);
         }
+        if level == 0 {
+            self.h(s)
+        } else {
+            self.h(v.primary_parent(s).unwrap_or(s))
+        }
+    }
+
+    /// Predicate-agnostic label: kind, arity, and whether it takes expressions.
+    fn topo_label(&self, e: ExprId) -> u64 {
+        let ex = self.kb.expr(e);
+        let kind = self.kb.vocab.kind(ex.functor) as u64;
+        let ho = ex.args.iter().any(|a| matches!(a, Term::Expr(_))) as u64;
+        hash_words(&[T_TOPO0, kind, ex.args.len() as u64, ho])
     }
 
     #[inline]
@@ -193,8 +228,11 @@ impl<'a> FeatureExtractor<'a> {
             c0.add(hash_words(&[T_ENT, self.h(ent)]), 1.0);
         }
         for &e in &exprs {
+            let p = kb.expr(e).functor;
             if self.is_attr(e) {
-                c0.add(hash_words(&[T_ATTR, self.h(kb.expr(e).functor)]), 1.0);
+                c0.add(hash_words(&[T_ATTR, self.h(p)]), 1.0);
+            } else if !kb.vocab.is_canonical(p) {
+                c0.add(hash_words(&[T_SPRED, self.h(p)]), 1.0);
             }
         }
 
@@ -235,14 +273,14 @@ impl<'a> FeatureExtractor<'a> {
                 }
             }
         }
-        if self.cfg.co_entity {
+        if self.cfg.co_entity && self.cfg.co_entity_weight > 0.0 {
             for occ in ent_occ.values_mut() {
-                self.co_pairs(occ, T_CO, &levels, &mut c2);
+                self.co_pairs(occ, T_CO, &levels, self.cfg.co_entity_weight, &mut c2);
             }
         }
         if self.cfg.co_expr {
             for occ in expr_occ.values_mut() {
-                self.co_pairs(occ, T_COE, &levels, &mut c2);
+                self.co_pairs(occ, T_COE, &levels, 1.0, &mut c2);
             }
         }
 
@@ -250,15 +288,22 @@ impl<'a> FeatureExtractor<'a> {
         let mut c3 = Bag::default();
         if self.cfg.wl_depth > 0 {
             for &(lvl, w) in &levels {
-                self.wl(&structural, lvl, w, &mut c3);
+                let init = |e: ExprId| hash_words(&[T_WL0, self.ph(kb.expr(e).functor, lvl)]);
+                self.wl(&structural, init, lvl as u64, self.cfg.wl_depth, w, &mut c3);
             }
         }
 
-        Features { channels: [c0.finish(), c1.finish(), c2.finish(), c3.finish()] }
+        // ---------------- C4 topology
+        let mut c4 = Bag::default();
+        if self.cfg.topo_depth > 0 {
+            self.wl(&structural, |e| self.topo_label(e), 0x70, self.cfg.topo_depth, 1.0, &mut c4);
+        }
+
+        Features { channels: [c0.finish(), c1.finish(), c2.finish(), c3.finish(), c4.finish()] }
     }
 
     /// Unordered pairs of occurrences sharing an argument.
-    fn co_pairs(&self, occ: &mut Vec<(Sym, u64)>, tag: u64, levels: &[(usize, f32)], bag: &mut Bag) {
+    fn co_pairs(&self, occ: &mut Vec<(Sym, u64)>, tag: u64, levels: &[(usize, f32)], weight: f32, bag: &mut Bag) {
         if occ.len() < 2 {
             return;
         }
@@ -273,7 +318,7 @@ impl<'a> FeatureExtractor<'a> {
                     let a = hash_words(&[self.ph(occ[i].0, lvl), occ[i].1]);
                     let b = hash_words(&[self.ph(occ[j].0, lvl), occ[j].1]);
                     let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
-                    bag.add(hash_words(&[tag, lvl as u64, lo, hi]), w);
+                    bag.add(hash_words(&[tag, lvl as u64, lo, hi]), w * weight);
                 }
             }
         }
@@ -281,7 +326,7 @@ impl<'a> FeatureExtractor<'a> {
 
     /// WL refinement over the bipartite incidence graph of structural
     /// expressions and (anonymous) entities.
-    fn wl(&self, structural: &[ExprId], lvl: usize, w_level: f32, bag: &mut Bag) {
+    fn wl(&self, structural: &[ExprId], init: impl Fn(ExprId) -> u64, tag: u64, depth: usize, w_level: f32, bag: &mut Bag) {
         let kb = self.kb;
         let n_e = structural.len();
         let idx: FxHashMap<ExprId, usize> = structural.iter().enumerate().map(|(i, &e)| (e, i)).collect();
@@ -290,7 +335,7 @@ impl<'a> FeatureExtractor<'a> {
         let mut adj: Vec<Vec<(u64, usize)>> = vec![Vec::new(); n_e];
         let mut labels: Vec<u64> = Vec::with_capacity(n_e);
         for &e in structural {
-            labels.push(hash_words(&[T_WL0, self.ph(kb.expr(e).functor, lvl)]));
+            labels.push(init(e));
         }
         for (ei, &e) in structural.iter().enumerate() {
             let ex = kb.expr(e);
@@ -317,7 +362,7 @@ impl<'a> FeatureExtractor<'a> {
             }
         }
         let mut buf: Vec<u64> = Vec::new();
-        for t in 1..=self.cfg.wl_depth {
+        for t in 1..=depth {
             let mut next = Vec::with_capacity(labels.len());
             for (v, nbrs) in adj.iter().enumerate() {
                 buf.clear();
@@ -329,7 +374,7 @@ impl<'a> FeatureExtractor<'a> {
             labels = next;
             let wt = *self.cfg.wl_weights.get(t - 1).or(self.cfg.wl_weights.last()).unwrap_or(&1.0);
             for &l in &labels {
-                bag.add(hash_words(&[T_WL, lvl as u64, t as u64, l]), wt * w_level);
+                bag.add(hash_words(&[T_WL, tag, t as u64, l]), wt * w_level);
             }
         }
     }
