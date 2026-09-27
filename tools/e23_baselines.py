@@ -58,7 +58,7 @@ LLM_PROMPT = """For each question, the source story is followed by candidate sto
 {items}"""
 
 
-def llm_answers(mc, models, out_dir, batch=10):
+def llm_answers(mc, models, out_dir, batch=3):
     from llm2mars import call
     path = os.path.join(out_dir, "llm_answers.jsonl")
     done = {}
@@ -110,6 +110,9 @@ def metrics(mc, scores, qids):
 def main():
     mc_path, mars_path, out_dir = sys.argv[1:4]
     args = sys.argv[4:]
+    if "--reasoning" in args:  # reasoning effort for reasoning models (inherited by worker processes)
+        import llm2mars
+        llm2mars.REASONING = args[args.index("--reasoning") + 1]
     mc = json.load(open(mc_path))
     mars = json.load(open(mars_path))
     qids = [r["q"] for r in mars["per_question"]]

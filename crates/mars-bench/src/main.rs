@@ -36,6 +36,7 @@ mod e20;
 mod e21;
 mod e22;
 mod e23;
+mod e24;
 pub mod metrics;
 
 use rustc_hash::FxHashMap;
@@ -139,6 +140,7 @@ fn main() {
         "e21" => e21::run(&args),
         "e22" => e22::run(&args),
         "e23" => e23::run(&args),
+        "e24" => e24::run(&args),
         other => Err(format!("unknown command {other}")),
     };
     if let Err(e) = r {
