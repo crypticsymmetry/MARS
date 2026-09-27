@@ -25,6 +25,8 @@
 | 10⁵ | 2 | 0.852 | 0.515 | **0.645** | 0.873 | 0.162 | 0.60 / 0.60 (50 q) |
 | 10⁶ | 1 | 0.897 | 0.629 | **0.745** | 0.854 | — | 0.80 / 0.85 (20 q) |
 
+> **Update (kernel v2):** with the word-interleaved Mode K kernel (see `results/bw`), the 10⁶ clean run's MAC stage takes 6.35 ms/query instead of 10.4 ms, with identical accuracy (R@1 0.970, fused acc@1 0.994).
+
 ## Findings
 
 1. **H1 (retrieval) holds on clean analogues up to 10⁶.** TA is in the fingerprint top-64 for 100% of queries at every scale, and at rank 1 for 97–99.7%. Classic MAC content vectors degrade with scale (R@64: 0.80 → 0.35 from 10⁴ to 10⁵) and always rank the mere-appearance foil above TA. Lexical retrieval never finds TA.

@@ -28,7 +28,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] `mars-rel`: interner, vocabulary + taxonomy, hash-consed expression DAG (commutative canonicalization, relational order), cases, s-expression loader and renderer
 - [x] `mars-encode`: feature channels C0–C3, taxonomy multi-resolution features, IDF stats (epochs), segmented sketcher, profiles; solar/atom sanity tests
 - [x] Popcount scan microbenchmark vs memory bandwidth: single query 79% of probe (G0 pass); batched 6.6 ms/query at 10⁶ rows on 4 cores → [results/bw](../results/bw/)
-- [ ] Mode K kernel: query register-blocking / transposed layout (currently about 55 cycles per row per query)
+- [x] Mode K kernel: rows stored in word-interleaved blocks of 8 (one SIMD lane per row: no horizontal reductions, 1-uop `vpmuludq` weights), 4 queries share each row vector → batched scan 6.66 → 3.68 ms/query at 10⁶ (55 → ~30 cycles/row/query; ALU-port floor ≈ 21–28); E3 MAC stage 10.4 → 6.35 ms/query, identical accuracy; exact-id equivalence test vs a threshold-free reference (odd sizes, deletes, updates), portable path tested without AVX-512. [results/bw](../results/bw/bw-1000000.md)
 
 ### P1 Fingerprint feasibility
 - [x] `mars-gen`: vocabulary (54 FO preds in 9 categories, HO, functions, comparisons), 12 domains, random templates in 7 structural families, Gentner variants (LS/TA/MA/FOR/RND) with HO re-wiring, distractors, naming modes (canonical/synonyms/unresolved), ground-truth var→entity maps
@@ -90,6 +90,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Mode K storage: word-interleaved 8-row blocks; `score_pair` for scoring stored fingerprints | 1.8× batched throughput, bit-identical results; single-row `score()` now strided, so the engine scores its contiguous copies |
 | 2026-09-27 | Accept/abstain on analogues by local-null z (top-1 vs lower half of the fingerprint candidate list), threshold 9, never by raw score | E16: raw-score thresholds lose precision 0.90 → 0.44 from 10³ to 10⁶ cases; local z holds 0.90–0.95; Gaussian global E-value fails |
 | 2026-09-27 | Consolidation adds schema cases alongside instances (never replaces them); confidence = corroboration over the combined pool; schema fact probabilities reported, not used as confidence | E15: combined pool best at every scale; schema-only pools lose at 10⁴ (purity drop); probability buckets flat |
 | 2026-09-27 | SAGE names from stable ids + per-pool namespace | E15 exposed name collisions (vector index reused after merges; two pools in one KB) |

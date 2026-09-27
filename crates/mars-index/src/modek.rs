@@ -4,6 +4,13 @@
 //! weights a channel at zero (e.g. C0 surface in the analogy profile) never
 //! reads that segment. This is a bandwidth saving, not just a compute one.
 //!
+//! Within a segment, rows are stored in **blocks of 8, word-interleaved**:
+//! word `i` of rows `8b..8b+8` is one contiguous 512-bit vector. The kernel
+//! XORs a broadcast query word against it, so each SIMD lane accumulates
+//! one row's Hamming distance: no horizontal reductions, and a cheap 32-bit
+//! multiply per channel for the profile weight. Several queries share each
+//! loaded row vector (register blocking).
+//!
 //! Score for profile λ: `Σ_c λ_c (1 - 2 h_c / d_c)`, computed as
 //! `base - Σ_c coef_c · h_c` with integer per-segment Hamming distances.
 //!
@@ -13,8 +20,13 @@
 
 use crate::topk::{Hit, TopK};
 use mars_encode::{Layout, N_CHANNELS};
-use mars_hv::{hamming_words, WORD_BITS};
+use mars_hv::WORD_BITS;
 use rayon::prelude::*;
+
+/// Rows per interleaved block (one 512-bit vector of 64-bit words).
+const LANES: usize = 8;
+/// Queries sharing each loaded row vector.
+const QBLOCK: usize = 4;
 
 #[derive(Clone, Debug)]
 pub struct ModeK {
@@ -23,10 +35,9 @@ pub struct ModeK {
     seg_words: [usize; N_CHANNELS],
     /// Word offset of each segment within a full fingerprint.
     seg_off: [usize; N_CHANNELS],
+    /// Per segment: blocks of `LANES` rows, word-interleaved (see module docs).
     segs: [Vec<u64>; N_CHANNELS],
     n: usize,
-    /// All segment lengths are multiples of 8 words (fused AVX-512 kernel usable).
-    fused_ok: bool,
     /// Soft-deleted rows (skipped by searches).
     dead: Vec<bool>,
     n_dead: usize,
@@ -37,7 +48,7 @@ pub struct ModeK {
 pub struct Scorer {
     base: f32,
     active: Vec<(usize, f32)>,
-    /// Integer weights for the fused kernel: score ≈ base - Σ qw_c h_c / QSCALE.
+    /// Integer weights: score ≈ base - Σ qw_c h_c / QSCALE (each < 2³²).
     qw: [u64; N_CHANNELS],
 }
 
@@ -54,14 +65,14 @@ impl ModeK {
             seg_off[c] = off;
             off += seg_words[c];
         }
-        let fused_ok = seg_words.iter().all(|w| w % 8 == 0);
-        ModeK { layout, seg_words, seg_off, segs: Default::default(), n: 0, fused_ok, dead: Vec::new(), n_dead: 0 }
+        ModeK { layout, seg_words, seg_off, segs: Default::default(), n: 0, dead: Vec::new(), n_dead: 0 }
     }
 
     pub fn with_capacity(layout: Layout, n: usize) -> Self {
         let mut m = Self::new(layout);
+        let padded = n.div_ceil(LANES) * LANES;
         for c in 0..N_CHANNELS {
-            m.segs[c].reserve(n * m.seg_words[c]);
+            m.segs[c].reserve(padded * m.seg_words[c]);
         }
         m
     }
@@ -78,15 +89,34 @@ impl ModeK {
         &self.layout
     }
 
+    /// Position of word `i` of row `r` in segment `c`.
+    #[inline]
+    fn pos(&self, c: usize, r: usize, i: usize) -> usize {
+        ((r / LANES) * self.seg_words[c] + i) * LANES + r % LANES
+    }
+
+    fn write_row(&mut self, r: usize, fp: &[u64]) {
+        for c in 0..N_CHANNELS {
+            let s = self.seg_off[c];
+            for i in 0..self.seg_words[c] {
+                let p = self.pos(c, r, i);
+                self.segs[c][p] = fp[s + i];
+            }
+        }
+    }
+
     /// Append a full fingerprint (all segments concatenated). Returns its row id.
     pub fn push(&mut self, fp: &[u64]) -> u32 {
         assert_eq!(fp.len(), self.layout.total_words());
-        for c in 0..N_CHANNELS {
-            let s = self.seg_off[c];
-            self.segs[c].extend_from_slice(&fp[s..s + self.seg_words[c]]);
+        if self.n.is_multiple_of(LANES) {
+            for c in 0..N_CHANNELS {
+                let len = self.segs[c].len() + self.seg_words[c] * LANES;
+                self.segs[c].resize(len, 0);
+            }
         }
         self.n += 1;
         self.dead.push(false);
+        self.write_row(self.n - 1, fp);
         (self.n - 1) as u32
     }
 
@@ -104,11 +134,8 @@ impl ModeK {
 
     /// Overwrite row `id` in place (incremental fingerprint update).
     pub fn update(&mut self, id: u32, fp: &[u64]) {
-        let r = id as usize;
-        for c in 0..N_CHANNELS {
-            let (s, w) = (self.seg_off[c], self.seg_words[c]);
-            self.segs[c][r * w..(r + 1) * w].copy_from_slice(&fp[s..s + w]);
-        }
+        assert_eq!(fp.len(), self.layout.total_words());
+        self.write_row(id as usize, fp);
     }
 
     pub fn scorer(&self, weights: &[f64; N_CHANNELS]) -> Scorer {
@@ -122,15 +149,10 @@ impl ModeK {
                 let coef = 2.0 * weights[c] / self.layout.dims[c] as f64;
                 active.push((c, coef as f32));
                 qw[c] = (coef * QSCALE).round().max(1.0) as u64;
+                assert!(qw[c] < 1 << 32, "channel weight too large for the integer kernel");
             }
         }
         Scorer { base: base as f32, active, qw }
-    }
-
-    #[inline]
-    fn row(&self, c: usize, r: usize) -> &[u64] {
-        let w = self.seg_words[c];
-        &self.segs[c][r * w..(r + 1) * w]
     }
 
     #[inline]
@@ -138,52 +160,91 @@ impl ModeK {
         &q[self.seg_off[c]..self.seg_off[c] + self.seg_words[c]]
     }
 
+    fn hamming_row(&self, c: usize, q: &[u64], r: usize) -> u32 {
+        self.qseg(q, c).iter().enumerate().map(|(i, &x)| (x ^ self.segs[c][self.pos(c, r, i)]).count_ones()).sum()
+    }
+
+    /// Score two full fingerprints (neither need be indexed); equals
+    /// `score(s, a, r)` when row `r` holds `b`.
     #[inline]
-    pub fn score(&self, s: &Scorer, q: &[u64], r: u32) -> f32 {
+    pub fn score_pair(&self, s: &Scorer, a: &[u64], b: &[u64]) -> f32 {
         let mut x = s.base;
         for &(c, coef) in &s.active {
-            x -= coef * hamming_words(self.qseg(q, c), self.row(c, r as usize)) as f32;
+            x -= coef * mars_hv::hamming_words(self.qseg(a, c), self.qseg(b, c)) as f32;
         }
         x
     }
 
-    /// Weighted integer distance Σ_c qw_c · h_c for row `r` (lower = better).
     #[inline]
-    fn wdist(&self, s: &Scorer, q: &[u64], r: usize) -> u64 {
-        #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vpopcntdq", target_feature = "avx512dq"))]
-        {
-            if self.fused_ok {
-                // SAFETY: target features checked at compile time; segment lengths are multiples of 8 (fused_ok).
-                return unsafe { self.wdist_avx512(s, q, r) };
-            }
+    pub fn score(&self, s: &Scorer, q: &[u64], r: u32) -> f32 {
+        let mut x = s.base;
+        for &(c, coef) in &s.active {
+            x -= coef * self.hamming_row(c, q, r as usize) as f32;
         }
-        let mut d = 0u64;
-        for &(c, _) in &s.active {
-            d += s.qw[c] * hamming_words(self.qseg(q, c), self.row(c, r)) as u64;
-        }
-        d
+        x
     }
 
-    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vpopcntdq", target_feature = "avx512dq"))]
+    /// Weighted integer distances Σ_c qw_c · h_c of the `LANES` rows of block
+    /// `b` to each of `G` queries (lower = better).
     #[inline]
-    unsafe fn wdist_avx512(&self, s: &Scorer, q: &[u64], r: usize) -> u64 {
+    fn block_dists<const G: usize>(&self, s: &Scorer, qs: &[&[u64]; G], b: usize) -> [[u64; LANES]; G] {
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vpopcntdq"))]
+        {
+            // SAFETY: target features checked at compile time; block `b` exists
+            // (segments are padded to whole blocks) and queries have full length.
+            return unsafe { self.block_dists_avx512(s, qs, b) };
+        }
+        #[allow(unreachable_code)]
+        {
+            let mut out = [[0u64; LANES]; G];
+            for &(c, _) in &s.active {
+                let w = self.seg_words[c];
+                let blk = &self.segs[c][b * w * LANES..(b + 1) * w * LANES];
+                for g in 0..G {
+                    let q = self.qseg(qs[g], c);
+                    let mut acc = [0u64; LANES];
+                    for i in 0..w {
+                        for l in 0..LANES {
+                            acc[l] += (q[i] ^ blk[i * LANES + l]).count_ones() as u64;
+                        }
+                    }
+                    for l in 0..LANES {
+                        out[g][l] += s.qw[c] * acc[l];
+                    }
+                }
+            }
+            out
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", target_feature = "avx512vpopcntdq"))]
+    #[inline]
+    unsafe fn block_dists_avx512<const G: usize>(&self, s: &Scorer, qs: &[&[u64]; G], b: usize) -> [[u64; LANES]; G] {
         use std::arch::x86_64::*;
-        let mut total = _mm512_setzero_si512();
+        let mut tot = [_mm512_setzero_si512(); G];
         for &(c, _) in &s.active {
             let w = self.seg_words[c];
-            let rp = self.segs[c].as_ptr().add(r * w);
-            let qp = q.as_ptr().add(self.seg_off[c]);
-            let mut acc = _mm512_setzero_si512();
-            let mut i = 0;
-            while i < w {
-                let x = _mm512_loadu_si512(qp.add(i) as *const _);
-                let y = _mm512_loadu_si512(rp.add(i) as *const _);
-                acc = _mm512_add_epi64(acc, _mm512_popcnt_epi64(_mm512_xor_si512(x, y)));
-                i += 8;
+            let off = self.seg_off[c];
+            let bp = self.segs[c].as_ptr().add(b * w * LANES);
+            let mut acc = [_mm512_setzero_si512(); G];
+            for i in 0..w {
+                let y = _mm512_loadu_si512(bp.add(i * LANES) as *const _);
+                for g in 0..G {
+                    let x = _mm512_set1_epi64(*qs[g].get_unchecked(off + i) as i64);
+                    acc[g] = _mm512_add_epi64(acc[g], _mm512_popcnt_epi64(_mm512_xor_si512(x, y)));
+                }
             }
-            total = _mm512_add_epi64(total, _mm512_mullo_epi64(acc, _mm512_set1_epi64(s.qw[c] as i64)));
+            // Per-lane counts and weights both fit in 32 bits: one-uop multiply.
+            let wv = _mm512_set1_epi64(s.qw[c] as i64);
+            for g in 0..G {
+                tot[g] = _mm512_add_epi64(tot[g], _mm512_mul_epu32(acc[g], wv));
+            }
         }
-        _mm512_reduce_add_epi64(total) as u64
+        let mut out = [[0u64; LANES]; G];
+        for g in 0..G {
+            _mm512_storeu_si512(out[g].as_mut_ptr() as *mut _, tot[g]);
+        }
+        out
     }
 
     /// Single-query exhaustive search (parallel over row blocks).
@@ -191,33 +252,53 @@ impl ModeK {
         self.search_batch(&[q], s, k).pop().unwrap()
     }
 
-    /// Score rows `lo..hi` against every query, in L1-sized tiles.
+    #[inline]
+    fn admit(&self, s: &Scorer, top: &mut TopK, thr: &mut u64, r: usize, d: u64) {
+        if d > *thr || (self.n_dead > 0 && self.dead[r]) {
+            return;
+        }
+        top.push(r as u32, s.base - (d as f64 / QSCALE) as f32);
+        if let Some(th) = top.threshold() {
+            // Integer admission threshold: rows with d > thr cannot enter the top-k.
+            *thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
+        }
+    }
+
+    fn scan_group<const G: usize>(&self, s: &Scorer, qs: &[&[u64]; G], tops: &mut [TopK], thrs: &mut [u64], blocks: std::ops::Range<usize>, rows: &std::ops::Range<usize>) {
+        for b in blocks {
+            let d = self.block_dists(s, qs, b);
+            for g in 0..G {
+                for l in 0..LANES {
+                    let r = b * LANES + l;
+                    if rows.contains(&r) {
+                        self.admit(s, &mut tops[g], &mut thrs[g], r, d[g][l]);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Score rows `lo..hi` against every query, in L1-sized tiles of blocks.
     fn scan(&self, queries: &[&[u64]], s: &Scorer, k: usize, lo: usize, hi: usize) -> Vec<TopK> {
-        const TILE: usize = 32;
+        const TILE_BLOCKS: usize = 4;
         let mut tops: Vec<TopK> = (0..queries.len()).map(|_| TopK::new(k)).collect();
-        let mut t = lo;
-        while t < hi {
-            let te = (t + TILE).min(hi);
-            for (qi, q) in queries.iter().enumerate() {
-                let top = &mut tops[qi];
-                // Integer admission threshold: skip rows that cannot enter the top-k.
-                let mut thr = u64::MAX;
-                if let Some(th) = top.threshold() {
-                    thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
-                }
-                for r in t..te {
-                    if self.n_dead > 0 && self.dead[r] {
-                        continue;
-                    }
-                    let d = self.wdist(s, q, r);
-                    if d > thr {
-                        continue;
-                    }
-                    top.push(r as u32, s.base - (d as f64 / QSCALE) as f32);
-                    if let Some(th) = top.threshold() {
-                        thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
-                    }
-                }
+        let mut thrs = vec![u64::MAX; queries.len()];
+        if lo >= hi {
+            return tops;
+        }
+        let (b_lo, b_hi) = (lo / LANES, hi.div_ceil(LANES));
+        let mut t = b_lo;
+        while t < b_hi {
+            let te = (t + TILE_BLOCKS).min(b_hi);
+            let mut qi = 0;
+            while qi + QBLOCK <= queries.len() {
+                let qs: [&[u64]; QBLOCK] = std::array::from_fn(|g| queries[qi + g]);
+                self.scan_group(s, &qs, &mut tops[qi..qi + QBLOCK], &mut thrs[qi..qi + QBLOCK], t..te, &(lo..hi));
+                qi += QBLOCK;
+            }
+            while qi < queries.len() {
+                self.scan_group(s, &[queries[qi]], &mut tops[qi..qi + 1], &mut thrs[qi..qi + 1], t..te, &(lo..hi));
+                qi += 1;
             }
             t = te;
         }
@@ -227,7 +308,10 @@ impl ModeK {
     /// Batched exhaustive search, parallel over row chunks: each L1-sized
     /// tile of rows is scored against every query before moving on.
     pub fn search_batch(&self, queries: &[&[u64]], s: &Scorer, k: usize) -> Vec<Vec<Hit>> {
-        const CHUNK: usize = 4096;
+        const CHUNK: usize = 4096; // a multiple of LANES
+        for q in queries {
+            assert_eq!(q.len(), self.layout.total_words());
+        }
         let nq = queries.len();
         let n_chunks = self.n.div_ceil(CHUNK);
         let partials: Vec<Vec<TopK>> =
@@ -243,6 +327,9 @@ impl ModeK {
 
     /// Single-threaded batched search (for use inside parallel callers).
     pub fn search_batch_serial(&self, queries: &[&[u64]], s: &Scorer, k: usize) -> Vec<Vec<Hit>> {
+        for q in queries {
+            assert_eq!(q.len(), self.layout.total_words());
+        }
         self.scan(queries, s, k, 0, self.n).into_iter().map(TopK::into_sorted).collect()
     }
 
@@ -288,4 +375,56 @@ mod tests {
             assert_eq!(got.len(), want.len());
         }
     }
+
+    /// Reference: score every live row with `score()` and keep the top-k by
+    /// the kernel's integer ordering (no admission threshold, no tiling).
+    fn reference(idx: &ModeK, q: &[u64], s: &Scorer, k: usize) -> Vec<Hit> {
+        let mut t = TopK::new(k);
+        for r in 0..idx.len() {
+            if idx.is_alive(r as u32) {
+                let d: u64 = s.active.iter().map(|&(c, _)| s.qw[c] * idx.hamming_row(c, q, r) as u64).sum();
+                t.push(r as u32, s.base - (d as f64 / QSCALE) as f32);
+            }
+        }
+        t.into_sorted()
+    }
+
+    #[test]
+    fn exact_ids_with_odd_sizes_deletes_and_updates() {
+        let layout = Layout::new([64, 128, 256, 128, 64]);
+        let total = layout.total_bits();
+        for &n in &[1usize, 7, 8, 9, 1003, 5000] {
+            let mut idx = ModeK::new(layout.clone());
+            for i in 0..n {
+                idx.push(HyperVector::random(total, i as u64).words());
+            }
+            // Some deletes and in-place updates.
+            for r in (0..n).step_by(17) {
+                idx.remove(r as u32);
+            }
+            for r in (3..n).step_by(29) {
+                idx.update(r as u32, HyperVector::random(total, 77_000 + r as u64).words());
+            }
+            // Near-duplicate queries so that top-k and ties are non-trivial.
+            let qs: Vec<HyperVector> = (0..7).map(|i| if i % 2 == 0 { HyperVector::random(total, 5 + i) } else { HyperVector::random(total, (i * 31) % n as u64) }).collect();
+            let qrefs: Vec<&[u64]> = qs.iter().map(|q| q.words()).collect();
+            for w in [[0.0, 0.1, 0.4, 0.4, 0.1], [0.2, 0.2, 0.2, 0.2, 0.2]] {
+                let s = idx.scorer(&w);
+                for k in [1usize, 10, 64] {
+                    let par = idx.search_batch(&qrefs, &s, k);
+                    let ser = idx.search_batch_serial(&qrefs, &s, k);
+                    for (qi, q) in qrefs.iter().enumerate() {
+                        let want = reference(&idx, q, &s, k);
+                        assert_eq!(par[qi], want, "parallel n={n} k={k} q={qi}");
+                        assert_eq!(ser[qi], want, "serial n={n} k={k} q={qi}");
+                        for h in &want {
+                            let row = if (3..n).contains(&(h.id as usize)) && (h.id as usize - 3) % 29 == 0 { HyperVector::random(total, 77_000 + h.id as u64) } else { HyperVector::random(total, h.id as u64) };
+                            assert_eq!(idx.score_pair(&s, q, row.words()), idx.score(&s, q, h.id));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }

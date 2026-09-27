@@ -234,7 +234,7 @@ impl Engine {
     }
 
     fn fp_score(&self, q: CaseId, c: CaseId) -> f64 {
-        self.index.score(&self.scorer, &self.fps[q.0 as usize], c.0) as f64
+        self.index.score_pair(&self.scorer, &self.fps[q.0 as usize], &self.fps[c.0 as usize]) as f64
     }
 
     fn self_score(&mut self, c: CaseId) -> f32 {
