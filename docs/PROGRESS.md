@@ -74,6 +74,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] Indexed SAGE candidate scan (≥ 10⁴ cases; the scan is linear in the pool)
 - [ ] Hierarchical generalization to reduce fragmentation
 - [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
+- [x] **E17 candidate inference on real code** → [results/E17](../results/E17/README.md): deleted control statements restored exactly for 7.6% (lexical 4.6%, random 0.1%); shape overlap 0.243 vs 0.180 lexical vs 0.026 chance; the structurally nearest function beats the same algorithm by another author as an inference source; support calibrated (0.02 → 0.09 → 0.33)
 - [ ] P7b representation normalization for code (loop canonicalization, idioms, def-use dataflow); per-domain profile tuning
 - [ ] P7c narrative analogies (ARN / Karla stories): blocked by network (datasets not reachable from this environment)
 
@@ -115,6 +116,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E17 | 2026-09-27 | 700 deleted-statement queries over 1,113 Python functions; fused/lexical/random/oracle analogues; top-5 corroboration | fused top-1: exact 0.076, shape overlap 0.243 (lexical 0.046/0.180, random 0.001/0.026, other-author twin 0.015/0.206); precision by support 0.022/0.092/0.333 | [results/E17](../results/E17/README.md) |
 | E16 | 2026-09-27 | 5 instances/template, 10³–10⁶ cases, 500 queries (half with absent templates); thresholds fixed at 10³ | fused local-null z: precision 0.90 / 0.91 / 0.91 / 0.95, absent false-accept 0.10 → 0.01 (recall 0.93 → 0.49); fused raw score: precision 0.90 → 0.44, false-accept 0.79 | [results/E16](../results/E16/README.md) |
 | E15 | 2026-09-27 | 10 instances × 100 / 1,000 templates, severity 1–2; pools: instances, schemas (symmetric / coverage), instances + schemas | instances + schemas best (10⁴: R@P≥0.6 0.448 vs 0.392, m=1 precision 0.60 vs 0.55); schema-only wins only at 10³ m=1 (recall 0.574 vs 0.374) and collapses at 10⁴ (purity 0.87) | [results/E15](../results/E15/README.md) |
 | E14 | 2026-09-27 | E12 corpus in raw mode (359 language-specific call predicates, 18 gold py↔js pairs), 52 queries | learned 14 pairs: 4 hand-map-correct, 2 same identifier, 0 judgeable-wrong (≈0.6 precision by inspection); fused MRR 0.152 → 0.153 (oracle 0.155, hand-mapped corpus 0.168) | [results/E14](../results/E14/README.md) |
