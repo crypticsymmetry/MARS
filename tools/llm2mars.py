@@ -2,7 +2,7 @@
 """Convert short natural-language stories into MARS relational cases with an
 LLM (OpenRouter chat API; key from $OPENROUTER_API_KEY, never stored).
 
-    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M1,M2,...] [--batch 8]
+    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M1,M2,...] [--batch 8] [--reasoning low]
 
 Several comma-separated models form a fallback chain: a batch that fails on
 one model (free models are often throttled or overloaded) is retried on the
@@ -114,6 +114,10 @@ def build_prompt(batch):
     return PROMPT.format(fo=fo, ho=ho, stories=stories)
 
 
+# Optional reasoning effort for reasoning models (--reasoning low|medium|high).
+REASONING = None
+
+
 class Deadline(Exception):
     pass
 
@@ -128,7 +132,10 @@ def call(model, prompt, retries=2, timeout=150):
     import signal
     signal.signal(signal.SIGALRM, _alarm)
     key = os.environ["OPENROUTER_API_KEY"]
-    body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}).encode()
+    req_body = {"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}
+    if REASONING:
+        req_body["reasoning"] = {"effort": REASONING}
+    body = json.dumps(req_body).encode()
     for i in range(retries):
         req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         try:
@@ -222,6 +229,9 @@ def main():
         model = args[args.index("--model") + 1]
     if "--batch" in args:
         batch_size = int(args[args.index("--batch") + 1])
+    if "--reasoning" in args:
+        global REASONING
+        REASONING = args[args.index("--reasoning") + 1]
     os.makedirs(out_dir, exist_ok=True)
     stories = [json.loads(l) for l in open(src)]
     cache_path = os.path.join(out_dir, "cache.jsonl")
