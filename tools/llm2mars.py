@@ -230,7 +230,8 @@ def main():
         for l in open(cache_path):
             r = json.loads(l)
             cache[r["id"]] = r
-    todo = [s for s in stories if s["id"] not in cache]
+    # Stories cached without facts (the model ignored the output format) are retried.
+    todo = [s for s in stories if not cache.get(s["id"], {}).get("facts")]
     models = model.split(",")
     print(f"{len(stories)} stories, {len(todo)} to convert with {models}", file=sys.stderr, flush=True)
     with open(cache_path, "a") as cf:
