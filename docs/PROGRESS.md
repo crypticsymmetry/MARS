@@ -19,7 +19,7 @@ Latest:
 
 Candidate next steps:
 1. Front ends: pattern-first prompting and ensembles done (E25); next, typed entities or schema-guided extraction, and cheaper ensembles.
-2. Many-to-one alignment (E26: the 1:1 constraint blocks composer/musicComposer → P86).
+2. E26 on a second KG domain (scientists) to test generality; many-to-one joins done (small gain on films, which are nearly 1:1).
 
 ## Task board
 
@@ -53,12 +53,13 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] **`mars serve`**: line protocol (case/fact/unfact/retire/declare/query/watch/top/infer/explain/map/events/checkpoint/stats); `data/examples/session.txt`
 - [x] **E13 analogical bootstrapping of vocabulary alignment** (`MapConfig::wildcard`, `Vocabulary::set_parents`) → [results/E13](../results/E13/README.md): unresolved vocabularies recovered without labels (pair precision 1.000; retrieval 0.15 → 0.99, oracle 1.00)
 - [x] **E14 bootstrapped alignment on real code** (`MARS_RAW=1` converter mode; `mars-bench e14`) → [results/E14](../results/E14/README.md): frequent pairs learned (len↔length, append↔push, pop, abs; 0 wrong among hand-map-judgeable), recall 4/18 (Zipfian, small JS side); even oracle alignment barely moves retrieval (fused MRR 0.152 → 0.155): anonymous shapes already carry cross-language structure
-- [x] **E26 KG vocabulary alignment (DBpedia ↔ Wikidata films)** → [results/E26](../results/E26/README.md): with entity-label anchors and *anchored evidence*, 16 property pairs learned unsupervised, 14 correct by Wikidata labels (gold-confirmed 6; 4 gold gaps); structure alone or values alone learn nothing; alignment makes cross-KG film fingerprints comparable (R@1 0.021 → 0.119)
+- [x] **E26 KG vocabulary alignment (DBpedia ↔ Wikidata films)** → [results/E26](../results/E26/README.md): with entity-label anchors and *anchored evidence*, 16 property pairs learned unsupervised, 14 correct by Wikidata labels (gold-confirmed 6; 4 gold gaps); structure alone or values alone learn nothing; alignment makes cross-KG film fingerprints comparable (R@1 0.021 → 0.119). Many-to-one joins (`--many-to-one yes`) add language↔P364, no new errors; the missing gold pairs (composer, genre) are data-limited (1 and 3 occurrences)
 - [x] E12 cross-language program analogy (Python ↔ JS; `tools/js_ast.js` + `tools/js2mars.py` into the shared vocabulary) → [results/E12](../results/E12/README.md): structure ≈ 2× lexical (MRR 0.168 vs 0.089), low absolute accuracy
 - [x] E11 inference calibration → [results/E11](../results/E11/README.md): precision rises 0.07 → 0.86 with support 1 → 5; 5 analogues with support ≥ 2 keep precision and add 59% recall. Default `infer_from` = 5; `corroborated()` API
 - [x] **Corroborated inferences**: inferences drawn from the top analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
 
 ### Tooling
+- [x] **`mars-py` Python bindings** (PyO3 abi3, maturin; `import mars`): `Engine` with query + significance z, map (entities, matches, inferences, differences), FAC, standing queries (top/infer/explain/events), mutations, checkpoint/open → [crates/mars-py](../crates/mars-py/README.md); tests in `crates/mars-py/python/tests`
 - [x] `mars-cli`: `mars analogies | map | stats` over `.mars` files; `data/examples/classic.mars` (Rutherford, water/heat flow, supply-chain/chokepoint, mere-appearance foil)
 
 ### Later phases

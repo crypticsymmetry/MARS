@@ -74,4 +74,18 @@ Gold pairs present but not learned: composer↔P86 (the 1:1 constraint gave P86 
    - Using *all* correspondences (the E13 rule) fails even with labels: generic wildcard matches between frequent properties (`runtime ↔ cast member`) swamp the signal.
    - E13's anchors were shared higher-order relations. In KGs, the equivalent is shared entity identity, used as a *consistency filter* on the analogy's correspondences.
 3. **Alignment makes structure comparable across KGs.** With the literal profile, counterpart retrieval improves after alignment (fingerprint R@1 0.021 → 0.119, fused 0.136 → 0.324), because aligned properties give the two KGs' films shared structural features. With the surface profile (labels only), alignment slightly *lowers* fused retrieval (0.819 → 0.610). Aligned film structure is generic (every film has a director and a cast) and dilutes the identifying label signal: schema alignment helps *compare* structure but does not identify *instances*.
-4. **Errors are near misses and constraint effects.** `budget ↔ capital cost` is a near miss (numerically similar money values). `language ↔ genre` pairs two categorical properties present on most films; its cause is not diagnosed (the correct P364 was not learned). The 1:1 constraint (from E13) blocks many-to-one truths (`composer` and `musicComposer` → P86). A many-to-one variant is an easy extension.
+4. **Errors are near misses and constraint effects.** `budget ↔ capital cost` is a near miss (numerically similar money values). `language ↔ genre` pairs two categorical properties present on most films; its cause is not diagnosed (the correct P364 was not learned). The 1:1 constraint (from E13) blocks many-to-one truths (`composer` and `musicComposer` → P86); see the many-to-one addendum below.
+
+## Addendum: many-to-one alignment
+
+`--many-to-one yes --share 0.25` (`E26-C-surface-anchored-m2o.*`): after the 1:1 merges, a still-unaligned property joins its best partner's cluster if its evidence for that partner is at least 25% of the partner's own pair evidence. The 16 one-to-one pairs are unchanged, and one join is added:
+
+| DBpedia | Wikidata | evidence | gold | by label |
+|---|---|---|---|---|
+| language | P364 original language of film | 96.2 | ✗ (not listed) | ✓ |
+
+- `dbo:language` now maps to both P136 (genre, wrong) and P364 (original language, right). The correct partner comes second because P136 took it 1:1 first. A join adds recall, but it does not undo a wrong 1:1 pair.
+- The gold pairs it was meant to recover are **data-limited**, not constraint-limited: `dbo:composer` occurs once in the 1,000-film sample, `dbo:genre` three times. There is no evidence to learn from.
+- Counterpart retrieval is unchanged (R@1 FP 0.557, fused 0.617).
+
+So many-to-one joins are cheap and safe at this threshold (one correct addition, no new errors), but the film sample does not exercise them much. The film KGs are nearly one-to-one at the property level.

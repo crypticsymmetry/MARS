@@ -2,7 +2,11 @@
 """Fetch a DBpedia/Wikidata film sample for knowledge-graph vocabulary
 alignment (E26).
 
-    python3 tools/kg_fetch.py OUT_DIR [--films 1000]
+    python3 tools/kg_fetch.py OUT_DIR [--films 1000] [--class Film] [--require director,starring]
+
+--class / --require choose the DBpedia class and the ontology properties every
+sampled entity must have (defaults: films with a director and cast; e.g.
+--class Scientist --require almaMater for scientists).
 
 Writes OUT_DIR/films.json (DBpedia IRI <-> Wikidata Q-id), OUT_DIR/dbpedia.jsonl
 and OUT_DIR/wikidata.jsonl (one film per line: its outgoing triples with object
@@ -58,6 +62,9 @@ def literal(b):
 def main():
     out = sys.argv[1]
     n = int(sys.argv[sys.argv.index("--films") + 1]) if "--films" in sys.argv else 1000
+    cls = sys.argv[sys.argv.index("--class") + 1] if "--class" in sys.argv else "Film"
+    req = (sys.argv[sys.argv.index("--require") + 1] if "--require" in sys.argv else "director,starring").split(",")
+    need = " ; ".join(f"dbo:{p} ?r{i}" for i, p in enumerate(req))
     os.makedirs(out, exist_ok=True)
     gold = sparql(DBP, """PREFIX owl: <http://www.w3.org/2002/07/owl#>
 SELECT DISTINCT ?p ?q WHERE { ?p owl:equivalentProperty ?q .
@@ -65,7 +72,7 @@ SELECT DISTINCT ?p ?q WHERE { ?p owl:equivalentProperty ?q .
     json.dump(sorted({(b["p"]["value"].split("/")[-1], b["q"]["value"].split("/")[-1]) for b in gold}), open(f"{out}/gold.json", "w"), indent=0)
     print(f"gold equivalences: {len(gold)}", file=sys.stderr)
     films = sparql(DBP, f"""PREFIX dbo: <http://dbpedia.org/ontology/> PREFIX owl: <http://www.w3.org/2002/07/owl#>
-SELECT DISTINCT ?f ?wd WHERE {{ ?f a dbo:Film ; dbo:director ?d ; dbo:starring ?s ; owl:sameAs ?wd .
+SELECT DISTINCT ?f ?wd WHERE {{ ?f a dbo:{cls} ; {need} ; owl:sameAs ?wd .
  FILTER(STRSTARTS(STR(?wd),"http://www.wikidata.org/entity/Q")) }} ORDER BY ?f LIMIT {n}""")
     pairs = sorted({(b["f"]["value"], b["wd"]["value"].split("/")[-1]) for b in films})
     json.dump(pairs, open(f"{out}/films.json", "w"), indent=0)

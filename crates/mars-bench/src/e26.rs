@@ -133,6 +133,9 @@ pub fn run(args: &Args) -> Result<(), String> {
     // `anchored`: some argument pair shares an exact-match attribute (value or
     // label) and no argument pair carries attributes that disagree.
     let anchored_only = args.str("evidence", "all") == "anchored";
+    // Allow several properties of one KG to align with one property of the other.
+    let many_to_one = args.str("many-to-one", "no") == "yes";
+    let share = args.f64("share", 0.25);
     let prof = match args.str("profile", "literal").as_str() {
         "surface" => Profile::surface_only(),
         "analogy" => Profile::analogy(),
@@ -177,7 +180,7 @@ pub fn run(args: &Args) -> Result<(), String> {
 
     let mut md = String::new();
     writeln!(md, "# E26: knowledge-graph vocabulary alignment ({tag})\n").unwrap();
-    writeln!(md, "Data: `{dir}` — {n} film cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, `{}` profile), wildcard mapping (local score {wildcard}, attributes included), evidence (`{}` correspondences) from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster, re-estimated each round. Counterpart retrieval: each DBpedia film ranks the Wikidata films (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len(), prof.name, if anchored_only { "anchored" } else { "all" }).unwrap();
+    writeln!(md, "Data: `{dir}` — {n} film cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, `{}` profile), wildcard mapping (local score {wildcard}, attributes included), evidence (`{}` correspondences) from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster{}, re-estimated each round. Counterpart retrieval: each DBpedia film ranks the Wikidata films (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len(), prof.name, if anchored_only { "anchored" } else { "all" }, if many_to_one { format!(" plus many-to-one joins (evidence ≥ {share} × the pair's)") } else { String::new() }).unwrap();
     writeln!(md, "| round | aligned pairs | correct / wrong / unjudged | precision (judged) | gold recall | counterpart R@1 FP / fused | MRR FP / fused |\n|---|---|---|---|---|---|---|").unwrap();
     let mut aligned: Vec<(Sym, Sym, f64)> = Vec::new();
     let mut rows = Vec::new();
@@ -259,6 +262,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             kb.vocab.set_parents(p, Vec::new());
         }
         aligned.clear();
+        let mut canon: FxHashMap<Sym, (Sym, f64)> = FxHashMap::default(); // property -> (cluster, evidence of its 1:1 pair)
         for (a, b, w) in merges {
             if aligned.iter().any(|x| x.0 == a || x.1 == b) {
                 continue;
@@ -266,7 +270,28 @@ pub fn run(args: &Args) -> Result<(), String> {
             let c = kb.declare(&format!("aligned-{}", kb.name(a).replace(':', "-")), Some(2), PredKind::Relation, false, &[]);
             kb.vocab.set_parents(a, vec![c]);
             kb.vocab.set_parents(b, vec![c]);
+            canon.insert(a, (c, w));
+            canon.insert(b, (c, w));
             aligned.push((a, b, w));
+        }
+        // Many-to-one: an unaligned property whose best partner is already aligned
+        // joins that cluster when its evidence is at least `share` of the 1:1 pair's.
+        if many_to_one {
+            let mut extra: Vec<(Sym, Sym, f64)> = Vec::new();
+            for (&x, &(y, _)) in &best {
+                if canon.contains_key(&x) {
+                    continue;
+                }
+                let Some(&(c, w1)) = canon.get(&y) else { continue };
+                let key = if kg_of(kb.name(x)) == Some("dbo") { (x, y) } else { (y, x) };
+                let w = evidence.get(&key).copied().unwrap_or(0.0);
+                if w >= min_evidence && w >= share * w1 {
+                    kb.vocab.set_parents(x, vec![c]);
+                    extra.push((key.0, key.1, w));
+                }
+            }
+            extra.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.0.cmp(&b.0)));
+            aligned.extend(extra);
         }
     }
     writeln!(md, "\n## Final alignment (top 40 by evidence)\n\n| DBpedia | Wikidata | evidence | verdict |\n|---|---|---|---|").unwrap();

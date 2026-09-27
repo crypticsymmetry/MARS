@@ -60,6 +60,20 @@ cargo run --release -p mars-bench -- e3 --groups 12500 --ops all --severity 1   
 tools/fetch_e9_corpus.sh && cargo run --release -p mars-bench -- e9           # real code
 ```
 
+From Python (bindings in [crates/mars-py](crates/mars-py/README.md); `pip install maturin`):
+
+```bash
+cd crates/mars-py && maturin build --release -o dist && pip install dist/mars_analogy-*.whl
+```
+
+```python
+import mars
+e = mars.Engine.from_files(["data/examples/classic.mars"])
+hits, z = e.query("rutherford-atom", k=3)    # [("solar-system", ...), ...], significance z
+m = e.map("solar-system", "rutherford-atom") # entity matches, candidate inferences
+sq = e.watch("rutherford-atom", k=3)         # standing query, updated as the memory changes
+```
+
 ## Documents
 
 | Document | Contents |
@@ -93,8 +107,9 @@ crates/
   mars-tms      justification-based truth maintenance
   mars-engine   incremental memory, standing queries, TMS inferences, SAGE generalization
   mars-gen      synthetic analogy generator (Gentner classes, perturbations, ground truth)
-  mars-bench    experiment runners E0–E9
+  mars-bench    experiment runners (E0–E26)
   mars-cli      `mars` command-line tool
+  mars-py       Python bindings (PyO3; `import mars`)
 tools/          py2mars.py (Python → relational cases), corpus fetch script
 data/examples/  hand-encoded classic analogies
 docs/ results/  design documents; experiment reports

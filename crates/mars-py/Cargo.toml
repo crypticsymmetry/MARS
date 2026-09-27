@@ -1,0 +1,23 @@
+[package]
+name = "mars-py"
+description = "Python bindings for MARS (structural analogical memory)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "mars"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mars-rel.workspace = true
+mars-map.workspace = true
+mars-engine.workspace = true
+pyo3 = { version = "0.25", features = ["abi3-py39"] }
+
+[features]
+# Enabled by maturin (pyproject.toml) so that `cargo test --workspace` links normally.
+extension-module = ["pyo3/extension-module"]
+
+[lints]
+workspace = true
