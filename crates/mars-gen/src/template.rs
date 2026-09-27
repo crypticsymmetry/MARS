@@ -285,7 +285,7 @@ fn ho_signature(t: &Template) -> Vec<String> {
         .iter()
         .filter(|n| matches!(n.pred, PredRef::Ho(_) | PredRef::And))
         .map(|n| {
-            let args: Vec<String> = n
+            let mut args: Vec<String> = n
                 .args
                 .iter()
                 .map(|a| match *a {
@@ -293,6 +293,10 @@ fn ho_signature(t: &Template) -> Vec<String> {
                     TArg::Var(v) => format!("v{v}"),
                 })
                 .collect();
+            if n.pred == PredRef::And {
+                // Commutative: argument order carries no structure.
+                args.sort();
+            }
             let share = if n.args.len() == 2 {
                 match (n.args[0], n.args[1]) {
                     (TArg::Node(a), TArg::Node(c)) => {

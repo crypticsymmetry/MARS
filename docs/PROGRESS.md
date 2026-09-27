@@ -4,7 +4,7 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**P1→P2.** E0 passed its gate (see [results/E0](../results/E0/README.md)). Next: the structure mapper (P2), then retrieval at scale (E1/E3) and perturbation robustness (E4).
+**P3: scale and difficulty.** E0 (fingerprints) and E2 (mapper) both pass and are now *saturated* on exact-isomorphic analogues. Next: perturbation operators (partial analogues, E4), a Mode K batched index, and end-to-end MAC→FAC retrieval at 10³–10⁶ (E1/E3).
 
 ## Task board
 
@@ -25,8 +25,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [ ] `e1`: exhaustive retrieval at 10³–10⁵ with baselines (lexical, MAC, exact cosine, fingerprint)
 
 ### P2 Mapper
-- [ ] `mars-map`: MHs, structural consistency (bitsets), kernels, trickle-down, greedy merge, candidate inferences, alignable differences
-- [ ] Exhaustive small-case matcher; gold cases; E2
+- [x] `mars-map`: MHs (identical, minimal ascension, non-identical functions, commutative permutations), bitset consistency, kernels, trickle-down, greedy merge + alternatives, branch-and-bound optimal merge, candidate inferences (skolems, grounding), alignable differences
+- [x] Gold cases as unit tests (solar/atom, water/heat, 1:1 consistency); E2 → [results/E2](../results/E2/README.md)
+- [ ] SMTB comparison (needs the CRE Python package; network permitting)
 
 ### Later phases
 - [ ] P3 Mode K batched index, cascade, MIH; E3/E4
@@ -48,9 +49,11 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Generator re-wiring check sorts commutative (`and`) arguments | E2 found ~7% of deep-ho FOR/MA variants were isomorphic to the base (label noise), which explained the deep-ho "ceiling" in E0 and E2 |
 
 ## Experiment log
 
 | Exp | Date | Config | Headline | Link |
 |---|---|---|---|---|
-| E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top 0.984 (test fam. 0.972) at 2–10 distractors; MAC/lexical 0.000; unresolved vocab 0.56 | [results/E0](../results/E0/README.md) |
+| E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
+| E2 | 2026-09-27 | 1000 groups, distractors 0/2/5/10 | entity corr. P≈1.0 R≈0.99; FAC TA-top 1.000; greedy = optimal; deleted-fact re-inference 0.99 (0.92 at d=10); 16–38 µs/pair | [results/E2](../results/E2/README.md) |

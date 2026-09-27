@@ -1,0 +1,92 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 5,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "seed": 1
+  },
+  "runtime_s": 0.159470985,
+  "splits": [
+    {
+      "ci_recall": 0.984,
+      "ci_struct_precision": 0.9859719438877755,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 0.9997441228638427,
+      "ls_p": 0.9989166666666668,
+      "ls_r": 0.9924499999999999,
+      "n_optimal": 984,
+      "split": "all",
+      "ta_p": 0.99905,
+      "ta_r": 0.9920666666666667
+    },
+    {
+      "ci_recall": 0.9877622377622378,
+      "ci_struct_precision": 0.9912280701754386,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 0.9995751434893029,
+      "ls_p": 0.9986888111888111,
+      "ls_r": 0.9978146853146853,
+      "n_optimal": 568,
+      "split": "dev families",
+      "ta_p": 0.9983391608391607,
+      "ta_r": 0.9974358974358973
+    },
+    {
+      "ci_recall": 0.9789719626168224,
+      "ci_struct_precision": 0.9789719626168224,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 0.9999748447021568,
+      "ls_p": 0.999221183800623,
+      "ls_r": 0.9852803738317759,
+      "n_optimal": 416,
+      "split": "test families",
+      "ta_p": 1.0,
+      "ta_r": 0.9848909657320873
+    }
+  ],
+  "tag": "d5",
+  "timing": [
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 17.502055248618785,
+      "n": 181,
+      "p95_us": 23.706
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 22.69539987523393,
+      "n": 1603,
+      "p95_us": 33.028000000000006
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 32.091412006578956,
+      "n": 1216,
+      "p95_us": 49.387
+    }
+  ]
+}

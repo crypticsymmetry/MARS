@@ -1,0 +1,92 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "seed": 1
+  },
+  "runtime_s": 0.119905979,
+  "splits": [
+    {
+      "ci_recall": 0.992,
+      "ci_struct_precision": 0.992,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 1.0,
+      "ta_r": 0.9932833333333333
+    },
+    {
+      "ci_recall": 0.9947552447552448,
+      "ci_struct_precision": 0.9947552447552448,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 1.0,
+      "ta_r": 0.9995629370629371
+    },
+    {
+      "ci_recall": 0.9883177570093458,
+      "ci_struct_precision": 0.9883177570093458,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 1.0,
+      "ta_r": 0.9848909657320873
+    }
+  ],
+  "tag": "d2",
+  "timing": [
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 13.352624203821646,
+      "n": 942,
+      "p95_us": 21.061
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 19.61146756425948,
+      "n": 1634,
+      "p95_us": 28.892
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 29.86567688679249,
+      "n": 424,
+      "p95_us": 45.769
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 0,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "seed": 1
+  },
+  "runtime_s": 0.099990194,
+  "splits": [
+    {
+      "ci_recall": 0.999,
+      "ci_struct_precision": 0.999,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9935333333333333,
+      "n_optimal": 1000,
+      "split": "all",
+      "ta_p": 1.0,
+      "ta_r": 0.9935333333333333
+    },
+    {
+      "ci_recall": 1.0,
+      "ci_struct_precision": 1.0,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 1.0,
+      "n_optimal": 572,
+      "split": "dev families",
+      "ta_p": 1.0,
+      "ta_r": 1.0
+    },
+    {
+      "ci_recall": 0.9976635514018691,
+      "ci_struct_precision": 0.9976635514018691,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 1.0,
+      "ls_r": 0.9848909657320873,
+      "n_optimal": 428,
+      "split": "test families",
+      "ta_p": 1.0,
+      "ta_r": 0.9848909657320873
+    }
+  ],
+  "tag": "d0",
+  "timing": [
+    {
+      "hi": 20,
+      "lo": 0,
+      "mean_us": 9.05588414634146,
+      "n": 164,
+      "p95_us": 13.908
+    },
+    {
+      "hi": 30,
+      "lo": 20,
+      "mean_us": 12.440834777227732,
+      "n": 1616,
+      "p95_us": 18.578
+    },
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 18.310561523437514,
+      "n": 1024,
+      "p95_us": 30.99
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 33.99735714285714,
+      "n": 196,
+      "p95_us": 48.933
+    }
+  ]
+}

@@ -8,14 +8,16 @@ Reproduce with `cargo run --release -p mars-bench -- e0 --groups 1000 --naming <
 
 ## Headline: TA-top (P[TA outscores MA, FOR and all RND in its group]), all families / test families
 
-| config | B2 lexical | B4 MAC | exact analogy (+IDF) | **fingerprint D=8192** | fingerprint D=1024 |
-|---|---|---|---|---|---|
-| canonical, 0 distractors | 0.000 | 0.000 | 0.991 / 0.979 | **0.991 / 0.979** | 0.991 / 0.979 |
-| canonical, 2 distractors | 0.000 | 0.000 | 0.985 / 0.972 | **0.984 / 0.972** | 0.974 / 0.972 |
-| canonical, 5 distractors | 0.000 | 0.000 | 0.990 / 0.977 | **0.986 / 0.970** | 0.967 / 0.972 |
-| canonical, 10 distractors | 0.000 | 0.000 | 0.988 / 0.972 | **0.984 / 0.972** | 0.958 / 0.970 |
-| synonyms (taxonomy-resolved), 2 | 0.000 | 0.000 | 0.985 / 0.972 | **0.984 / 0.972** | 0.974 / 0.972 |
-| unresolved synonyms, 2 | 0.000 | 0.000 | 0.569 / 0.657 | **0.557 / 0.661** | — |
+These are the numbers after fixing the commutative-`and` label-noise bug (finding 9).
+
+| config | B2 lexical | B4 MAC | exact analogy (+IDF) | **fingerprint D=8192** | fingerprint D=1024 | pooled AUC TA/MA (exact) |
+|---|---|---|---|---|---|---|
+| canonical, 0 distractors | 0.000 / 0.000 | 0.000 / 0.000 | 1.000 / 1.000 | **1.000 / 1.000** | 1.000 / 1.000 | 1.000 |
+| canonical, 2 distractors | 0.000 / 0.000 | 0.000 / 0.000 | 0.997 / 1.000 | **0.996 / 1.000** | 0.987 / 0.998 | 0.968 |
+| canonical, 5 distractors | 0.000 / 0.000 | 0.000 / 0.000 | 1.000 / 1.000 | **0.999 / 1.000** | 0.978 / 0.998 | 0.954 |
+| canonical, 10 distractors | 0.000 / 0.000 | 0.001 / 0.000 | 1.000 / 1.000 | **0.995 / 1.000** | 0.967 / 0.994 | 0.930 |
+| synonyms (taxonomy-resolved), 2 | 0.000 / 0.000 | 0.000 / 0.000 | 0.997 / 1.000 | **0.996 / 1.000** | 0.987 / 0.998 | 0.968 |
+| unresolved synonyms, 2 | 0.000 / 0.000 | 0.000 / 0.000 | 0.569 / 0.659 | **0.554 / 0.664** | 0.510 / 0.632 | 0.631 |
 
 ## Findings
 
@@ -26,10 +28,12 @@ Reproduce with `cargo run --release -p mars-bench -- e0 --groups 1000 --naming <
 5. **Domain synonyms broke the first encoder:** MA won because leaf predicate identity acted as a surface feature. **Fix: structural channels use each predicate's nearest *canonical* ancestor, and non-canonical identity moves to C0.** With a resolved taxonomy, synonyms now behave exactly like canonical names.
 6. **Unresolved vocabularies are the real limit.** With no taxonomy link, predicates are anonymized to (kind, arity) in structural channels. That lifts TA-top from 0.02 (adversarially inverted) to about 0.56. The remaining gap is *inherent*: without predicate identity, many re-wirings are topologically near-isomorphic to the original, so the class labels themselves become ambiguous. Handling this needs predicate alignment by the mapper (re-representation), not better hashing. The predicate-agnostic topology channel C4 alone gives about 0.45–0.52.
 7. **Pooled vs per-query metrics.** Pooled ROC-AUC (TA of one group vs MA of another) is 0.94–0.97 for the analogy profile and more sensitive to distractors than per-group ranking. For retrieval the per-query ranking is what matters, but pooled AUC shows that absolute similarity scales vary across cases. Any fixed similarity *threshold* (e.g. for standing queries) will need per-query normalization.
-8. **Hardest family: deep-ho** (nested `and` + higher-order chains), at about 0.91–0.93. Re-wirings inside a conjunction change little structure.
+8. ~~Hardest family: deep-ho at about 0.91–0.93.~~ This was **label noise**, found by E2 (finding 9).
+9. **Benchmark bug found and fixed.** The re-wiring validity check treated `(and a b)` and `(and b a)` as different, so about 7% of deep-ho FOR/MA variants were isomorphic to the base. Both the fingerprint and the mapper "failed" on exactly these. After the fix, deep-ho reaches 1.000 and every canonical config is ≥ 0.995.
+10. **The benchmark is now saturated** for exact-isomorphic analogues. Harder regimes come next: partial analogues (perturbations, E4) and retrieval among ≥ 10⁵ cases (E1/E3).
 
 ## Gate G1 (H0)
 
-- Per-group separation on held-out families: 0.97 (target ≥ 0.95) → **pass**.
-- Pooled AUC TA vs MA ∪ RND is about 0.95 at 2 distractors and 0.92–0.94 at 5–10. That is borderline against the original ≥ 0.95 wording, which is now understood to be a mis-specified metric for retrieval (finding 7).
+- Per-group separation on held-out families: 1.000 (target ≥ 0.95) → **pass**.
+- Pooled AUC TA vs MA is 0.97 at 2 distractors and 0.93–0.95 at 5–10. That is borderline against the original ≥ 0.95 wording, which is now understood to be a mis-specified metric for retrieval (finding 7).
 - Caveat: TA here is an isomorphic copy plus random distractors. **Partial analogues (perturbations, E4) and retrieval in a large corpus (E1/E3) are the real tests.**

@@ -1,0 +1,92 @@
+{
+  "experiment": "E2",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 10,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 1000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "seed": 1
+  },
+  "runtime_s": 0.229443459,
+  "splits": [
+    {
+      "ci_recall": 0.918,
+      "ci_struct_precision": 0.9338758901322483,
+      "fac_ta_top": 0.994,
+      "fac_win_for": 0.998,
+      "fac_win_ma": 0.996,
+      "greedy_over_optimal": 0.9994034034451652,
+      "ls_p": 0.9972666666666665,
+      "ls_r": 0.9908166666666667,
+      "n_optimal": 401,
+      "split": "all",
+      "ta_p": 0.9950333333333334,
+      "ta_r": 0.9884166666666666
+    },
+    {
+      "ci_recall": 0.9195804195804196,
+      "ci_struct_precision": 0.9409660107334525,
+      "fac_ta_top": 0.9895104895104895,
+      "fac_win_for": 0.9965034965034965,
+      "fac_win_ma": 0.993006993006993,
+      "greedy_over_optimal": 0.9989553047227566,
+      "ls_p": 0.9972319347319346,
+      "ls_r": 0.9958333333333333,
+      "n_optimal": 229,
+      "split": "dev families",
+      "ta_p": 0.9954836829836832,
+      "ta_r": 0.9927447552447553
+    },
+    {
+      "ci_recall": 0.9158878504672897,
+      "ci_struct_precision": 0.9245283018867925,
+      "fac_ta_top": 1.0,
+      "fac_win_for": 1.0,
+      "fac_win_ma": 1.0,
+      "greedy_over_optimal": 1.0,
+      "ls_p": 0.9973130841121497,
+      "ls_r": 0.9841121495327105,
+      "n_optimal": 172,
+      "split": "test families",
+      "ta_p": 0.9944314641744549,
+      "ta_r": 0.9826323987538943
+    }
+  ],
+  "tag": "d10",
+  "timing": [
+    {
+      "hi": 40,
+      "lo": 30,
+      "mean_us": 30.24314835164836,
+      "n": 182,
+      "p95_us": 37.955
+    },
+    {
+      "hi": 60,
+      "lo": 40,
+      "mean_us": 39.19557607872822,
+      "n": 2642,
+      "p95_us": 54.879
+    },
+    {
+      "hi": 1000,
+      "lo": 60,
+      "mean_us": 63.6055568181818,
+      "n": 176,
+      "p95_us": 72.471
+    }
+  ]
+}

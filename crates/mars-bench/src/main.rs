@@ -2,10 +2,12 @@
 //!
 //! ```text
 //! mars-bench sample [--groups N] [--naming canonical|synonyms|unresolved]
+//! mars-bench e2 [--groups 1000] [--distractors 2]
 //! mars-bench e0 [--groups 1000] [--seed 1] [--naming canonical] [--distractors 2] [--out results/E0] [--tag NAME]
 //! ```
 
 mod e0;
+mod e2;
 pub mod metrics;
 
 use rustc_hash::FxHashMap;
@@ -76,6 +78,7 @@ fn main() {
     let r = match cmd.as_str() {
         "sample" => sample(&args),
         "e0" => e0::run(&args),
+        "e2" => e2::run(&args),
         other => Err(format!("unknown command {other}")),
     };
     if let Err(e) = r {
