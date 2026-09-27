@@ -2,7 +2,11 @@
 """Convert short natural-language stories into MARS relational cases with an
 LLM (OpenRouter chat API; key from $OPENROUTER_API_KEY, never stored).
 
-    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M] [--batch 8]
+    python3 tools/llm2mars.py STORIES.jsonl OUT_DIR [--model M1,M2,...] [--batch 8]
+
+Several comma-separated models form a fallback chain: a batch that fails on
+one model (free models are often throttled or overloaded) is retried on the
+next; the model that produced each story is recorded in the cache.
 
 STORIES.jsonl: one {"id": ..., "text": ...} per line. Writes OUT_DIR/vocab.mars
 (the controlled vocabulary), OUT_DIR/cases.mars (one defcase per story) and
@@ -110,21 +114,25 @@ def build_prompt(batch):
     return PROMPT.format(fo=fo, ho=ho, stories=stories)
 
 
-def call(model, prompt, retries=6):
+def call(model, prompt, retries=3, timeout=90):
     key = os.environ["OPENROUTER_API_KEY"]
     body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}).encode()
     for i in range(retries):
         req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=180) as r:
+            t0 = time.time()
+            with urllib.request.urlopen(req, timeout=timeout) as r:
                 d = json.load(r)
+            if "error" in d:
+                raise RuntimeError(str(d["error"])[:200])
             msg = d["choices"][0]["message"].get("content") or ""
             if msg.strip():
                 return msg
-        except Exception as e:  # rate limits, timeouts: back off
-            print(f"  retry {i + 1}: {e}", file=sys.stderr)
-        time.sleep(min(60, 5 * 2 ** i))
-    raise RuntimeError("LLM call failed")
+            print(f"  attempt {i + 1}: empty response ({time.time() - t0:.0f}s)", file=sys.stderr, flush=True)
+        except Exception as e:  # rate limits, timeouts: back off briefly
+            print(f"  attempt {i + 1} failed: {str(e)[:200]}", file=sys.stderr, flush=True)
+        time.sleep(5 * (i + 1))
+    raise RuntimeError(f"LLM call failed after {retries} attempts")
 
 
 def split_output(text):
@@ -204,25 +212,28 @@ def main():
             r = json.loads(l)
             cache[r["id"]] = r
     todo = [s for s in stories if s["id"] not in cache]
-    print(f"{len(stories)} stories, {len(todo)} to convert with {model}", file=sys.stderr)
+    models = model.split(",")
+    print(f"{len(stories)} stories, {len(todo)} to convert with {models}", file=sys.stderr, flush=True)
     with open(cache_path, "a") as cf:
         for i in range(0, len(todo), batch_size):
             batch = todo[i : i + batch_size]
             t0 = time.time()
+            print(f"  request: stories {i + 1}-{i + len(batch)} ...", file=sys.stderr, flush=True)
             out = split_output(call(model, build_prompt(batch)))
             for s in batch:
-                r = {"id": s["id"], "model": model, "facts": out.get(s["id"], [])}
+                r = {"id": s["id"], "model": used, "facts": out.get(s["id"], [])}
                 cache[s["id"]] = r
                 cf.write(json.dumps(r) + "\n")
             cf.flush()
-            print(f"  {i + len(batch)}/{len(todo)} ({time.time() - t0:.1f}s)", file=sys.stderr)
+            got = sum(1 for s in batch if out.get(s["id"]))
+            print(f"  done {i + len(batch)}/{len(todo)}: {got}/{len(batch)} stories parsed by {used} ({time.time() - t0:.1f}s)", file=sys.stderr, flush=True)
     with open(os.path.join(out_dir, "vocab.mars"), "w") as f:
         f.write(vocab_mars())
     unresolved, bad, empty = set(), 0, 0
     lines = []
     for s in stories:
         facts = []
-        for raw in cache[s["id"]]["facts"]:
+        for raw in cache.get(s["id"], {"facts": []})["facts"]:
             try:
                 t = normalize(parse(raw))
                 facts.append(t)
