@@ -4,7 +4,7 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**P7 next: real data.** H0–H4 hold on synthetic data (E0, E2, E3, E6, E7), robustness is characterized (E4), and SDM failed its gate and was dropped (E5). The next step is to leave the synthetic generator: hand-encoded classic analogies, then a program-analogy track (dataflow structures from code) where ground truth comes for free, then LLM-parsed narratives (ARN) if network and models allow.
+**Consolidate and harden.** H0–H4 hold on synthetic data (E0, E2–E4, E6, E7), SDM was dropped (E5), and the first real-data test (E9, program analogy) shows structure beats lexical and MAC retrieval but exposes the representation problem. Candidate next steps: (1) representation normalization for code (P7b); (2) persistence (event log + snapshots) and a CLI/API so MARS is usable as a tool; (3) near-miss memory; (4) Mode K kernel speed-ups.
 
 ## Task board
 
@@ -42,7 +42,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] P6 `mars-engine::sage`: SAGE-style generalization (assimilation threshold, fact probabilities, wear-away, schema materialization), sleep consolidation (outlier re-offer + merge); E7 → [results/E7](../results/E7/README.md). **H4 supported** for few-shot inference
 - [ ] Near-miss memory + difference fingerprints (E7c)
 - [ ] Hierarchical generalization to reduce fragmentation; schema-level retrieval at 10⁶ (E3 weakness)
-- [ ] P7 real data (Karla, ARN), program analogy; E8/E9
+- [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
+- [ ] P7b representation normalization for code (loop canonicalization, idioms, def-use dataflow); per-domain profile tuning
+- [ ] P7c narrative analogies (ARN / Karla stories): blocked by network (datasets not reachable from this environment)
 
 ## Decision log
 
@@ -57,6 +59,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Profiles are **domain-dependent**: for code, the literal profile (with identifier names) + FAC fusion is best | E9: identifier conventions are informative across authors; the pure-analogy profile under-uses them |
 | 2026-09-27 | SAGE assimilation θ = 0.4; sleep merge threshold 0.6 (stricter than θ) | E7: merging at θ merges small denoised schemas across templates (purity 0.98 → 0.87) |
 | 2026-09-27 | Standing queries default to **pipeline semantics** (exact incremental fp top-64 + fused re-rank), with a tie-inclusive candidate boundary | E6: exact-fused semantics costs ~10× more per update (loose FAC ≤ 1 bound); boundary ties caused 1 mismatch at 10⁶ before the tie-inclusive rule |
 | 2026-09-27 | **G4: SDM Mode A and random-address SDM dropped from the core**; learned-address buckets (= IVF) kept as the sublinear index | E5: random addresses fail (R@64 ≤ 0.8 at 19% scanned); Mode A cleanup destroys partial cues at 10⁵ load; SDM prototypes ≈ kNN-bundle(50) |
@@ -71,6 +74,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E9 | 2026-09-27 | 1113 real Python functions from 3 packages; 33 cross-author same-algorithm queries; 365 category queries | fused FAC + literal FP: MRR 0.334 vs lexical 0.147 / MAC 0.188; category P@1 0.636 vs 0.578; syntax-level representation misses algorithm-level identity (quick/merge sort) | [results/E9](../results/E9/README.md) |
 | E7 | 2026-09-27 | 100 templates × 60 noisy instances; severity 1/2 | schemas: deleted-fact recall 0.59 vs 0.42 (single best instance, M=10); schema precision 0.85–0.90 vs 0.54; purity ≥0.94 but fragmented (completeness 0.80) | [results/E7](../results/E7/README.md) |
 | E6 | 2026-09-27 | 10⁴/10⁵/10⁶ live cases, 200 SQs, 5000 updates | 0 mismatches / 1150 checks; mean update 350 → 300 → 277 µs (flat in N); 680× → 21,000× cheaper than recompute | [results/E6](../results/E6/README.md) |
 | E5 | 2026-09-27 | 100K corpus; 100 templates × 100 instances | k-means buckets R@64 1.000 at 0.47% scanned (random addresses ≤ 0.8); Mode A cleanup 0.02 vs 0.95 raw; SDM prototype 0.713 ≈ kNN-bundle 0.704 → SDM dropped | [results/E5](../results/E5/README.md) |
