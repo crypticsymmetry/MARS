@@ -19,7 +19,7 @@ Latest:
 
 Candidate next steps:
 1. Indexed SAGE candidate scan.
-2. Near-miss memory.
+2. Per-fact near-miss emphasis in SAGE (E20).
 
 ## Task board
 
@@ -70,7 +70,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] P5 `mars-tms` (JTMS, well-founded support, circular-support test), `mars-engine` (live Mode K with soft delete, frozen IDF epoch, memoized FAC by case versions, standing queries in pipeline and exact-fused modes, TMS-maintained inferences with provenance, events, work counters); E6 → [results/E6](../results/E6/README.md). **G5 passed**
 - [ ] Reverse index over standing queries (for ≥ 10³ SQs)
 - [x] P6 `mars-engine::sage`: SAGE-style generalization (assimilation threshold, fact probabilities, wear-away, schema materialization), sleep consolidation (outlier re-offer + merge); E7 → [results/E7](../results/E7/README.md). **H4 supported** for few-shot inference
-- [ ] Near-miss memory + difference fingerprints (E7c)
+- [x] **E20 near-miss learning** (`mars_gen::concept_instances`) → [results/E20](../results/E20/README.md): schema thresholds accept ~half of structural near-misses; hard Winston must-have rules fail under noise; soft emphasis weights (P(match|pos) − P(match|near-miss)) beat 1-NN with 1–2 near-misses (+0.04–0.09 balanced accuracy, 3 seeds, 2 severities), tie at 5
+- [ ] Per-fact emphasis in SAGE generalizations (from near-misses; E20)
 - [x] **E15 schema-level retrieval vs corroboration** → [results/E15](../results/E15/README.md): schemas *complement* instances (instances + schemas best at 10³ and 10⁴; R@P≥0.6 0.45–0.48 vs 0.39 at 10⁴); schema-only pools collapse at scale (purity 0.96 → 0.87 at fixed θ); schema fact probability is uncalibrated, corroboration is; coverage assimilation negative
 - [x] **E16 match significance** → [results/E16](../results/E16/README.md): a local-null z (top-1 vs the tail of its own candidate list) keeps precision 0.90–0.95 from 10³ to 10⁶ cases with a fixed threshold; raw scores fall to 0.44 and accept 79% of absent-template queries. `Engine::query_significance`, `SIGNIFICANT_Z`, `serve` abstains
 - [x] E16 addendum → [results/E16](../results/E16/README.md#addendum-can-recall-at-10-be-recovered): recall at 10⁶ is information-limited (local z ≈ E-value over the whole memory); sibling pooling (Stouffer) recovers +3 points (0.492 → 0.523 at precision 0.945); sibling count alone is uninformative
@@ -97,6 +98,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Concept memory: per-fact *emphasis* from near-misses (soft), not hard must-have conditions | E20: hard rules ≈ no gain under noise; soft emphasis beats 1-NN at 1–2 near-misses |
 | 2026-09-27 | Corroboration counts independent analogues only (not views of one analogue); multi-view kept as an application pattern (rank/map in one view, project from another), not an engine feature | E19: cross-view agreement precision ≈ single view (0.58–0.60) vs 0.75–0.88 across analogues; role split gains are modest |
 | 2026-09-27 | Fusion weight is a property of the representation (code nested: 0.3; flat: 0.7), not a global constant | E18 |
 | 2026-09-27 | Mode K storage: word-interleaved 8-row blocks; `score_pair` for scoring stored fingerprints | 1.8× batched throughput, bit-identical results; single-row `score()` now strided, so the engine scores its contiguous copies |
@@ -124,6 +126,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E20 | 2026-09-27 | ~100 concepts, 10 positives, k ∈ {0,1,2,5} re-wired near-misses, 5+5 test; severities 1–2, seeds 1–3 | balanced acc. at k = 2: threshold 0.713, hard rules 0.705, 1-NN 0.679, emphasis 0.758; k = 5: 1-NN 0.781, emphasis 0.774 | [results/E20](../results/E20/README.md) |
 | E19 | 2026-09-27 | both views of 1,308 functions; retrieval (33 other-package, 52 other-language queries); 700 inference queries | best single view (flat 0.7) beats all view fusions (0.375 / 0.198 MRR); role split: top-1 precision 0.637 vs 0.555, support ≥ 2 recall 0.124 vs 0.116 at 0.77 precision; cross-view agreement precision 0.58–0.60 | [results/E19](../results/E19/README.md) |
 | E18 | 2026-09-27 | E9 corpus in nested vs flat-block form; E9 task A retrieval; E17 inference with the same deleted core | retrieval best-vs-best 0.359 (nested, w=0.3) vs 0.370 (flat, w=0.7); FAC 0.283 → 0.354; inference top-1 core 0.189 vs 0.106, in context 0.079 vs 0.091, union 0.136 | [results/E18](../results/E18/README.md) |
 | E17 | 2026-09-27 | 700 deleted-statement queries over 1,113 Python functions; fused/lexical/random/oracle analogues; top-5 corroboration | fused top-1: exact 0.076, shape overlap 0.243 (lexical 0.046/0.180, random 0.001/0.026, other-author twin 0.015/0.206); precision by support 0.022/0.092/0.333 | [results/E17](../results/E17/README.md) |

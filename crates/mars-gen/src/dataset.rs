@@ -352,6 +352,44 @@ pub fn template_instances(cfg: &GenConfig, n_templates: usize, per_template: usi
     InstanceSet { kb: b.kb, cases, templates }
 }
 
+/// Concept-learning data: for each template (concept), `n_pos` noisy
+/// instances (positives) and `n_neg` *near-misses*: noisy instances of a
+/// fresh random re-wiring of the template (same first-order content,
+/// different higher-order structure; Winston-style). Templates that cannot
+/// be re-wired are skipped.
+pub struct ConceptSet {
+    pub kb: Kb,
+    /// (case, concept index, is positive)
+    pub cases: Vec<(CaseId, usize, bool)>,
+    pub n_concepts: usize,
+}
+
+pub fn concept_instances(cfg: &GenConfig, n_templates: usize, n_pos: usize, n_neg: usize) -> ConceptSet {
+    let mut kb = Kb::new();
+    vocab::declare_vocabulary(&mut kb, cfg.naming);
+    let mut b = Builder { kb, cfg, fos: fo_predicates() };
+    let mut cases = Vec::new();
+    let mut ci = 0;
+    for ti in 0..n_templates {
+        let mut rng = Rng::derive(cfg.seed ^ 0xC0C0, ti as u64);
+        let t = template::generate(cfg.families[ti % cfg.families.len()], &mut rng);
+        if template::rewire(&t, &mut rng.clone()).is_none() {
+            continue;
+        }
+        for j in 0..n_pos + n_neg {
+            let pos = j < n_pos;
+            let base = if pos { t.clone() } else { template::rewire(&t, &mut rng).unwrap_or_else(|| t.clone()) };
+            let tp = template::perturb(&base, &cfg.perturb_ops, cfg.severity, &mut rng);
+            let d = rng.index(DOMAINS.len());
+            let s = b.fresh_surface(&mut rng, d, tp.n_vars);
+            let c = b.make_case(&format!("k{ci}-{}{j}", if pos { "p" } else { "n" }), &tp, &s, &mut rng);
+            cases.push((c, ci, pos));
+        }
+        ci += 1;
+    }
+    ConceptSet { kb: b.kb, cases, n_concepts: ci }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -38,6 +38,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 | MARS knows when no analogue exists (open-set abstention) | ✅ local-null significance keeps precision 0.90–0.95 from 10³ to 10⁶ cases with one fixed threshold (raw scores: 0.90 → 0.44) | [E16](results/E16/README.md) |
 | Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
 | Analogy can learn its own vocabulary alignment (re-representation) | ✅ synthetic: precision 1.000, retrieval 0.15 → 0.99. Partial on real code: frequent py↔js calls learned (len↔length, append↔push), long tail missed; alignment barely matters there because anonymous shapes already match | [E13](results/E13/README.md), [E14](results/E14/README.md) |
+| Near-misses teach what matters | ✅ soft per-fact emphasis from 1–2 near-misses beats nearest-neighbour classification (+0.04–0.09 balanced accuracy); hard must-have rules fail under noise | [E20](results/E20/README.md) |
 | H6 SDM adds value over plain k-NN | ❌ dropped from the core (k-means buckets = IVF kept) | [E5](results/E5/README.md) |
 
 The mapper is validated in [E2](results/E2/README.md), and memory-bandwidth measurements are in [results/bw](results/bw/). Progress, decisions and the task board are in [docs/PROGRESS.md](docs/PROGRESS.md).
