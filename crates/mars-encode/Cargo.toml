@@ -1,0 +1,15 @@
+[package]
+name = "mars-encode"
+description = "Feature maps (surface / content / relational n-grams / WL) and segmented binary fingerprints"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+mars-hv.workspace = true
+mars-rel.workspace = true
+rustc-hash.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true
