@@ -1,0 +1,83 @@
+{
+ "questions": 360,
+ "rows": [
+  {
+   "method": "lexical TF-IDF",
+   "accuracy": 0.18333333333333332,
+   "target_over_noun": 0.18611111111111112,
+   "target_over_random": 0.8652777777777778
+  },
+  {
+   "method": "sentence embedding (BAAI/bge-small-en-v1.5)",
+   "accuracy": 0.125,
+   "target_over_noun": 0.125,
+   "target_over_random": 0.875
+  },
+  {
+   "method": "LLM direct (glm-5.3-flash \u2026)",
+   "accuracy": 0.7861111111111111,
+   "target_over_noun": 0.7861111111111111,
+   "target_over_random": 0.7861111111111111
+  },
+  {
+   "method": "MARS: FAC (structural)",
+   "accuracy": 0.37222222222222223,
+   "target_over_noun": 0.4722222222222222,
+   "target_over_random": 0.5486111111111112
+  },
+  {
+   "method": "MARS: FAC higher-order only",
+   "accuracy": 0.275,
+   "target_over_noun": 0.34444444444444444,
+   "target_over_random": 0.40694444444444444
+  },
+  {
+   "method": "MARS: analogy \u2212 0.25\u00b7surface",
+   "accuracy": 0.5083333333333333,
+   "target_over_noun": 0.7305555555555555,
+   "target_over_random": 0.675
+  },
+  {
+   "method": "MARS: analogy \u2212 0.5\u00b7surface",
+   "accuracy": 0.5138888888888888,
+   "target_over_noun": 0.7722222222222223,
+   "target_over_random": 0.6638888888888889
+  },
+  {
+   "method": "MARS: analogy \u2212 1\u00b7surface",
+   "accuracy": 0.5111111111111111,
+   "target_over_noun": 0.8222222222222222,
+   "target_over_random": 0.6527777777777778
+  },
+  {
+   "method": "MARS: fingerprint analogy profile",
+   "accuracy": 0.4583333333333333,
+   "target_over_noun": 0.6138888888888889,
+   "target_over_random": 0.6819444444444445
+  },
+  {
+   "method": "MARS: fingerprint literal profile",
+   "accuracy": 0.31666666666666665,
+   "target_over_noun": 0.37222222222222223,
+   "target_over_random": 0.6902777777777778
+  },
+  {
+   "method": "MARS: fused 0.3\u00b7FAC + 0.7\u00b7FP-analogy",
+   "accuracy": 0.4527777777777778,
+   "target_over_noun": 0.6027777777777777,
+   "target_over_random": 0.6861111111111111
+  },
+  {
+   "method": "MARS: fused 0.5\u00b7FAC + 0.5\u00b7FP-analogy",
+   "accuracy": 0.4527777777777778,
+   "target_over_noun": 0.6055555555555555,
+   "target_over_random": 0.6847222222222222
+  },
+  {
+   "method": "MARS: surface channel only (C0)",
+   "accuracy": 0.11944444444444445,
+   "target_over_noun": 0.2,
+   "target_over_random": 0.5013888888888889
+  }
+ ]
+}

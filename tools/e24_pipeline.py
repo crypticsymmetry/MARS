@@ -2,7 +2,7 @@
 """E24 pipeline: story-analogy retrieval over the pooled StoryAnalogy memory,
 text retrievers vs MARS, and an LLM verifier on each retriever's top-k.
 
-    python3 tools/e24_pipeline.py MC.json E24-MARS.json OUT_DIR [--llm MODEL] [--k 5] [--retrievers a,b]
+    python3 tools/e24_pipeline.py MC.json E24-MARS.json OUT_DIR [--llm MODEL] [--k 5] [--retrievers "a;b"]
 
 * retrieval: lexical TF-IDF and sentence embeddings (fastembed) over the same
   memory; MARS rankings come from `mars-bench e24`;
@@ -167,7 +167,7 @@ def main():
     ver_rows = []
     if "--llm" in args:
         model = args[args.index("--llm") + 1]
-        which = args[args.index("--retrievers") + 1].split(",") if "--retrievers" in args else list(ranks)
+        which = args[args.index("--retrievers") + 1].split(";") if "--retrievers" in args else list(ranks)
         vl = [f"\n## LLM verifier ({model}) on each retriever's top-{k}\n", "| retriever | analogy in top-k | verifier picks the analogy (end-to-end) | picks the noun distractor |", "|---|---|---|---|"]
         for name in which:
             tag = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
