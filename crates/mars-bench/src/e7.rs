@@ -161,7 +161,9 @@ pub fn run(args: &Args) -> Result<(), String> {
         let mk = |stats: FeatureStats| Sage::new(SageConfig { assimilate: assim, ..Default::default() }, stats, Sketcher::new(Layout::default(), seed ^ 0xF1), FeatureConfig::default());
         // Pool A: instances only (every memory case is an outlier; no generalization).
         let mut inst_pool = mk(stats.clone());
-        inst_pool.outliers = mem_cases.clone();
+        for &c in &mem_cases {
+            inst_pool.push_outlier(&kb, c);
+        }
         // Pool B: SAGE generalizations over memory.
         let mut schema_pool = mk(stats);
         for &c in &mem_cases {

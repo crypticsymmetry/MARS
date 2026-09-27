@@ -18,7 +18,6 @@ Latest:
 - Representation granularity trades fingerprint strength against mapper strength, and different views restore different inferences (E18).
 
 Candidate next steps:
-1. Indexed SAGE candidate scan.
 
 ## Task board
 
@@ -75,7 +74,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] **E16 match significance** → [results/E16](../results/E16/README.md): a local-null z (top-1 vs the tail of its own candidate list) keeps precision 0.90–0.95 from 10³ to 10⁶ cases with a fixed threshold; raw scores fall to 0.44 and accept 79% of absent-template queries. `Engine::query_significance`, `SIGNIFICANT_Z`, `serve` abstains
 - [x] E16 addendum → [results/E16](../results/E16/README.md#addendum-can-recall-at-10-be-recovered): recall at 10⁶ is information-limited (local z ≈ E-value over the whole memory); sibling pooling (Stouffer) recovers +3 points (0.492 → 0.523 at precision 0.945); sibling count alone is uninformative
 - [x] Local-null assimilation gate for SAGE (`SageConfig::min_z`) → [E15 addendum](../results/E15/README.md#addendum-significance-gated-assimilation-after-e16): purity invariant with memory size (0.967 → 0.978 vs 0.964 → 0.868), completeness falls; small gain in the combined pool at 10⁴
-- [ ] Indexed SAGE candidate scan (≥ 10⁴ cases; the scan is linear in the pool)
+- [x] Indexed SAGE candidate scan: Mode K index over the pool (generalizations + outliers) maintained on every pool mutation, exact re-scoring of candidates with the old tie-break; E7/E15 reproduce exactly; build 0.74 → 0.56 ms/case at 10⁴ (coverage 1.17 → 0.76); 10⁵-case pool built in 171 s. `Sage::push_outlier` replaces direct writes to `outliers`
 - [ ] Hierarchical generalization to reduce fragmentation
 - [x] P7a program analogy on real code: `tools/py2mars.py` (Python AST → relational cases, one-level helper inlining), `tools/fetch_e9_corpus.sh` (3 MIT PyPI packages), E9 → [results/E9](../results/E9/README.md)
 - [x] **E17 candidate inference on real code** → [results/E17](../results/E17/README.md): deleted control statements restored exactly for 7.6% (lexical 4.6%, random 0.1%); shape overlap 0.243 vs 0.180 lexical vs 0.026 chance; the structurally nearest function beats the same algorithm by another author as an inference source; support calibrated (0.02 → 0.09 → 0.33)

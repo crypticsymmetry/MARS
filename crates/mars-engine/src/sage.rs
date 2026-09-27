@@ -12,6 +12,7 @@
 //! mapped like any other case.
 
 use mars_encode::{FeatureConfig, FeatureExtractor, FeatureStats, Profile, Sketcher, N_CHANNELS};
+use mars_index::{ModeK, Scorer};
 use mars_map::{MapConfig, Mapper};
 use mars_rel::{CaseId, CaseKind, ExprId, Kb, PredKind, Sym, Term};
 use rustc_hash::FxHashMap;
@@ -147,11 +148,125 @@ pub struct Sage {
     next_id: usize,
     /// Local-null z of the last `best_match` (when `min_z` is set).
     pub last_z: Option<f64>,
+    /// Fingerprint index over the pool (generalization cases + outliers):
+    /// candidate retrieval is a Mode K scan instead of per-item scoring.
+    index: ModeK,
+    scorer: Scorer,
+    /// Pool case -> (index row, case version indexed).
+    row_of: FxHashMap<CaseId, (u32, u64)>,
+    row_case: Vec<CaseId>,
+    /// Pool case -> position in `gens` / `outliers`.
+    gen_pos: FxHashMap<CaseId, usize>,
+    out_pos: FxHashMap<CaseId, usize>,
 }
 
 impl Sage {
     pub fn new(cfg: SageConfig, stats: FeatureStats, sketcher: Sketcher, fcfg: FeatureConfig) -> Self {
-        Sage { cfg, gens: Vec::new(), outliers: Vec::new(), stats, sketcher, profile: Profile::analogy(), fcfg, fp_cache: FxHashMap::default(), self_cache: FxHashMap::default(), next_id: 0, last_z: None }
+        let profile = Profile::analogy();
+        let index = ModeK::new(sketcher.layout.clone());
+        let scorer = index.scorer(&profile.weights);
+        Sage {
+            cfg,
+            gens: Vec::new(),
+            outliers: Vec::new(),
+            stats,
+            sketcher,
+            profile,
+            fcfg,
+            fp_cache: FxHashMap::default(),
+            self_cache: FxHashMap::default(),
+            next_id: 0,
+            last_z: None,
+            index,
+            scorer,
+            row_of: FxHashMap::default(),
+            row_case: Vec::new(),
+            gen_pos: FxHashMap::default(),
+            out_pos: FxHashMap::default(),
+        }
+    }
+
+    // ------------------------------------------------------------ pool bookkeeping
+
+    fn index_insert(&mut self, kb: &Kb, c: CaseId) {
+        let fp = self.fp(kb, c);
+        let r = self.index.push(&fp);
+        self.row_case.push(c);
+        self.row_of.insert(c, (r, kb.case(c).version));
+    }
+
+    fn index_remove(&mut self, c: CaseId) {
+        if let Some((r, _)) = self.row_of.remove(&c) {
+            self.index.remove(r);
+        }
+    }
+
+    /// Re-fingerprint an indexed case whose facts changed.
+    fn index_touch(&mut self, kb: &Kb, c: CaseId) {
+        if let Some(&(r, v)) = self.row_of.get(&c) {
+            if v != kb.case(c).version {
+                let fp = self.fp(kb, c);
+                self.index.update(r, &fp);
+                self.row_of.insert(c, (r, kb.case(c).version));
+            }
+        }
+    }
+
+    /// Add an instance to the pool as an outlier (no assimilation attempt).
+    pub fn push_outlier(&mut self, kb: &Kb, c: CaseId) {
+        self.out_pos.insert(c, self.outliers.len());
+        self.outliers.push(c);
+        self.index_insert(kb, c);
+    }
+
+    fn remove_outlier(&mut self, oi: usize) -> CaseId {
+        let c = self.outliers.swap_remove(oi);
+        self.out_pos.remove(&c);
+        if oi < self.outliers.len() {
+            self.out_pos.insert(self.outliers[oi], oi);
+        }
+        self.index_remove(c);
+        c
+    }
+
+    fn remove_gen(&mut self, gi: usize) {
+        let g = self.gens.swap_remove(gi);
+        self.gen_pos.remove(&g.case);
+        if gi < self.gens.len() {
+            self.gen_pos.insert(self.gens[gi].case, gi);
+        }
+        self.index_remove(g.case);
+    }
+
+    /// Pool items nearest to fingerprint `fx` by the exact profile score:
+    /// (is generalization, position, case, score), best first, ties by
+    /// generalizations before outliers and then position. `keep` filters.
+    fn nearest(&mut self, kb: &Kb, fx: &[u64], want: usize, keep: &dyn Fn(bool, usize) -> bool) -> Vec<(bool, usize, CaseId, f64)> {
+        let live = self.gens.len() + self.outliers.len();
+        debug_assert_eq!(live, self.row_of.len(), "pool and index out of sync (use push_outlier)");
+        let layout = self.sketcher.layout.clone();
+        let mut k = want + 16;
+        loop {
+            let hits = self.index.search_serial(fx, &self.scorer, k.min(live));
+            let mut out: Vec<(bool, usize, CaseId, f64)> = Vec::new();
+            for h in &hits {
+                let c = self.row_case[h.id as usize];
+                let (g, i) = match self.gen_pos.get(&c) {
+                    Some(&i) => (true, i),
+                    None => (false, self.out_pos[&c]),
+                };
+                if keep(g, i) {
+                    let fc = self.fp(kb, c);
+                    out.push((g, i, c, self.profile.score(&mars_encode::channel_sims(&layout, fx, &fc))));
+                }
+            }
+            if out.len() >= want + 8 || k >= live {
+                out.sort_by(|a, b| b.3.total_cmp(&a.3).then(b.0.cmp(&a.0)).then(a.1.cmp(&b.1)));
+                out.truncate(want);
+                return out;
+            }
+            k *= 4;
+        }
     }
 
     fn fp(&mut self, kb: &Kb, c: CaseId) -> Vec<u64> {
@@ -203,19 +318,11 @@ impl Sage {
     /// Returns (is_generalization, index, fused, fac).
     pub fn best_match(&mut self, kb: &Kb, x: CaseId) -> Option<(bool, usize, f64, f64)> {
         let fx = self.fp(kb, x);
-        let layout = self.sketcher.layout.clone();
-        let mut cands: Vec<(bool, usize, CaseId, f64)> = Vec::new();
-        for i in 0..self.gens.len() {
-            let c = self.gens[i].case;
-            let fc = self.fp(kb, c);
-            cands.push((true, i, c, self.profile.score(&mars_encode::channel_sims(&layout, &fx, &fc))));
+        let want = if self.cfg.min_z.is_some() { self.cfg.prefilter.max(self.cfg.null_k) } else { self.cfg.prefilter };
+        let mut cands = self.nearest(kb, &fx, want, &|_, _| true);
+        if self.cfg.min_z.is_some() && self.gens.len() + self.outliers.len() >= 16 && cands.len() < self.cfg.null_k.min(self.gens.len() + self.outliers.len()) {
+            cands = self.nearest(kb, &fx, self.cfg.null_k, &|_, _| true);
         }
-        for i in 0..self.outliers.len() {
-            let c = self.outliers[i];
-            let fc = self.fp(kb, c);
-            cands.push((false, i, c, self.profile.score(&mars_encode::channel_sims(&layout, &fx, &fc))));
-        }
-        cands.sort_by(|a, b| b.3.total_cmp(&a.3));
         self.last_z = None;
         let tail: Vec<(CaseId, f64)> = if self.cfg.min_z.is_some() && cands.len() >= 16 {
             let k = self.cfg.null_k.min(cands.len());
@@ -255,11 +362,11 @@ impl Sage {
         match m {
             Some((true, gi, _, fac)) if fac >= self.cfg.assimilate && sig => self.assimilate(kb, gi, x),
             Some((false, oi, _, fac)) if fac >= self.cfg.assimilate && sig => {
-                let o = self.outliers.swap_remove(oi);
+                let o = self.remove_outlier(oi);
                 let gi = self.seed(kb, o);
                 self.assimilate(kb, gi, x);
             }
-            _ => self.outliers.push(x),
+            _ => self.push_outlier(kb, x),
         }
     }
 
@@ -287,6 +394,8 @@ impl Sage {
         }
         let case = kb.add_case(&format!("{ns}{id}"), CaseKind::Schema, facts.iter().map(|x| x.0));
         self.gens.push(Generalization { facts, members: vec![a], case, id, near_misses: Vec::new(), next_entity: next });
+        self.gen_pos.insert(case, gi);
+        self.index_insert(kb, case);
         gi
     }
 
@@ -294,7 +403,7 @@ impl Sage {
         let gcase = self.gens[gi].case;
         let m = Mapper::new(kb, self.cfg.map.clone()).best(gcase, x);
         let Some(m) = m else {
-            self.outliers.push(x);
+            self.push_outlier(kb, x);
             return;
         };
         let matched_base: FxHashMap<Term, Term> = m.correspondences.iter().copied().collect();
@@ -344,6 +453,10 @@ impl Sage {
     pub fn consolidate(&mut self, kb: &mut Kb, merge_threshold: f64) -> (usize, usize) {
         // 1. Outliers seen before a matching generalization existed.
         let outliers = std::mem::take(&mut self.outliers);
+        for &o in &outliers {
+            self.out_pos.remove(&o);
+            self.index_remove(o);
+        }
         let mut absorbed = 0;
         for o in outliers {
             let before = self.outliers.len();
@@ -359,19 +472,11 @@ impl Sage {
         let mut merged = 0;
         let mut order: Vec<(usize, CaseId)> = self.gens.iter().map(|g| (g.members.len(), g.case)).collect();
         order.sort();
-        let layout = self.sketcher.layout.clone();
         for (_, from_case) in order {
             let Some(gi) = self.gens.iter().position(|g| g.case == from_case) else { continue };
             let ffp = self.fp(kb, from_case);
-            let mut cands: Vec<(usize, f64)> = Vec::new();
-            for hi in 0..self.gens.len() {
-                if hi != gi {
-                    let hfp = self.fp(kb, self.gens[hi].case);
-                    cands.push((hi, self.profile.score(&mars_encode::channel_sims(&layout, &ffp, &hfp))));
-                }
-            }
-            cands.sort_by(|a, b| b.1.total_cmp(&a.1));
-            cands.truncate(self.cfg.prefilter);
+            let prefilter = self.cfg.prefilter;
+            let cands: Vec<(usize, f64)> = self.nearest(kb, &ffp, prefilter, &|g, i| g && i != gi).into_iter().map(|c| (c.1, c.3)).collect();
             let mut best: Option<(usize, f64)> = None;
             for (hi, _) in cands {
                 let f = self.fac(kb, self.gens[hi].case, from_case);
@@ -446,7 +551,7 @@ impl Sage {
         for f in kb.case(fcase).facts.clone() {
             kb.remove_fact(fcase, f);
         }
-        self.gens.swap_remove(from);
+        self.remove_gen(from);
     }
 
     /// Sync the schema case's facts with probability ≥ view.
@@ -465,6 +570,7 @@ impl Sage {
         for f in want {
             kb.add_fact(case, f);
         }
+        self.index_touch(kb, case);
     }
 }
 
