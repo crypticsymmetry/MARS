@@ -1,0 +1,222 @@
+{
+  "inference": [
+    {
+      "analogue": "nested fused 0.3",
+      "per_query": 2.111428571428571,
+      "precision": 0.5551257253384912,
+      "recall": 0.18857142857142858,
+      "view": "nested view"
+    },
+    {
+      "analogue": "nested fused 0.3",
+      "per_query": 1.1485714285714286,
+      "precision": 0.26953125,
+      "recall": 0.10714285714285714,
+      "view": "flat view"
+    },
+    {
+      "analogue": "nested fused 0.3",
+      "per_query": 2.5414285714285714,
+      "precision": 0.4188034188034188,
+      "recall": 0.19142857142857142,
+      "view": "either view (union)"
+    },
+    {
+      "analogue": "nested fused 0.3",
+      "per_query": 0.7128571428571429,
+      "precision": 0.5773809523809523,
+      "recall": 0.10428571428571429,
+      "view": "both views agree"
+    },
+    {
+      "analogue": "flat fused 0.7",
+      "per_query": 2.184285714285714,
+      "precision": 0.6368243243243243,
+      "recall": 0.19285714285714287,
+      "view": "nested view"
+    },
+    {
+      "analogue": "flat fused 0.7",
+      "per_query": 1.2,
+      "precision": 0.3310344827586207,
+      "recall": 0.11,
+      "view": "flat view"
+    },
+    {
+      "analogue": "flat fused 0.7",
+      "per_query": 2.5957142857142856,
+      "precision": 0.5015197568389058,
+      "recall": 0.19428571428571428,
+      "view": "either view (union)"
+    },
+    {
+      "analogue": "flat fused 0.7",
+      "per_query": 0.7828571428571428,
+      "precision": 0.5967741935483871,
+      "recall": 0.10857142857142857,
+      "view": "both views agree"
+    },
+    {
+      "analogue": "cross-view ½·FAC(flat) + ½·FP(nested)",
+      "per_query": 2.1885714285714286,
+      "precision": 0.6101398601398601,
+      "recall": 0.19428571428571428,
+      "view": "nested view"
+    },
+    {
+      "analogue": "cross-view ½·FAC(flat) + ½·FP(nested)",
+      "per_query": 1.23,
+      "precision": 0.30201342281879195,
+      "recall": 0.10428571428571429,
+      "view": "flat view"
+    },
+    {
+      "analogue": "cross-view ½·FAC(flat) + ½·FP(nested)",
+      "per_query": 2.645714285714286,
+      "precision": 0.4603421461897356,
+      "recall": 0.1957142857142857,
+      "view": "either view (union)"
+    },
+    {
+      "analogue": "cross-view ½·FAC(flat) + ½·FP(nested)",
+      "per_query": 0.7628571428571429,
+      "precision": 0.5894736842105263,
+      "recall": 0.10285714285714286,
+      "view": "both views agree"
+    },
+    {
+      "analogue": "nested top-5",
+      "per_query": 1.6528571428571428,
+      "precision": 0.7524509803921569,
+      "recall": 0.11571428571428571,
+      "view": "support>=2"
+    },
+    {
+      "analogue": "nested top-5",
+      "per_query": 0.5671428571428572,
+      "precision": 0.8777777777777778,
+      "recall": 0.07142857142857142,
+      "view": "support>=3"
+    },
+    {
+      "analogue": "flat-ranked top-5",
+      "per_query": 7.9071428571428575,
+      "precision": 0.5127748068924539,
+      "recall": 0.26571428571428574,
+      "view": "nested, support>=1"
+    },
+    {
+      "analogue": "flat-ranked top-5",
+      "per_query": 1.9657142857142857,
+      "precision": 0.7679558011049724,
+      "recall": 0.12428571428571429,
+      "view": "nested, support>=2"
+    },
+    {
+      "analogue": "flat-ranked top-5",
+      "per_query": 0.7957142857142857,
+      "precision": 0.8695652173913043,
+      "recall": 0.08857142857142856,
+      "view": "nested, support>=3"
+    }
+  ],
+  "k": 64,
+  "per_func": 2,
+  "queries_cross_lang": 52,
+  "queries_cross_pkg": 33,
+  "queries_inference": 700,
+  "retrieval": [
+    {
+      "cross_lang": {
+        "mrr": 0.14088714975460712,
+        "r1": 0.0,
+        "r10": 0.38461538461538464
+      },
+      "cross_pkg": {
+        "mrr": 0.3589998563290755,
+        "r1": 0.2727272727272727,
+        "r10": 0.5454545454545454
+      },
+      "method": "nested fused 0.3 (E9)"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.1978677620770351,
+        "r1": 0.07692307692307693,
+        "r10": 0.38461538461538464
+      },
+      "cross_pkg": {
+        "mrr": 0.374846751178643,
+        "r1": 0.2727272727272727,
+        "r10": 0.5757575757575758
+      },
+      "method": "flat fused 0.7 (E18)"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.10534325636399446,
+        "r1": 0.0,
+        "r10": 0.28846153846153844
+      },
+      "cross_pkg": {
+        "mrr": 0.2996330168914374,
+        "r1": 0.21212121212121213,
+        "r10": 0.48484848484848486
+      },
+      "method": "FP nested only"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.1833011438360723,
+        "r1": 0.057692307692307696,
+        "r10": 0.36538461538461536
+      },
+      "cross_pkg": {
+        "mrr": 0.353961636173878,
+        "r1": 0.24242424242424243,
+        "r10": 0.5151515151515151
+      },
+      "method": "FAC flat only"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.1764897504011493,
+        "r1": 0.038461538461538464,
+        "r10": 0.34615384615384615
+      },
+      "cross_pkg": {
+        "mrr": 0.32400569840516036,
+        "r1": 0.18181818181818182,
+        "r10": 0.6363636363636364
+      },
+      "method": "cross-view ½·FAC(flat) + ½·FP(nested)"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.20195252800675748,
+        "r1": 0.07692307692307693,
+        "r10": 0.36538461538461536
+      },
+      "cross_pkg": {
+        "mrr": 0.33148532979270273,
+        "r1": 0.21212121212121213,
+        "r10": 0.6363636363636364
+      },
+      "method": "view average ½·nested + ½·flat"
+    },
+    {
+      "cross_lang": {
+        "mrr": 0.17123734042321107,
+        "r1": 0.057692307692307696,
+        "r10": 0.36538461538461536
+      },
+      "cross_pkg": {
+        "mrr": 0.33911519203201107,
+        "r1": 0.24242424242424243,
+        "r10": 0.6666666666666666
+      },
+      "method": "RRF(nested, flat)"
+    }
+  ],
+  "seed": 1
+}

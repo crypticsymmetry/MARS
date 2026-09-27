@@ -20,6 +20,7 @@ use serde_json::json;
 use std::fmt::Write as _;
 use std::time::Instant;
 
+#[derive(Clone)]
 pub(crate) struct Meta {
     pub case: CaseId,
     pub pkg: String,

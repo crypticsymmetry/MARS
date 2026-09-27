@@ -26,7 +26,8 @@ use crate::Args;
 use mars_encode::{FeatureConfig, FeatureExtractor, FeatureStats, Features, Layout, Profile, Sketcher, N_CHANNELS};
 use mars_hv::{HyperVector, Rng};
 use mars_map::{Grounding, MapConfig, Mapper, Proj};
-use mars_rel::{CaseId, CaseKind, ExprId, Kb, PredKind, Sym, Term};
+use mars_rel::views::{FlatView, CODE_WRAPPERS};
+use mars_rel::{CaseId, CaseKind, ExprId, Kb, Term};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use serde_json::json;
@@ -34,128 +35,24 @@ use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::time::Instant;
 
-const WRAPPERS: [(&str, &str); 4] = [("in-loop", "loop-block"), ("while-loop", "while-block"), ("guards", "guard-block"), ("inlined", "inlined-block")];
-
-struct Flat {
-    wrap: Vec<(Sym, Sym)>,
-    within: Sym,
-    in_block: Sym,
-}
-
-impl Flat {
-    fn declare(kb: &mut Kb) -> Flat {
-        let mut wrap = Vec::new();
-        for (w, b) in WRAPPERS {
-            let ws = kb.sym(w);
-            wrap.push((ws, kb.declare(b, Some(2), PredKind::Relation, false, &[])));
-        }
-        Flat { wrap, within: kb.declare("within", Some(2), PredKind::Relation, false, &[]), in_block: kb.declare("in-block", Some(2), PredKind::Relation, false, &[]) }
-    }
-
-    /// Peel control wrappers: (context path of (wrapper, head term), core).
-    fn peel(&self, kb: &Kb, f: ExprId) -> (Vec<(Sym, Term)>, ExprId) {
-        let mut path = Vec::new();
-        let mut cur = f;
-        loop {
-            let ex = kb.expr(cur);
-            match (self.wrap.iter().find(|w| w.0 == ex.functor), ex.args.len(), ex.args.get(1)) {
-                (Some(&(w, _)), 2, Some(&Term::Expr(inner))) => {
-                    path.push((w, ex.args[0]));
-                    cur = inner;
-                }
-                _ => return (path, cur),
-            }
-        }
-    }
-
-    /// Flat facts of a case, and per original fact the flat fact holding its core.
-    fn flatten(&self, kb: &mut Kb, case: CaseId, tag: &str) -> (Vec<ExprId>, FxHashMap<ExprId, ExprId>) {
-        let facts = kb.case(case).facts.clone();
-        let mut blocks: FxHashMap<Vec<(Sym, Term)>, Sym> = FxHashMap::default();
-        let mut out: Vec<ExprId> = Vec::new();
-        let mut core_fact = FxHashMap::default();
-        for f in facts {
-            let (path, core) = self.peel(kb, f);
-            if path.is_empty() {
-                out.push(f);
-                core_fact.insert(f, f);
-                continue;
-            }
-            let mut parent: Option<Sym> = None;
-            for d in 1..=path.len() {
-                let key = path[..d].to_vec();
-                let b = match blocks.get(&key) {
-                    Some(&b) => b,
-                    None => {
-                        let b = kb.sym(&format!("{tag}b{}", blocks.len() + 1));
-                        blocks.insert(key, b);
-                        let (w, head) = path[d - 1];
-                        let bp = self.wrap.iter().find(|x| x.0 == w).unwrap().1;
-                        out.push(kb.intern_expr(bp, [Term::Ent(b), head]));
-                        if let Some(p) = parent {
-                            out.push(kb.intern_expr(self.within, [Term::Ent(b), Term::Ent(p)]));
-                        }
-                        b
-                    }
-                };
-                parent = Some(b);
-            }
-            let fact = kb.intern_expr(self.in_block, [Term::Ent(parent.unwrap()), Term::Expr(core)]);
-            out.push(fact);
-            core_fact.insert(f, fact);
-        }
-        out.sort_unstable();
-        out.dedup();
-        (out, core_fact)
-    }
-
-    /// Remove block facts left without content after deleting a statement.
-    fn prune(&self, kb: &Kb, facts: &mut Vec<ExprId>) {
-        loop {
-            let used: HashSet<Sym> = facts
-                .iter()
-                .filter_map(|&f| {
-                    let ex = kb.expr(f);
-                    (ex.functor == self.in_block || ex.functor == self.within).then(|| match ex.args[if ex.functor == self.within { 1 } else { 0 }] {
-                        Term::Ent(b) => Some(b),
-                        _ => None,
-                    })?
-                })
-                .collect();
-            let before = facts.len();
-            facts.retain(|&f| {
-                let ex = kb.expr(f);
-                let is_block = self.wrap.iter().any(|w| w.1 == ex.functor) || ex.functor == self.within;
-                match (is_block, ex.args[0]) {
-                    (true, Term::Ent(b)) => used.contains(&b),
-                    _ => true,
-                }
-            });
-            if facts.len() == before {
-                return;
-            }
-        }
-    }
-
-    /// Core of a projected inference: strip wrappers (nested) or the block (flat).
-    fn proj_core<'a>(&self, p: &'a Proj) -> &'a Proj {
-        match p {
-            Proj::Expr { functor, args } if args.len() == 2 && (*functor == self.in_block || self.wrap.iter().any(|w| w.0 == *functor)) => self.proj_core(&args[1]),
-            _ => p,
-        }
+/// Core of a projected inference: strip wrappers (nested) or the block (flat).
+pub(crate) fn proj_core<'a>(fl: &FlatView, p: &'a Proj) -> &'a Proj {
+    match p {
+        Proj::Expr { functor, args } if args.len() == 2 && (*functor == fl.in_block || fl.is_wrapper(*functor)) => proj_core(fl, &args[1]),
+        _ => p,
     }
 }
 
 /// One representation of the corpus: case per function.
-struct Rep {
-    cases: Vec<CaseId>,
-    fps: Vec<HyperVector>,
-    sk: Sketcher,
-    stats: FeatureStats,
-    self_s: Vec<f64>,
+pub(crate) struct Rep {
+    pub cases: Vec<CaseId>,
+    pub fps: Vec<HyperVector>,
+    pub sk: Sketcher,
+    pub stats: FeatureStats,
+    pub self_s: Vec<f64>,
 }
 
-fn build_rep(kb: &Kb, cases: Vec<CaseId>) -> Rep {
+pub(crate) fn build_rep(kb: &Kb, cases: Vec<CaseId>) -> Rep {
     let fx = FeatureExtractor::new(kb, FeatureConfig::default());
     let raw: Vec<Features> = cases.par_iter().map(|&c| fx.extract(c)).collect();
     let stats = FeatureStats::fit(raw.iter());
@@ -173,7 +70,7 @@ fn build_rep(kb: &Kb, cases: Vec<CaseId>) -> Rep {
 }
 
 impl Rep {
-    fn fp_of(&self, kb: &Kb, c: CaseId) -> HyperVector {
+    pub(crate) fn fp_of(&self, kb: &Kb, c: CaseId) -> HyperVector {
         let mut f = FeatureExtractor::new(kb, FeatureConfig::default()).extract(c);
         self.stats.apply(&mut f, &[true; N_CHANNELS]);
         self.sk.sketch(&f)
@@ -247,7 +144,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     let (mut kb, metas) = load_corpus(&dir)?;
     let metas: Vec<Meta> = metas.into_iter().filter(|m| m.lang == "py").collect();
     let n = metas.len();
-    let fl = Flat::declare(&mut kb);
+    let fl = FlatView::declare(&mut kb, &CODE_WRAPPERS);
     let mut flat_cases = Vec::new();
     let mut core_maps = Vec::new();
     let mut size = (0usize, 0usize, 0usize, 0usize); // facts and expressions, nested / flat
@@ -335,7 +232,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                                     .filter(|i| i.grounding == Grounding::Structural)
                                     .map(|i| {
                                         let text = mapper.render_proj(&i.projected);
-                                        let core_ok = mapper.render_proj(fl.proj_core(&i.projected)) == core_text;
+                                        let core_ok = mapper.render_proj(proj_core(&fl, &i.projected)) == core_text;
                                         let full_ok = proj_matches(&kb, &i.projected, Term::Expr(del), &mut FxHashMap::default());
                                         let in_full = full.contains(&text);
                                         (text, i.has_skolem, core_ok, full_ok, in_full)
