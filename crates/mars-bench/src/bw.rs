@@ -27,7 +27,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     let out_dir = args.str("out", "results/bw");
     let layout = Layout::default();
     let words = layout.total_words();
-    eprintln!("[bw] building {n} random fingerprints ({} MiB)", n * words * 8 >> 20);
+    eprintln!("[bw] building {n} random fingerprints ({} MiB)", (n * words * 8) >> 20);
     let t0 = Instant::now();
     let rows: Vec<Vec<u64>> = (0..n)
         .into_par_iter()

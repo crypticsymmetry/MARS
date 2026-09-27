@@ -1,0 +1,110 @@
+{
+  "exhaustive": {
+    "fac_acc1": 0.4,
+    "fused_acc1": 0.6,
+    "modek_fused_same_queries": 0.6,
+    "ms_per_query_1thread": 999.7100862400001,
+    "n_queries": 50
+  },
+  "experiment": "E3",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 12500,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "DeleteFact",
+      "InsertIntermediate",
+      "SubstitutePredicate",
+      "SwapArgs",
+      "AddHo"
+    ],
+    "seed": 1,
+    "severity": 2
+  },
+  "k": 64,
+  "n_cases": 100000,
+  "n_discriminable": 552,
+  "n_queries": 1000,
+  "pipelines": [
+    {
+      "fac_acc1": 0.515,
+      "fac_us_per_query": 1784.6531050000003,
+      "for_above": 0.112,
+      "fused_acc1": 0.645,
+      "fused_acc1_discriminable": 0.8731884057971014,
+      "ma_above": 0.109,
+      "mac": "fingerprint Mode K",
+      "mac_ms_per_query": 1.108570029,
+      "mrr": 0.6706285185952414,
+      "r1": 0.604,
+      "r10": 0.792,
+      "r256": 0.887,
+      "rk": 0.852
+    },
+    {
+      "fac_acc1": 0.0,
+      "fac_us_per_query": 1118.5772609999997,
+      "for_above": 0.0,
+      "fused_acc1": 0.0,
+      "fused_acc1_discriminable": 0.0,
+      "ma_above": 1.0,
+      "mac": "B2 lexical TF-IDF",
+      "mac_ms_per_query": 0.088942887,
+      "mrr": 1.0842021724855044e-19,
+      "r1": 0.0,
+      "r10": 0.0,
+      "r256": 0.0,
+      "rk": 0.0
+    },
+    {
+      "fac_acc1": 0.139,
+      "fac_us_per_query": 1147.183469999999,
+      "for_above": 0.229,
+      "fused_acc1": 0.162,
+      "fused_acc1_discriminable": 0.2391304347826087,
+      "ma_above": 0.997,
+      "mac": "B4 MAC content vectors",
+      "mac_ms_per_query": 0.088073118,
+      "mrr": 0.023217185595543196,
+      "r1": 0.0,
+      "r10": 0.066,
+      "r256": 0.335,
+      "rk": 0.177
+    },
+    {
+      "fac_acc1": 0.509,
+      "fac_us_per_query": 975.0403480000006,
+      "for_above": 0.106,
+      "fused_acc1": 0.643,
+      "fused_acc1_discriminable": 0.8695652173913043,
+      "ma_above": 0.107,
+      "mac": "B5 exact sparse (analogy profile)",
+      "mac_ms_per_query": 0.298004486,
+      "mrr": 0.6867317585784142,
+      "r1": 0.623,
+      "r10": 0.807,
+      "r256": 0.895,
+      "rk": 0.866
+    }
+  ],
+  "tag": "n100000-s2",
+  "timing": {
+    "features_s": 2.473018944,
+    "index_s": 3.908068321,
+    "total_s": 22.123361401
+  }
+}

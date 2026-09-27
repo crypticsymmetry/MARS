@@ -9,6 +9,7 @@ license.workspace = true
 mars-hv.workspace = true
 mars-encode.workspace = true
 rayon.workspace = true
+rustc-hash.workspace = true
 
 [lints]
 workspace = true

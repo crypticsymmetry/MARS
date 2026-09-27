@@ -86,6 +86,7 @@ dependencies = [
  "mars-encode",
  "mars-hv",
  "rayon",
+ "rustc-hash",
 ]
 
 [[package]]

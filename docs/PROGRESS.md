@@ -4,7 +4,7 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**P3: scale and difficulty.** E0 (fingerprints) and E2 (mapper) both pass and are now *saturated* on exact-isomorphic analogues. Next: perturbation operators (partial analogues, E4), a Mode K batched index, and end-to-end MAC→FAC retrieval at 10³–10⁶ (E1/E3).
+**P3 done → P4/P5.** H0, H1 and H2 hold on synthetic data up to 10⁶ cases (E0, E3), the mapper is validated (E2), and robustness is characterized (E4). The open weakness is partial analogues degrading with corpus size (E3 finding 5). Next: SDM modes (P4, keep/drop gate E5), then incremental maintenance + TMS (P5, E6), then schemas (P6), which may also address the scaling weakness.
 
 ## Task board
 
@@ -33,7 +33,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 ### Later phases
 - [x] P3 `mars-index` Mode K (SoA per segment, fused AVX-512 weighted kernel, L1 tiling, integer admission threshold)
 - [x] E4 perturbation robustness → [results/E4](../results/E4/README.md)
-- [ ] E3 end-to-end MAC→FAC (fused re-rank) at 10³–10⁶ with baselines; cascade; MIH
+- [x] E3 end-to-end MAC→FAC (fused re-rank) at 10⁴–10⁶ with sparse baselines (B2/B4/B5) and exhaustive upper bound → [results/E3](../results/E3/README.md)
+- [ ] Cascade (1024-bit pre-scan), MIH / IVF comparisons (needed only at ≥10⁷)
 - [ ] P4 SDM modes; E5 (keep/drop gate)
 - [ ] P5 TMS, event log, standing queries; E6
 - [ ] P6 consolidation (SAGE-style), near-miss memory; E7
@@ -63,4 +64,5 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E3 | 2026-09-27 | 10⁴/10⁵/10⁶ cases, 1000 queries, severity 0–2 | clean: fused acc@1 0.994 at 10⁶, TA in top-64 100%; MAC content vectors 0.35 at 10⁵; pipeline = exhaustive-FAC bound at 1/1100 the cost; partial analogues degrade with N (0.91→0.75) | [results/E3](../results/E3/README.md) |
 | E2 | 2026-09-27 | 1000 groups, distractors 0/2/5/10 | entity corr. P≈1.0 R≈0.99; FAC TA-top 1.000; greedy = optimal; deleted-fact re-inference 0.99 (0.92 at d=10); 16–38 µs/pair | [results/E2](../results/E2/README.md) |

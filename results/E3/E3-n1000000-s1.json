@@ -1,0 +1,65 @@
+{
+  "exhaustive": {
+    "fac_acc1": 0.65,
+    "fused_acc1": 0.8,
+    "modek_fused_same_queries": 0.85,
+    "ms_per_query_1thread": 14581.788691,
+    "n_queries": 20
+  },
+  "experiment": "E3",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 125000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [
+      "DeleteFact",
+      "InsertIntermediate",
+      "SubstitutePredicate",
+      "SwapArgs",
+      "AddHo"
+    ],
+    "seed": 1,
+    "severity": 1
+  },
+  "k": 64,
+  "n_cases": 1000000,
+  "n_discriminable": 731,
+  "n_queries": 1000,
+  "pipelines": [
+    {
+      "fac_acc1": 0.629,
+      "fac_us_per_query": 2027.71689,
+      "for_above": 0.064,
+      "fused_acc1": 0.745,
+      "fused_acc1_discriminable": 0.853625170998632,
+      "ma_above": 0.059,
+      "mac": "fingerprint Mode K",
+      "mac_ms_per_query": 10.657090629,
+      "mrr": 0.7171503876745235,
+      "r1": 0.658,
+      "r10": 0.819,
+      "r256": 0.924,
+      "rk": 0.897
+    }
+  ],
+  "tag": "n1000000-s1",
+  "timing": {
+    "features_s": 31.814531721,
+    "index_s": 52.213308899,
+    "total_s": 136.946274421
+  }
+}

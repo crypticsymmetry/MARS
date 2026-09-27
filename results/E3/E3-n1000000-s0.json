@@ -1,0 +1,59 @@
+{
+  "exhaustive": {
+    "fac_acc1": 0.95,
+    "fused_acc1": 1.0,
+    "modek_fused_same_queries": 1.0,
+    "ms_per_query_1thread": 13954.746597,
+    "n_queries": 20
+  },
+  "experiment": "E3",
+  "gen_config": {
+    "attrs_per_entity": [
+      1,
+      2
+    ],
+    "distractors": 2,
+    "families": [
+      "Chain",
+      "Star",
+      "Tree",
+      "Loop",
+      "DeepHo",
+      "Comparison",
+      "Mixed"
+    ],
+    "n_groups": 125000,
+    "n_rnd": 3,
+    "naming": "Canonical",
+    "perturb_ops": [],
+    "seed": 1,
+    "severity": 0
+  },
+  "k": 64,
+  "n_cases": 1000000,
+  "n_discriminable": 1000,
+  "n_queries": 1000,
+  "pipelines": [
+    {
+      "fac_acc1": 0.987,
+      "fac_us_per_query": 2010.0207309999996,
+      "for_above": 0.002,
+      "fused_acc1": 0.994,
+      "fused_acc1_discriminable": 0.994,
+      "ma_above": 0.004,
+      "mac": "fingerprint Mode K",
+      "mac_ms_per_query": 10.405125815,
+      "mrr": 0.9836428571428573,
+      "r1": 0.97,
+      "r10": 1.0,
+      "r256": 1.0,
+      "rk": 1.0
+    }
+  ],
+  "tag": "n1000000-s0",
+  "timing": {
+    "features_s": 32.19046973,
+    "index_s": 52.348188133,
+    "total_s": 133.642797011
+  }
+}
