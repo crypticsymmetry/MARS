@@ -1,0 +1,248 @@
+{
+  "scores": [
+    {
+      "auc": [
+        0.9756417642916587,
+        0.9675953432356483,
+        0.959164107314061,
+        0.8850748018964333
+      ],
+      "score": "fused score",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.1,
+            "precision": 0.9011857707509882,
+            "recall": 0.926829268292683
+          },
+          {
+            "false_accept_absent": 0.212,
+            "precision": 0.8050541516245487,
+            "recall": 0.948936170212766
+          },
+          {
+            "false_accept_absent": 0.448,
+            "precision": 0.6366279069767442,
+            "recall": 1.0
+          },
+          {
+            "false_accept_absent": 0.792,
+            "precision": 0.43946188340807174,
+            "recall": 0.9949238578680203
+          }
+        ],
+        "tau": 0.28633298348111946
+      }
+    },
+    {
+      "auc": [
+        0.9248527623071506,
+        0.8646326776395022,
+        0.8437088675474089,
+        0.8034879630094989
+      ],
+      "score": "normalized FAC",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.076,
+            "precision": 0.9,
+            "recall": 0.8048780487804879
+          },
+          {
+            "false_accept_absent": 0.172,
+            "precision": 0.7782608695652173,
+            "recall": 0.7617021276595745
+          },
+          {
+            "false_accept_absent": 0.392,
+            "precision": 0.6171617161716172,
+            "recall": 0.8538812785388128
+          },
+          {
+            "false_accept_absent": 0.608,
+            "precision": 0.46195652173913043,
+            "recall": 0.8629441624365483
+          }
+        ],
+        "tau": 0.4694376248054178
+      }
+    },
+    {
+      "auc": [
+        0.9496831188784329,
+        0.9273705339221197,
+        0.933570581257414,
+        0.8316999212611617
+      ],
+      "score": "fingerprint score",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.1,
+            "precision": 0.900398406374502,
+            "recall": 0.9186991869918699
+          },
+          {
+            "false_accept_absent": 0.26,
+            "precision": 0.7667844522968198,
+            "recall": 0.9234042553191489
+          },
+          {
+            "false_accept_absent": 0.432,
+            "precision": 0.6385542168674698,
+            "recall": 0.9680365296803652
+          },
+          {
+            "false_accept_absent": 0.816,
+            "precision": 0.42630385487528344,
+            "recall": 0.9543147208121827
+          }
+        ],
+        "tau": 0.22888034582138062
+      }
+    },
+    {
+      "auc": [
+        0.6678189616541834,
+        0.6895865114411883,
+        0.6701441362388079,
+        0.7002060612152586
+      ],
+      "score": "fused margin to #2",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.008,
+            "precision": 0.9047619047619048,
+            "recall": 0.07723577235772358
+          },
+          {
+            "false_accept_absent": 0.008,
+            "precision": 0.90625,
+            "recall": 0.12340425531914893
+          },
+          {
+            "false_accept_absent": 0.012,
+            "precision": 0.8275862068965517,
+            "recall": 0.1095890410958904
+          },
+          {
+            "false_accept_absent": 0.024,
+            "precision": 0.8,
+            "recall": 0.18274111675126903
+          }
+        ],
+        "tau": 0.09476361077552345
+      }
+    },
+    {
+      "auc": [
+        0.9438576275526535,
+        0.9161461260537936,
+        0.8679211556898877,
+        0.739424703891709
+      ],
+      "score": "fingerprint −log₁₀E (global null)",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.084,
+            "precision": 0.9009009009009009,
+            "recall": 0.8130081300813008
+          },
+          {
+            "false_accept_absent": 0.3,
+            "precision": 0.725752508361204,
+            "recall": 0.9234042553191489
+          },
+          {
+            "false_accept_absent": 0.564,
+            "precision": 0.5494505494505495,
+            "recall": 0.91324200913242
+          },
+          {
+            "false_accept_absent": 0.768,
+            "precision": 0.43529411764705883,
+            "recall": 0.9390862944162437
+          }
+        ],
+        "tau": 10.312374414194785
+      }
+    },
+    {
+      "auc": [
+        0.9718487932910825,
+        0.9610919309514251,
+        0.940233022961049,
+        0.8675847280159488
+      ],
+      "score": "fused z (local null)",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.096,
+            "precision": 0.9015748031496063,
+            "recall": 0.9308943089430894
+          },
+          {
+            "false_accept_absent": 0.076,
+            "precision": 0.9118942731277533,
+            "recall": 0.8808510638297873
+          },
+          {
+            "false_accept_absent": 0.056,
+            "precision": 0.9081081081081082,
+            "recall": 0.7671232876712328
+          },
+          {
+            "false_accept_absent": 0.012,
+            "precision": 0.9509803921568627,
+            "recall": 0.49238578680203043
+          }
+        ],
+        "tau": 8.992617004921831
+      }
+    },
+    {
+      "auc": [
+        0.909320786121247,
+        0.9213006824568446,
+        0.9178732186093371,
+        0.8226868372116399
+      ],
+      "score": "fingerprint z (local null, FAC-free)",
+      "transfer": {
+        "cells": [
+          {
+            "false_accept_absent": 0.068,
+            "precision": 0.9010989010989011,
+            "recall": 0.6666666666666666
+          },
+          {
+            "false_accept_absent": 0.02,
+            "precision": 0.9481481481481482,
+            "recall": 0.5446808510638298
+          },
+          {
+            "false_accept_absent": 0.024,
+            "precision": 0.9285714285714286,
+            "recall": 0.5342465753424658
+          },
+          {
+            "false_accept_absent": 0.02,
+            "precision": 0.8709677419354839,
+            "recall": 0.41116751269035534
+          }
+        ],
+        "tau": 44.25992287996584
+      }
+    }
+  ],
+  "sizes": [
+    1000,
+    10000,
+    100000,
+    1000000
+  ]
+}

@@ -25,6 +25,7 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Standing queries | exact top-k | **pipeline semantics** by default (exact incremental fingerprint top-64 + fused re-rank; tie-inclusive boundary). Exact-fused mode kept (≈10× costlier) | E6 |
 | Consolidation | SAGE-style | assimilation θ = 0.4, merge threshold 0.6 (stricter than θ). Schemas are **added alongside** instances, never replacing them; inference confidence = corroboration, not schema fact probability. A fixed θ loses purity as memory grows (needs null calibration) | E7, E15 |
 | Unresolved vocabularies | open problem (representation) | **analogical bootstrapping**: wildcard mappings between retrieved neighbours → mutual-best predicate correspondences (one per domain) → canonical clusters, re-estimated each round. On sparse real data it is a precision tool: it learns frequent correspondences, and anonymization remains the default fallback | E13, E14 |
+| Accepting an analogue | score threshold | **local-null significance**: z of the top-1 fused score against the lower half of its fingerprint candidate list; accept at z ≥ 9, else abstain. Memory-size invariant, unlike raw thresholds | E16 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
 
 Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).

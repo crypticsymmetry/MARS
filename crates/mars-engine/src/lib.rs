@@ -142,6 +142,10 @@ pub struct Engine {
     replaying: bool,
 }
 
+/// Local-null z at or above which a top-1 analogue is accepted as real
+/// (E16: precision ≈ 0.9 at every memory size from 10³ to 10⁶ cases).
+pub const SIGNIFICANT_Z: f64 = 9.0;
+
 impl Engine {
     /// Build from an existing KB: freeze an IDF epoch over its cases and index them all.
     pub fn new(kb: Kb, cfg: EngineConfig) -> Self {
@@ -281,17 +285,34 @@ impl Engine {
     /// One-off retrieval (not registered): top-k analogues of `q` by fused
     /// score over the fingerprint top-`mac_k` candidates.
     pub fn query(&mut self, q: CaseId, k: usize) -> Vec<(CaseId, f64)> {
+        self.query_significance(q, k).0
+    }
+
+    /// `query` plus the significance of the top-1 analogue: the z-score of
+    /// its fused score against the fused scores of the lower half of the
+    /// fingerprint candidate list (a *local null*: the best chance matches
+    /// in this memory). Unlike a raw score threshold, a z threshold keeps
+    /// its precision as memory grows (E16: z ≥ 9 gives precision ≈ 0.9 from
+    /// 10³ to 10⁶ cases). `None` with fewer than 8 candidates.
+    pub fn query_significance(&mut self, q: CaseId, k: usize) -> (Vec<(CaseId, f64)>, Option<f64>) {
         let mac_k = match self.cfg.sq_mode {
             SqMode::Pipeline { mac_k } => mac_k,
             SqMode::ExactFused => 64,
         };
         let (top, _) = self.fp_top(q, mac_k + self.cfg.slack);
         let cands = Self::pipeline_candidates(&top, mac_k);
-        let live: Vec<CaseId> = cands.into_iter().filter(|c| self.alive[c.0 as usize]).collect();
+        let live: Vec<CaseId> = cands.into_iter().filter(|c| self.alive[c.0 as usize] && *c != q).collect();
         let mut r: Vec<(CaseId, f64)> = live.into_iter().map(|c| (c, self.fused(q, c))).collect();
+        let z = (r.len() >= 8).then(|| {
+            let tail: Vec<f64> = r[r.len() / 2..].iter().map(|x| x.1).collect();
+            let m = tail.iter().sum::<f64>() / tail.len() as f64;
+            let sd = (tail.iter().map(|x| (x - m) * (x - m)).sum::<f64>() / (tail.len() - 1) as f64).sqrt().max(1e-9);
+            let best = r.iter().map(|x| x.1).fold(f64::MIN, f64::max);
+            (best - m) / sd
+        });
         sort_set(&mut r);
         r.truncate(k);
-        r
+        (r, z)
     }
 
     /// Pipeline candidates: the first `mac_k` of a fingerprint-sorted set,
@@ -803,4 +824,34 @@ mod tests {
         assert_eq!(inc.iter().map(|x| x.0).collect::<Vec<_>>(), sc.iter().map(|x| x.0).collect::<Vec<_>>());
         assert_eq!(e.inferences(sq), infs);
     }
+
+    #[test]
+    fn significance_separates_real_from_chance_analogues() {
+        // 40 random 3-chain cases over 12 predicates, one deep causal case,
+        // and two queries: an isomorph of the deep case and a fresh random chain.
+        let mut src = String::from("(defpredicate cause :arity 2 :kind relation)\n");
+        let mut rng = mars_hv::Rng::new(7);
+        let chain = |rng: &mut mars_hv::Rng, e: &str| {
+            (0..3).map(|i| format!("(p{} {e}{i} {e}{})", rng.below(12), i + 1)).collect::<Vec<_>>().join(" ")
+        };
+        for c in 0..40 {
+            src.push_str(&format!("(defcase r{c} {})\n", chain(&mut rng, &format!("r{c}e"))));
+        }
+        let deep = |e: &str| format!("(p1 {e}0 {e}1) (p2 {e}1 {e}2) (p3 {e}2 {e}3) (cause (p1 {e}0 {e}1) (p2 {e}1 {e}2)) (cause (p2 {e}1 {e}2) (p3 {e}2 {e}3)) (cause (cause (p1 {e}0 {e}1) (p2 {e}1 {e}2)) (p3 {e}2 {e}3))");
+        src.push_str(&format!("(defcase deep {})\n(defquery q-real {})\n(defquery q-chance {})\n", deep("d"), deep("x"), chain(&mut rng, "y")));
+        let mut kb = Kb::new();
+        kb.load_str(&src).unwrap();
+        let (qr, qc) = (kb.case_by_name("q-real").unwrap(), kb.case_by_name("q-chance").unwrap());
+        let deep_id = kb.case_by_name("deep").unwrap();
+        let mut e = Engine::new(kb, EngineConfig::default());
+        e.remove_case(qr);
+        e.remove_case(qc);
+        let (hits, zr) = e.query_significance(qr, 3);
+        assert_eq!(hits[0].0, deep_id);
+        let (_, zc) = e.query_significance(qc, 3);
+        let (zr, zc) = (zr.unwrap(), zc.unwrap());
+        assert!(zr >= SIGNIFICANT_Z, "real analogue z = {zr}");
+        assert!(zc < SIGNIFICANT_Z && zc < zr, "chance {zc} vs real {zr}");
+    }
+
 }

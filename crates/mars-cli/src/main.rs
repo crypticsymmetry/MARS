@@ -8,7 +8,7 @@
 //! ```
 
 use mars_encode::Profile;
-use mars_engine::{Engine, EngineConfig, SqMode};
+use mars_engine::{Engine, EngineConfig, SqMode, SIGNIFICANT_Z};
 use mars_map::{Grounding, MapConfig, Mapper};
 use mars_rel::{Kb, Term};
 use std::process::exit;
@@ -208,8 +208,13 @@ fn serve(cli: &Cli) {
                     let (n, k) = rest.split_once(' ').unwrap_or((rest, "5"));
                     let q = e.kb.case_by_name(n).ok_or(format!("unknown case {n}"))?;
                     let k: usize = k.trim().parse().map_err(|x| format!("{x}"))?;
-                    for (c, s) in e.query(q, k) {
+                    let (hits, z) = e.query_significance(q, k);
+                    for (c, s) in hits {
                         println!("{:.4} {}", s, name_of(&e, c));
+                    }
+                    match z {
+                        Some(z) => println!("significance z = {z:.1} ({})", if z >= SIGNIFICANT_Z { "accept" } else { "abstain: no reliable analogue" }),
+                        None => println!("significance: too few candidates"),
                     }
                 }
                 "top" | "infer" | "explain" => {
