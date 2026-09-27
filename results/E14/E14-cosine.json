@@ -1,0 +1,303 @@
+{
+  "final_pairs": [
+    {
+      "evidence": 38.89107440630755,
+      "js": "js:length",
+      "py": "py:len"
+    },
+    {
+      "evidence": 36.11750827597595,
+      "js": "js:push",
+      "py": "py:append"
+    },
+    {
+      "evidence": 16.336634432261064,
+      "js": "js:isEmpty",
+      "py": "py:is_empty"
+    },
+    {
+      "evidence": 14.63034642929391,
+      "js": "js:forEach",
+      "py": "py:insert"
+    },
+    {
+      "evidence": 5.497350553722973,
+      "js": "js:getNode",
+      "py": "py:pow"
+    },
+    {
+      "evidence": 4.0,
+      "js": "js:addEdge",
+      "py": "py:put"
+    },
+    {
+      "evidence": 3.1669061377490024,
+      "js": "js:inOrder",
+      "py": "py:helper"
+    },
+    {
+      "evidence": 2.1146175395666442,
+      "js": "js:Math-abs",
+      "py": "py:abs"
+    },
+    {
+      "evidence": 2.0,
+      "js": "js:_find",
+      "py": "py:recur_search"
+    },
+    {
+      "evidence": 1.87592490666049,
+      "js": "js:root",
+      "py": "py:find_set"
+    },
+    {
+      "evidence": 1.8574260146915886,
+      "js": "js:pop",
+      "py": "py:popleft"
+    },
+    {
+      "evidence": 1.6357053980419032,
+      "js": "js:getNodeHeight",
+      "py": "py:fix_insert"
+    },
+    {
+      "evidence": 1.2838625212980914,
+      "js": "js:Math-random",
+      "py": "py:set"
+    },
+    {
+      "evidence": 1.2398420855266274,
+      "js": "js:_siftUp",
+      "py": "py:is_full"
+    }
+  ],
+  "gold_pairs": 18,
+  "rows": [
+    {
+      "correct": 0,
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.11679765117903272,
+          "r1": 0.057692307692307696,
+          "r10": 0.2692307692307692
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.08497941748762979,
+          "r1": 0.0,
+          "r10": 0.28846153846153844
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.13889658751318643,
+          "r1": 0.038461538461538464,
+          "r10": 0.3076923076923077
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.15219487301555126,
+          "r1": 0.057692307692307696,
+          "r10": 0.38461538461538464
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.11671632903058063,
+          "r1": 0.0,
+          "r10": 0.34615384615384615
+        }
+      ],
+      "round": 0,
+      "same_name": 0,
+      "unverifiable": 0,
+      "wrong": 0
+    },
+    {
+      "correct": 3,
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.09395098002974325,
+          "r1": 0.019230769230769232,
+          "r10": 0.23076923076923078
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.07607729652271901,
+          "r1": 0.0,
+          "r10": 0.28846153846153844
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.14507683987693942,
+          "r1": 0.038461538461538464,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.1527571164174012,
+          "r1": 0.038461538461538464,
+          "r10": 0.38461538461538464
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.11130633017052857,
+          "r1": 0.0,
+          "r10": 0.34615384615384615
+        }
+      ],
+      "round": 1,
+      "same_name": 1,
+      "unverifiable": 6,
+      "wrong": 1
+    },
+    {
+      "correct": 3,
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.09340773723328956,
+          "r1": 0.019230769230769232,
+          "r10": 0.23076923076923078
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.07665118155105334,
+          "r1": 0.0,
+          "r10": 0.28846153846153844
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.1450767565835869,
+          "r1": 0.038461538461538464,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.1527517808166894,
+          "r1": 0.038461538461538464,
+          "r10": 0.38461538461538464
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.11189317916650227,
+          "r1": 0.0,
+          "r10": 0.34615384615384615
+        }
+      ],
+      "round": 2,
+      "same_name": 1,
+      "unverifiable": 9,
+      "wrong": 1
+    },
+    {
+      "correct": 3,
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.09340773723328956,
+          "r1": 0.019230769230769232,
+          "r10": 0.23076923076923078
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.07665118155105334,
+          "r1": 0.0,
+          "r10": 0.28846153846153844
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.1450767565835869,
+          "r1": 0.038461538461538464,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.1527517808166894,
+          "r1": 0.038461538461538464,
+          "r10": 0.38461538461538464
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.11189317916650227,
+          "r1": 0.0,
+          "r10": 0.34615384615384615
+        }
+      ],
+      "round": 3,
+      "same_name": 1,
+      "unverifiable": 9,
+      "wrong": 1
+    },
+    {
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.1028262045351808,
+          "r1": 0.038461538461538464,
+          "r10": 0.25
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.07754152012253426,
+          "r1": 0.0,
+          "r10": 0.25
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.14507481029641506,
+          "r1": 0.038461538461538464,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.15506011339312334,
+          "r1": 0.038461538461538464,
+          "r10": 0.38461538461538464
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.1113237239454441,
+          "r1": 0.0,
+          "r10": 0.34615384615384615
+        }
+      ],
+      "round": "oracle"
+    },
+    {
+      "methods": [
+        {
+          "method": "fingerprint analogy",
+          "mrr": 0.11862404777744555,
+          "r1": 0.038461538461538464,
+          "r10": 0.2692307692307692
+        },
+        {
+          "method": "fingerprint literal",
+          "mrr": 0.10534325636399446,
+          "r1": 0.0,
+          "r10": 0.28846153846153844
+        },
+        {
+          "method": "FAC only",
+          "mrr": 0.1423435288373419,
+          "r1": 0.038461538461538464,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused ½FAC+½FP-literal",
+          "mrr": 0.16812370798691623,
+          "r1": 0.057692307692307696,
+          "r10": 0.36538461538461536
+        },
+        {
+          "method": "fused 0.3FAC+0.7FP-literal",
+          "mrr": 0.14088714975460712,
+          "r1": 0.0,
+          "r10": 0.38461538461538464
+        }
+      ],
+      "round": "reference"
+    }
+  ]
+}

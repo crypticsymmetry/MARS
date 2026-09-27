@@ -25,3 +25,12 @@ mkdir -p "$JS"
   curl -s -o algorithms-0.10.0.tgz https://registry.npmjs.org/algorithms/-/algorithms-0.10.0.tgz && tar xzf algorithms-0.10.0.tgz)
 node tools/js_ast.js "$JS/node_modules" "$JS/package" > "$JS/ast.jsonl"
 python3 tools/js2mars.py "$JS/ast.jsonl" jsalgs "$OUT"
+
+# E14: the same corpus in raw mode (language-specific library-call names, no hand mapping).
+RAW_OUT=data/e14
+mkdir -p "$RAW_OUT"
+MARS_RAW=1 python3 tools/py2mars.py "$RAW_OUT" \
+  algorithms:$EXT/algorithms-1.0.1/algorithms \
+  pygorithm:$EXT/pygorithm-1.0.4/pygorithm \
+  pyalgs:$EXT/python_algorithms-0.2.2/python_algorithms
+MARS_RAW=1 python3 tools/js2mars.py "$JS/ast.jsonl" jsalgs "$RAW_OUT"

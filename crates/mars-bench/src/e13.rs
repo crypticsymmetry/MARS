@@ -12,6 +12,7 @@
 //!   3. accumulate evidence for predicate correspondences from strong mappings;
 //!   4. align mutual-best predicate pairs under a new canonical predicate;
 //!   5. re-encode and re-evaluate.
+//!
 //! No labels are used; ground truth (same canonical base name) only scores
 //! the alignments.
 

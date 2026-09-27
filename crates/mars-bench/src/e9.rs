@@ -20,32 +20,29 @@ use serde_json::json;
 use std::fmt::Write as _;
 use std::time::Instant;
 
-struct Meta {
-    case: CaseId,
-    pkg: String,
-    lang: String,
-    norm: String,
-    category: String,
-    stem: String,
-    is_main: bool,
+pub(crate) struct Meta {
+    pub case: CaseId,
+    pub pkg: String,
+    pub lang: String,
+    pub norm: String,
+    pub category: String,
+    pub stem: String,
+    pub is_main: bool,
 }
 
-pub fn run(args: &Args) -> Result<(), String> {
-    let dir = args.str("data", "data/e9");
-    let out_dir = args.str("out", if args.str("task", "cross-pkg") == "cross-lang" { "results/E12" } else { "results/E9" });
-    let t0 = Instant::now();
+/// Load `{dir}/vocab.mars`, every other `*.mars` file and the manifest.
+pub(crate) fn load_corpus(dir: &str) -> Result<(Kb, Vec<Meta>), String> {
     let mut kb = Kb::new();
     kb.load_str(&std::fs::read_to_string(format!("{dir}/vocab.mars")).map_err(|e| format!("{e} (run tools/fetch_e9_corpus.sh)"))?).map_err(|e| e.to_string())?;
-    let mut files: Vec<_> = std::fs::read_dir(&dir).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().map(|x| x == "mars").unwrap_or(false) && !p.ends_with("vocab.mars")).collect();
+    let mut files: Vec<_> = std::fs::read_dir(dir).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().map(|x| x == "mars").unwrap_or(false) && !p.ends_with("vocab.mars")).collect();
     files.sort();
     for f in &files {
         kb.load_str(&std::fs::read_to_string(f).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", f.display()))?;
     }
-    let cross_lang = args.str("task", "cross-pkg") == "cross-lang";
     let manifest: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/manifest.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let metas: Vec<Meta> = manifest
         .as_array()
-        .unwrap()
+        .ok_or("manifest must be a list")?
         .iter()
         .filter_map(|m| {
             let case = kb.case_by_name(m["case"].as_str()?)?;
@@ -61,6 +58,15 @@ pub fn run(args: &Args) -> Result<(), String> {
             })
         })
         .collect();
+    Ok((kb, metas))
+}
+
+pub fn run(args: &Args) -> Result<(), String> {
+    let dir = args.str("data", "data/e9");
+    let out_dir = args.str("out", if args.str("task", "cross-pkg") == "cross-lang" { "results/E12" } else { "results/E9" });
+    let t0 = Instant::now();
+    let cross_lang = args.str("task", "cross-pkg") == "cross-lang";
+    let (kb, metas) = load_corpus(&dir)?;
     // Cross-package (E9) is defined on the Python corpus only; cross-language (E12) uses everything.
     let metas: Vec<Meta> = if cross_lang { metas } else { metas.into_iter().filter(|m| m.lang == "py").collect() };
     let n = metas.len();
