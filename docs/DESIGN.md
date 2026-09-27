@@ -26,6 +26,7 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Consolidation | SAGE-style | assimilation θ = 0.4, merge threshold 0.6 (stricter than θ). Schemas are **added alongside** instances, never replacing them; inference confidence = corroboration, not schema fact probability. A fixed θ loses purity as memory grows (needs null calibration) | E7, E15 |
 | Unresolved vocabularies | open problem (representation) | **analogical bootstrapping**: wildcard mappings between retrieved neighbours → mutual-best predicate correspondences (one per domain) → canonical clusters, re-estimated each round. On sparse real data it is a precision tool: it learns frequent correspondences, and anonymization remains the default fallback | E13, E14 |
 | Accepting an analogue | score threshold | **local-null significance**: z of the top-1 fused score against the lower half of its fingerprint candidate list; accept at z ≥ 9, else abstain. Memory-size invariant, unlike raw thresholds | E16 |
+| Representation granularity | one encoding per case | open: *multi-view* cases. Nested and flat encodings of code trade fingerprint vs mapper strength, and each restores different inferences; the fusion weight depends on the view | E18 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
 
 Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).

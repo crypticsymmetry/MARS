@@ -30,7 +30,7 @@ use std::time::Instant;
 
 /// Does projection `p` match term `t`, letting skolems stand for entities
 /// (consistently: one skolem, one entity)?
-fn proj_matches(kb: &Kb, p: &Proj, t: Term, bind: &mut FxHashMap<Sym, Sym>) -> bool {
+pub(crate) fn proj_matches(kb: &Kb, p: &Proj, t: Term, bind: &mut FxHashMap<Sym, Sym>) -> bool {
     match (p, t) {
         (Proj::Target(x), _) => *x == t,
         (Proj::Skolem(s), Term::Ent(e)) => *bind.entry(*s).or_insert(e) == e,
@@ -86,7 +86,7 @@ fn dice(a: &[String], b: &[String]) -> f64 {
     if a.is_empty() && b.is_empty() { 0.0 } else { 2.0 * common as f64 / (a.len() + b.len()) as f64 }
 }
 
-fn entities(kb: &Kb, e: ExprId, out: &mut HashSet<Sym>) {
+pub(crate) fn entities(kb: &Kb, e: ExprId, out: &mut HashSet<Sym>) {
     for a in kb.expr(e).args.iter() {
         match *a {
             Term::Ent(s) => {
