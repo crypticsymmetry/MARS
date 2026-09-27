@@ -21,6 +21,8 @@
 //!   re-mapping happens.
 //! * [`Work`] counts the units of work each update causes (E6).
 
+pub mod sage;
+
 use mars_encode::{symbol_hashes, FeatureConfig, FeatureExtractor, FeatureStats, Features, Layout, Profile, Sketcher, N_CHANNELS};
 use mars_index::{ModeK, Scorer};
 use mars_map::{Grounding, MapConfig, Mapper};

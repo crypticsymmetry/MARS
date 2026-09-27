@@ -1,0 +1,112 @@
+{
+  "e7a": [
+    {
+      "assimilate": 0.3,
+      "completeness": 0.5776666666666668,
+      "coverage": 0.9781666666666666,
+      "gens": 372,
+      "member_precision": 0.4447327935474484,
+      "member_recall": 0.5945710180623971,
+      "ms_per_add": 0.3093799685,
+      "outliers": 131,
+      "purity": 0.8670983131708979,
+      "schema_precision": 0.8039357553366173,
+      "schema_recall": 0.5888905993431852
+    },
+    {
+      "assimilate": 0.4,
+      "completeness": 0.5798333333333334,
+      "coverage": 0.9435,
+      "gens": 529,
+      "member_precision": 0.4639306989306985,
+      "member_recall": 0.6212950058072019,
+      "ms_per_add": 0.3719149253333333,
+      "outliers": 339,
+      "purity": 0.9431195901784137,
+      "schema_precision": 0.779597367402245,
+      "schema_recall": 0.6198380436185312
+    },
+    {
+      "assimilate": 0.5,
+      "completeness": 0.5356666666666665,
+      "coverage": 0.8671666666666666,
+      "gens": 624,
+      "member_precision": 0.4892107705328852,
+      "member_recall": 0.6700270909645912,
+      "ms_per_add": 0.4875739216666667,
+      "outliers": 797,
+      "purity": 0.9607918508552759,
+      "schema_precision": 0.78920177045177,
+      "schema_recall": 0.6805002289377288
+    },
+    {
+      "assimilate": 0.6,
+      "completeness": 0.4631666666666665,
+      "coverage": 0.7073333333333334,
+      "gens": 641,
+      "member_precision": 0.5454850394360885,
+      "member_recall": 0.7485109335109321,
+      "ms_per_add": 0.6489228628333333,
+      "outliers": 1756,
+      "purity": 0.9959943449575872,
+      "schema_precision": 0.8313381063381065,
+      "schema_recall": 0.7644993894993894
+    }
+  ],
+  "e7b": [
+    {
+      "ci_precision": 0.3356870229007634,
+      "cis_per_query": 0.9138321995464853,
+      "deleted_recall": 0.26303854875283444,
+      "items": 100,
+      "m": 1,
+      "pool": "instances",
+      "template_acc": 0.7505668934240363
+    },
+    {
+      "ci_precision": 0.3331439393939394,
+      "cis_per_query": 0.9206349206349206,
+      "deleted_recall": 0.26077097505668934,
+      "items": 95,
+      "m": 1,
+      "pool": "schemas (SAGE)",
+      "template_acc": 0.6961451247165533
+    },
+    {
+      "ci_precision": 0.39344783715012716,
+      "cis_per_query": 0.9130434782608695,
+      "deleted_recall": 0.30663615560640733,
+      "items": 300,
+      "m": 3,
+      "pool": "instances",
+      "template_acc": 0.8352402745995423
+    },
+    {
+      "ci_precision": 0.43133333333333324,
+      "cis_per_query": 0.9061784897025171,
+      "deleted_recall": 0.32265446224256294,
+      "items": 203,
+      "m": 3,
+      "pool": "schemas (SAGE)",
+      "template_acc": 0.8306636155606407
+    },
+    {
+      "ci_precision": 0.4862015503875968,
+      "cis_per_query": 0.72,
+      "deleted_recall": 0.2866666666666667,
+      "items": 1000,
+      "m": 10,
+      "pool": "instances",
+      "template_acc": 0.88
+    },
+    {
+      "ci_precision": 0.5615079365079366,
+      "cis_per_query": 0.8088888888888889,
+      "deleted_recall": 0.3622222222222222,
+      "items": 372,
+      "m": 10,
+      "pool": "schemas (SAGE)",
+      "template_acc": 0.86
+    }
+  ]
+}
