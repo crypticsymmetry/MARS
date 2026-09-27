@@ -290,7 +290,8 @@ pub fn run(args: &Args) -> Result<(), String> {
         ("random analogue (chance)", Box::new(|r: &R| Some(&r.random))),
         ("oracle counterpart (same algorithm, other package)", Box::new(|r: &R| r.oracle.as_ref())),
     ];
-    let subsets: Vec<(&str, Box<dyn Fn(&Q) -> bool>)> = vec![("all", Box::new(|_: &Q| true)), ("with counterpart", Box::new(|q: &Q| q.has_counterpart)), ("without counterpart", Box::new(|q: &Q| !q.has_counterpart))];
+    type Subset = Box<dyn Fn(&Q) -> bool>;
+    let subsets: Vec<(&str, Subset)> = vec![("all", Box::new(|_: &Q| true)), ("with counterpart", Box::new(|q: &Q| q.has_counterpart)), ("without counterpart", Box::new(|q: &Q| !q.has_counterpart))];
     for (cn, sel) in &conds {
         for (sn, sub) in &subsets {
             let (c, ex, tol, prec, per, shape, half) = single(sel.as_ref(), sub.as_ref());
@@ -319,9 +320,11 @@ pub fn run(args: &Args) -> Result<(), String> {
     writeln!(md, "| accept if support ≥ | recall exact | recall up to skolems | precision (skolem-free) | proposals / query |").unwrap();
     writeln!(md, "|---|---|---|---|---|").unwrap();
     let mut by_support: FxHashMap<usize, (usize, usize)> = FxHashMap::default();
-    let mut agg: Vec<Vec<(usize, bool, bool, bool, bool)>> = Vec::new(); // (support, skolem, exact, tol, in_full)
+    /// (support, has skolem, exact, up to skolems, in the original function)
+    type Agg = (usize, bool, bool, bool, bool);
+    let mut agg: Vec<Vec<Agg>> = Vec::new();
     for r in &res {
-        let mut m: FxHashMap<&str, (usize, bool, bool, bool, bool)> = FxHashMap::default();
+        let mut m: FxHashMap<&str, Agg> = FxHashMap::default();
         for p in &r.fused {
             for x in p {
                 let e = m.entry(x.0.as_str()).or_insert((0, x.1, x.2, x.3, x.4));
@@ -342,7 +345,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     for min in 1..=m_max {
         let rec_ex = mean(&agg.iter().map(|a| a.iter().any(|x| x.0 >= min && x.2) as u8 as f64).collect::<Vec<_>>());
         let rec_tol = mean(&agg.iter().map(|a| a.iter().any(|x| x.0 >= min && x.3) as u8 as f64).collect::<Vec<_>>());
-        let acc: Vec<&(usize, bool, bool, bool, bool)> = agg.iter().flatten().filter(|x| x.0 >= min && !x.1).collect();
+        let acc: Vec<&Agg> = agg.iter().flatten().filter(|x| x.0 >= min && !x.1).collect();
         let prec = acc.iter().filter(|x| x.4).count() as f64 / acc.len().max(1) as f64;
         let per = agg.iter().flatten().filter(|x| x.0 >= min).count() as f64 / nq.max(1) as f64;
         writeln!(md, "| {min} | {rec_ex:.3} | {rec_tol:.3} | {prec:.3} | {per:.2} |").unwrap();
