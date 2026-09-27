@@ -36,7 +36,8 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] E9 follow-up: syntactic normalization passes for code (negative result); fusion 0.3 also best on real code (MRR 0.359)
 - [x] **Persistence**: snapshot (`kb.mars` + `meta.txt`) + frozen IDF epoch (`epoch.idf`) + append-only op log, replay on open; round-trip test reproduces results and inferences exactly
 - [x] **`mars serve`**: line protocol (case/fact/unfact/retire/declare/query/watch/top/infer/explain/map/events/checkpoint/stats); `data/examples/session.txt`
-- [x] **Corroborated inferences**: inferences drawn from the top-3 analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
+- [x] E11 inference calibration → [results/E11](../results/E11/README.md): precision rises 0.07 → 0.86 with support 1 → 5; 5 analogues with support ≥ 2 keep precision and add 59% recall. Default `infer_from` = 5; `corroborated()` API
+- [x] **Corroborated inferences**: inferences drawn from the top analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
 
 ### Tooling
 - [x] `mars-cli`: `mars analogies | map | stats` over `.mars` files; `data/examples/classic.mars` (Rutherford, water/heat flow, supply-chain/chokepoint, mere-appearance foil)
@@ -69,6 +70,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Inferences from the **top-5 analogues**; support ≥ 2 = "corroborated" | E11: support is calibrated (precision 0.07 → 0.86); 5 analogues with support ≥ 2 is a Pareto improvement over the single analogue |
 | 2026-09-27 | Inferences from the **top-3 analogues**, one justification each | Demo showed a single-analogue policy drops a well-supported inference when the top analogue changes; the TMS naturally models corroboration |
 | 2026-09-27 | **Fusion weight w = 0.3** (structural) / 0.7 (fingerprint) | E10: best at every severity (e.g. 0.692 vs 0.645 at severity 2) |
 | 2026-09-27 | Case-size guidance: ≥ ~10 connected facts per case at 10⁶ scale | E10: single-template cases degrade with N; 2-template cases stay ≥ 0.996 up to 10⁶ |
@@ -87,6 +89,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E11 | 2026-09-27 | 100 templates × 10 instances; 500 queries with a deleted fact | precision by support 0.07/0.48/0.59/0.74/0.86; m=5, support≥2: recall 0.646 vs 0.407 at equal precision 0.62 | [results/E11](../results/E11/README.md) |
 | E10 | 2026-09-27 | scoring variants × fusion weight; case size (compose 1–3) × N (10⁴–10⁶) | normalization/IDF ≤1.5 pts; w=0.3 best; composed cases: 0.999 (10⁴), 0.999 (10⁵), 0.996 (10⁶) → degradation was an information limit | [results/E10](../results/E10/README.md) |
 | E9 | 2026-09-27 | 1113 real Python functions from 3 packages; 33 cross-author same-algorithm queries; 365 category queries | fused FAC + literal FP: MRR 0.334 vs lexical 0.147 / MAC 0.188; category P@1 0.636 vs 0.578; syntax-level representation misses algorithm-level identity (quick/merge sort) | [results/E9](../results/E9/README.md) |
 | E7 | 2026-09-27 | 100 templates × 60 noisy instances; severity 1/2 | schemas: deleted-fact recall 0.59 vs 0.42 (single best instance, M=10); schema precision 0.85–0.90 vs 0.54; purity ≥0.94 but fragmented (completeness 0.80) | [results/E7](../results/E7/README.md) |

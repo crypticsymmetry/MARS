@@ -154,7 +154,7 @@ const HELP: &str = "commands (one per line; every response ends with END):
   declare (defpredicate ...)
   query NAME [K]                    one-off analogues of NAME
   watch NAME [K]                    register a standing query -> SQ id
-  top SQ | infer SQ | explain SQ TEXT
+  top SQ | infer SQ [MIN_SUPPORT] | explain SQ TEXT
   map BASE TARGET                   show a structural mapping
   events                            drain result/inference change events
   checkpoint | stats | help | quit";
@@ -225,8 +225,10 @@ fn serve(cli: &Cli) {
                             }
                         }
                         "infer" => {
-                            for t in e.inferences(sq) {
-                                println!("{t}");
+                            // `infer SQ [MIN_SUPPORT]`: support = number of corroborating analogues.
+                            let min: usize = text.trim().parse().unwrap_or(1);
+                            for (t, s) in e.corroborated(sq, min) {
+                                println!("[support {s}] {t}");
                             }
                         }
                         _ => println!("{}", e.explain(sq, text.trim()).ok_or("no such inference")?),

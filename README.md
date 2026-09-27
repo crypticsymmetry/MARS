@@ -34,6 +34,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 | H3 updates cost ∝ change, not memory size | ✅ ~300 µs per update from 10⁴ to 10⁶ cases, exact vs recompute, 21,000× cheaper | [E6](results/E6/README.md) |
 | H4 generalized schemas help | ✅ for few-shot inference (+41% deleted-fact recall); clusters fragment | [E7](results/E7/README.md) |
 | H5 structure beats surface on adversarial / real data | ✅ synthetic; partial on real code (MRR 0.33 vs 0.15 lexical) | [E4](results/E4/README.md), [E9](results/E9/README.md) |
+| Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
 | H6 SDM adds value over plain k-NN | ❌ dropped from the core (k-means buckets = IVF kept) | [E5](results/E5/README.md) |
 
 The mapper is validated in [E2](results/E2/README.md), and memory-bandwidth measurements are in [results/bw](results/bw/). Progress, decisions and the task board are in [docs/PROGRESS.md](docs/PROGRESS.md).

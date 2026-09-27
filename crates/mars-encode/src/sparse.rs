@@ -157,7 +157,7 @@ mod serde_tests {
         let mut f = Features::default();
         f.channels[2] = vec![(7, 1.0), (9, 2.0)];
         f.channels[0] = vec![(1, 1.0)];
-        let s = FeatureStats::fit([&f, &f].into_iter());
+        let s = FeatureStats::fit([&f, &f]);
         let t = FeatureStats::from_bytes(&s.to_bytes()).unwrap();
         assert_eq!(t.n_docs, 2);
         assert_eq!(t.idf(2, 7), s.idf(2, 7));

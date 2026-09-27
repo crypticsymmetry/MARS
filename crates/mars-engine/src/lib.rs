@@ -68,7 +68,7 @@ impl Default for EngineConfig {
             profile: Profile::analogy(),
             fac_weight: 0.3,
             slack: 8,
-            infer_from: 3,
+            infer_from: 5,
             sq_mode: SqMode::Pipeline { mac_k: 64 },
         }
     }
@@ -568,7 +568,7 @@ impl Engine {
 
     /// Candidate inferences from the top-`infer_from` analogues, one mapping
     /// per analogue. Returns (analogue, [(inference text, base facts)]).
-    fn analogue_inferences(&self, q: CaseId, analogues: &[CaseId]) -> Vec<(CaseId, Vec<(String, Vec<ExprId>)>)> {
+    fn analogue_inferences(&self, q: CaseId, analogues: &[CaseId]) -> Vec<AnalogueInferences> {
         let m = Mapper::new(&self.kb, self.cfg.map.clone());
         analogues
             .iter()
@@ -646,6 +646,15 @@ impl Engine {
         self.work.tms_touched += self.tms.touched - before;
     }
 
+    /// Believed inferences with support ≥ `min_support` (E11: support is a
+    /// calibrated confidence; ≥ 2 of 5 analogues keeps single-analogue
+    /// precision at ~1.6× the recall).
+    pub fn corroborated(&self, sq: usize, min_support: usize) -> Vec<(String, usize)> {
+        let mut v: Vec<(String, usize)> = self.inferences(sq).into_iter().map(|t| { let s = self.support(sq, &t); (t, s) }).filter(|x| x.1 >= min_support).collect();
+        v.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+        v
+    }
+
     /// Number of analogues currently supporting an inference.
     pub fn support(&self, sq: usize, text: &str) -> usize {
         self.inf_nodes.get(&(sq, text.to_string())).map(|&n| self.tms.support_count(n)).unwrap_or(0)
@@ -702,6 +711,9 @@ impl Engine {
         (set, infs)
     }
 }
+
+/// (analogue, [(inference text, base facts it was projected from)])
+type AnalogueInferences = (CaseId, Vec<(String, Vec<ExprId>)>);
 
 fn sort_set(set: &mut [(CaseId, f64)]) {
     set.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
