@@ -7,7 +7,9 @@
 //! surface content with the source, and two random stories. MARS scores
 //! every (source, choice) pair; a method answers with its best-scoring
 //! choice. Reported: accuracy and pairwise wins of the target over the noun
-//! and random distractors. Per-question scores are written to JSON so text
+//! and random distractors. Also: the analogy score minus λ·surface-channel
+//! similarity (Gentner: analogy = relational match without surface overlap).
+//! Per-question scores are written to JSON so text
 //! baselines (`tools/e23_baselines.py`) can be merged.
 
 use crate::metrics::mean;
@@ -19,7 +21,7 @@ use rayon::prelude::*;
 use serde_json::json;
 use std::fmt::Write as _;
 
-const METHODS: [&str; 6] = ["fingerprint analogy profile", "fingerprint literal profile", "FAC (structural)", "fused 0.3·FAC + 0.7·FP-analogy", "fused 0.5·FAC + 0.5·FP-analogy", "FAC higher-order only"];
+const METHODS: [&str; 10] = ["fingerprint analogy profile", "fingerprint literal profile", "FAC (structural)", "fused 0.3·FAC + 0.7·FP-analogy", "fused 0.5·FAC + 0.5·FP-analogy", "FAC higher-order only", "analogy − 0.25·surface", "analogy − 0.5·surface", "analogy − 1·surface", "surface channel only (C0)"];
 
 pub fn run(args: &Args) -> Result<(), String> {
     let dir = args.str("data", "data/storyanalogy");
@@ -83,7 +85,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             (s / (sa * sb).sqrt()).min(1.0)
         }
     };
-    let per_q: Vec<Vec<[f64; 6]>> = questions
+    let per_q: Vec<Vec<[f64; 10]>> = questions
         .par_iter()
         .map(|(_, cs, _, _)| {
             let s = cs[0];
@@ -94,7 +96,10 @@ pub fn run(args: &Args) -> Result<(), String> {
                     let (fa, fl) = (an.score(&sims), li.score(&sims));
                     let fac = norm(&mapper, s, c);
                     let fho = norm(&mapper_ho, ho_case[&s], ho_case[&c]);
-                    [fa, fl, fac, 0.3 * fac + 0.7 * fa, 0.5 * fac + 0.5 * fa, fho]
+                    // Gentner: an analogy is a relational match *without* surface
+                    // (entity/attribute) overlap, so discount the surface channel C0.
+                    let surf = sims[0];
+                    [fa, fl, fac, 0.3 * fac + 0.7 * fa, 0.5 * fac + 0.5 * fa, fho, fa - 0.25 * surf, fa - 0.5 * surf, fa - surf, surf]
                 })
                 .collect()
         })
