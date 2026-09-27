@@ -114,22 +114,38 @@ def build_prompt(batch):
     return PROMPT.format(fo=fo, ho=ho, stories=stories)
 
 
-def call(model, prompt, retries=3, timeout=90):
+class Deadline(Exception):
+    pass
+
+
+def _alarm(signum, frame):
+    raise Deadline("wall-clock deadline exceeded")
+
+
+def call(model, prompt, retries=2, timeout=150):
+    """One chat completion with a hard wall-clock deadline per attempt
+    (socket timeouts alone do not bound a slowly streamed response)."""
+    import signal
+    signal.signal(signal.SIGALRM, _alarm)
     key = os.environ["OPENROUTER_API_KEY"]
     body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0}).encode()
     for i in range(retries):
         req = urllib.request.Request("https://openrouter.ai/api/v1/chat/completions", data=body, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
         try:
             t0 = time.time()
-            with urllib.request.urlopen(req, timeout=timeout) as r:
-                d = json.load(r)
+            signal.alarm(timeout)
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as r:
+                    d = json.load(r)
+            finally:
+                signal.alarm(0)
             if "error" in d:
                 raise RuntimeError(str(d["error"])[:200])
             msg = d["choices"][0]["message"].get("content") or ""
             if msg.strip():
                 return msg
             print(f"  attempt {i + 1}: empty response ({time.time() - t0:.0f}s)", file=sys.stderr, flush=True)
-        except Exception as e:  # rate limits, timeouts: back off briefly
+        except (Exception, Deadline) as e:  # rate limits, timeouts: back off briefly
             print(f"  attempt {i + 1} failed: {str(e)[:200]}", file=sys.stderr, flush=True)
         time.sleep(5 * (i + 1))
     raise RuntimeError(f"LLM call failed after {retries} attempts")
@@ -187,8 +203,11 @@ def normalize(e, depth=0):
     args = [normalize(a, depth + 1) for a in e[1:]]
     if not args:
         raise ValueError("no args")
-    if p in HO or p in FO:
+    known = HO.get(p) or FO.get(p)
+    if known and (known[0] is None or known[0] == len(args)):
         name = p
+    elif known:
+        name = f"x:{ident(p)}-{len(args)}"  # vocabulary predicate used with the wrong arity
     else:
         name = "x:" + ident(p)
     return f"({name} {' '.join(args)})"
@@ -219,7 +238,16 @@ def main():
             batch = todo[i : i + batch_size]
             t0 = time.time()
             print(f"  request: stories {i + 1}-{i + len(batch)} ...", file=sys.stderr, flush=True)
-            out = split_output(call(model, build_prompt(batch)))
+            out, used = None, None
+            for m in models:
+                try:
+                    out, used = split_output(call(m, build_prompt(batch))), m
+                    break
+                except RuntimeError as e:
+                    print(f"  {m}: {e}; trying next model", file=sys.stderr, flush=True)
+            if out is None:
+                print("  all models failed for this batch; stopping (rerun to resume)", file=sys.stderr, flush=True)
+                break
             for s in batch:
                 r = {"id": s["id"], "model": used, "facts": out.get(s["id"], [])}
                 cache[s["id"]] = r
