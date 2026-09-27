@@ -48,7 +48,7 @@ fn map_cfg(wildcard: Option<f32>) -> MapConfig {
 }
 
 /// Counterpart retrieval: each DBpedia case ranks the Wikidata cases; (R@1, R@10, MRR) for FP and fused.
-fn retrieval(kb: &Kb, metas: &[Meta], k: usize) -> [(f64, f64, f64); 2] {
+fn retrieval(kb: &Kb, metas: &[Meta], k: usize, prof: &Profile) -> [(f64, f64, f64); 2] {
     let fx = FeatureExtractor::new(kb, FeatureConfig::default());
     let mut feats: Vec<Features> = metas.par_iter().map(|m| fx.extract(m.case)).collect();
     let stats = FeatureStats::fit(feats.iter());
@@ -57,7 +57,7 @@ fn retrieval(kb: &Kb, metas: &[Meta], k: usize) -> [(f64, f64, f64); 2] {
     let fps: Vec<_> = feats.par_iter().map(|f| sk.sketch(f)).collect();
     let mapper = Mapper::new(kb, map_cfg(None));
     let selfs: Vec<f64> = metas.par_iter().map(|m| mapper.score(m.case, m.case) as f64).collect();
-    let lit = Profile::literal();
+    let lit = prof.clone();
     let wd: Vec<usize> = (0..metas.len()).filter(|&i| !metas[i].dbpedia).collect();
     let ranks: Vec<[usize; 2]> = (0..metas.len())
         .into_par_iter()
@@ -87,6 +87,37 @@ fn retrieval(kb: &Kb, metas: &[Meta], k: usize) -> [(f64, f64, f64); 2] {
     })
 }
 
+/// Attribute predicates held by entity `e` in `case`.
+fn attrs_of(kb: &Kb, case: CaseId, e: mars_rel::Sym) -> FxHashSet<Sym> {
+    kb.case(case)
+        .facts
+        .iter()
+        .filter(|&&f| kb.vocab.kind(kb.expr(f).functor) == PredKind::Attribute && kb.expr(f).args.first() == Some(&Term::Ent(e)))
+        .map(|&f| kb.expr(f).functor)
+        .collect()
+}
+
+/// A relation correspondence is anchored when some argument pair shares an
+/// exact-match attribute and no argument pair has attributes that disagree.
+fn anchored(kb: &Kb, bc: CaseId, be: mars_rel::ExprId, tc: CaseId, te: mars_rel::ExprId) -> bool {
+    let (b, t) = (kb.expr(be), kb.expr(te));
+    let mut support = false;
+    for (x, y) in b.args.iter().zip(t.args.iter()) {
+        if let (Term::Ent(x), Term::Ent(y)) = (x, y) {
+            let (ax, ay) = (attrs_of(kb, bc, *x), attrs_of(kb, tc, *y));
+            if ax.is_empty() || ay.is_empty() {
+                continue;
+            }
+            if ax.intersection(&ay).next().is_some() {
+                support = true;
+            } else {
+                return false;
+            }
+        }
+    }
+    support
+}
+
 pub fn run(args: &Args) -> Result<(), String> {
     let dir = args.str("data", "data/kg-films/C");
     let rounds = args.usize("rounds", 3);
@@ -96,6 +127,17 @@ pub fn run(args: &Args) -> Result<(), String> {
     let min_evidence = args.f64("min-evidence", 1.0);
     let out_dir = args.str("out", "results/E26");
     let tag = args.str("tag", "run");
+    // Neighbour/retrieval profile: `literal` (default) or `surface` (C0 only: where
+    // exact-match anchors — shared values and labels — live).
+    // Evidence rule: `all` correspondences of a mapping (E13/E14), or only those
+    // `anchored`: some argument pair shares an exact-match attribute (value or
+    // label) and no argument pair carries attributes that disagree.
+    let anchored_only = args.str("evidence", "all") == "anchored";
+    let prof = match args.str("profile", "literal").as_str() {
+        "surface" => Profile::surface_only(),
+        "analogy" => Profile::analogy(),
+        _ => Profile::literal(),
+    };
     let t0 = Instant::now();
     let mut kb = Kb::new();
     kb.load_str(&std::fs::read_to_string(format!("{dir}/cases.mars")).map_err(|e| format!("{dir}/cases.mars: {e}"))?).map_err(|e| e.to_string())?;
@@ -135,13 +177,13 @@ pub fn run(args: &Args) -> Result<(), String> {
 
     let mut md = String::new();
     writeln!(md, "# E26: knowledge-graph vocabulary alignment ({tag})\n").unwrap();
-    writeln!(md, "Data: `{dir}` — {n} film cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, literal profile), wildcard mapping (local score {wildcard}, attributes included), evidence from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster, re-estimated each round. Counterpart retrieval: each DBpedia film ranks the Wikidata films (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len()).unwrap();
+    writeln!(md, "Data: `{dir}` — {n} film cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, `{}` profile), wildcard mapping (local score {wildcard}, attributes included), evidence (`{}` correspondences) from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster, re-estimated each round. Counterpart retrieval: each DBpedia film ranks the Wikidata films (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len(), prof.name, if anchored_only { "anchored" } else { "all" }).unwrap();
     writeln!(md, "| round | aligned pairs | correct / wrong / unjudged | precision (judged) | gold recall | counterpart R@1 FP / fused | MRR FP / fused |\n|---|---|---|---|---|---|---|").unwrap();
     let mut aligned: Vec<(Sym, Sym, f64)> = Vec::new();
     let mut rows = Vec::new();
     for round in 0..=rounds {
         let tr = Instant::now();
-        let ret = retrieval(&kb, &metas, 50);
+        let ret = retrieval(&kb, &metas, 50, &prof);
         let vs: Vec<Verdict> = aligned.iter().map(|(a, b, _)| verdict(&kb, *a, *b)).collect();
         let c = |v: Verdict| vs.iter().filter(|&&x| x == v).count();
         let (ok, bad, unj) = (c(Verdict::Correct), c(Verdict::Wrong), c(Verdict::Unjudged));
@@ -160,7 +202,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         feats.par_iter_mut().for_each(|f| stats.apply(f, &[true; N_CHANNELS]));
         let sk = Sketcher::new(Layout::default(), 0xF1);
         let fps: Vec<_> = feats.par_iter().map(|f| sk.sketch(f)).collect();
-        let lit = Profile::literal();
+        let lit = prof.clone();
         let pairs: Vec<(usize, usize)> = (0..n)
             .into_par_iter()
             .flat_map_iter(|i| {
@@ -183,7 +225,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                             if let (Term::Expr(be), Term::Expr(te)) = (b, t) {
                                 let (fb, ft) = (kbr.expr(*be).functor, kbr.expr(*te).functor);
                                 let (kbk, ktk) = (kg_of(kbr.name(fb)), kg_of(kbr.name(ft)));
-                                if kbk.is_some() && ktk.is_some() && kbk != ktk {
+                                if kbk.is_some() && ktk.is_some() && kbk != ktk && (!anchored_only || anchored(kbr, metas[j].case, *be, metas[i].case, *te)) {
                                     let key = if kbk == Some("dbo") { (fb, ft) } else { (ft, fb) };
                                     *acc.entry(key).or_insert(0.0) += norm;
                                 }

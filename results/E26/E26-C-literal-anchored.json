@@ -1,0 +1,164 @@
+{
+  "data": "/tmp/claude-0/-home-user-MARS/e9702898-0fe9-58b9-9954-8861366f0496/scratchpad/kgc-C",
+  "final": [
+    {
+      "dbpedia": "dbo:starring",
+      "evidence": 1165.4325319185293,
+      "wikidata": "wdt:p161"
+    },
+    {
+      "dbpedia": "dbo:director",
+      "evidence": 339.65146333819365,
+      "wikidata": "wdt:p57"
+    },
+    {
+      "dbpedia": "dbo:runtime",
+      "evidence": 304.915914189673,
+      "wikidata": "wdt:p2047"
+    },
+    {
+      "dbpedia": "dbo:writer",
+      "evidence": 223.324964620269,
+      "wikidata": "wdt:p58"
+    },
+    {
+      "dbpedia": "dbo:distributor",
+      "evidence": 176.43893491701573,
+      "wikidata": "wdt:p750"
+    },
+    {
+      "dbpedia": "dbo:producer",
+      "evidence": 175.2857893873771,
+      "wikidata": "wdt:p162"
+    },
+    {
+      "dbpedia": "dbo:musiccomposer",
+      "evidence": 163.54378492518023,
+      "wikidata": "wdt:p86"
+    },
+    {
+      "dbpedia": "dbo:language",
+      "evidence": 143.3053682940483,
+      "wikidata": "wdt:p136"
+    },
+    {
+      "dbpedia": "dbo:cinematography",
+      "evidence": 108.48352673702382,
+      "wikidata": "wdt:p344"
+    },
+    {
+      "dbpedia": "dbo:productioncompany",
+      "evidence": 82.97199040837035,
+      "wikidata": "wdt:p272"
+    },
+    {
+      "dbpedia": "dbo:country",
+      "evidence": 80.85611823490679,
+      "wikidata": "wdt:p495"
+    },
+    {
+      "dbpedia": "dbo:editing",
+      "evidence": 60.22538284706773,
+      "wikidata": "wdt:p1040"
+    },
+    {
+      "dbpedia": "dbo:budget",
+      "evidence": 12.18174194243678,
+      "wikidata": "wdt:p2130"
+    },
+    {
+      "dbpedia": "dbo:gross",
+      "evidence": 9.105850835277575,
+      "wikidata": "wdt:p2142"
+    },
+    {
+      "dbpedia": "dbo:narrator",
+      "evidence": 6.143058387666681,
+      "wikidata": "wdt:p2438"
+    },
+    {
+      "dbpedia": "dbo:network",
+      "evidence": 4.609278332138475,
+      "wikidata": "wdt:p449"
+    }
+  ],
+  "gold_present": 11,
+  "rows": [
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.0507306409581791,
+        "r1": 0.021169354838709676,
+        "r10": 0.05040322580645161
+      },
+      "fused": {
+        "mrr": 0.1915323826468614,
+        "r1": 0.13608870967741934,
+        "r10": 0.27318548387096775
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 0,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 14,
+      "correct": 6,
+      "fp": {
+        "mrr": 0.18469659838052055,
+        "r1": 0.12298387096774194,
+        "r10": 0.29838709677419356
+      },
+      "fused": {
+        "mrr": 0.35521690986457655,
+        "r1": 0.3215725806451613,
+        "r10": 0.4163306451612903
+      },
+      "gold_recall": 0.5454545454545454,
+      "precision": 0.5454545454545454,
+      "round": 1,
+      "unjudged": 3,
+      "wrong": 5
+    },
+    {
+      "aligned": 16,
+      "correct": 6,
+      "fp": {
+        "mrr": 0.18385748497243204,
+        "r1": 0.11895161290322581,
+        "r10": 0.2963709677419355
+      },
+      "fused": {
+        "mrr": 0.3584532819598377,
+        "r1": 0.3235887096774194,
+        "r10": 0.4213709677419355
+      },
+      "gold_recall": 0.5454545454545454,
+      "precision": 0.5454545454545454,
+      "round": 2,
+      "unjudged": 5,
+      "wrong": 5
+    },
+    {
+      "aligned": 16,
+      "correct": 6,
+      "fp": {
+        "mrr": 0.18385748497243204,
+        "r1": 0.11895161290322581,
+        "r10": 0.2963709677419355
+      },
+      "fused": {
+        "mrr": 0.3584532819598377,
+        "r1": 0.3235887096774194,
+        "r10": 0.4213709677419355
+      },
+      "gold_recall": 0.5454545454545454,
+      "precision": 0.5454545454545454,
+      "round": 3,
+      "unjudged": 5,
+      "wrong": 5
+    }
+  ]
+}

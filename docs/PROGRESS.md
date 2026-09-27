@@ -19,7 +19,7 @@ Latest:
 
 Candidate next steps:
 1. Richer, more consistent LLM front-end representations (E23/E24's main lever), e.g. schema-guided extraction, entity typing, or multiple conversions per story.
-2. Vocabulary alignment on knowledge graphs (now reachable: Wikidata/DBpedia SPARQL).
+2. Many-to-one alignment (E26: the 1:1 constraint blocks composer/musicComposer → P86).
 
 ## Task board
 
@@ -53,7 +53,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] **`mars serve`**: line protocol (case/fact/unfact/retire/declare/query/watch/top/infer/explain/map/events/checkpoint/stats); `data/examples/session.txt`
 - [x] **E13 analogical bootstrapping of vocabulary alignment** (`MapConfig::wildcard`, `Vocabulary::set_parents`) → [results/E13](../results/E13/README.md): unresolved vocabularies recovered without labels (pair precision 1.000; retrieval 0.15 → 0.99, oracle 1.00)
 - [x] **E14 bootstrapped alignment on real code** (`MARS_RAW=1` converter mode; `mars-bench e14`) → [results/E14](../results/E14/README.md): frequent pairs learned (len↔length, append↔push, pop, abs; 0 wrong among hand-map-judgeable), recall 4/18 (Zipfian, small JS side); even oracle alignment barely moves retrieval (fused MRR 0.152 → 0.155): anonymous shapes already carry cross-language structure
-- [ ] Alignment on knowledge graphs with independently developed schemas (dense parallel structure; where FAC is blocked by names)
+- [x] **E26 KG vocabulary alignment (DBpedia ↔ Wikidata films)** → [results/E26](../results/E26/README.md): with entity-label anchors and *anchored evidence*, 16 property pairs learned unsupervised, 14 correct by Wikidata labels (gold-confirmed 6; 4 gold gaps); structure alone or values alone learn nothing; alignment makes cross-KG film fingerprints comparable (R@1 0.021 → 0.119)
 - [x] E12 cross-language program analogy (Python ↔ JS; `tools/js_ast.js` + `tools/js2mars.py` into the shared vocabulary) → [results/E12](../results/E12/README.md): structure ≈ 2× lexical (MRR 0.168 vs 0.089), low absolute accuracy
 - [x] E11 inference calibration → [results/E11](../results/E11/README.md): precision rises 0.07 → 0.86 with support 1 → 5; 5 analogues with support ≥ 2 keep precision and add 59% recall. Default `infer_from` = 5; `corroborated()` API
 - [x] **Corroborated inferences**: inferences drawn from the top analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
@@ -102,6 +102,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-28 | Vocabulary alignment on real KGs counts only *anchored* correspondences (an argument pair sharing an exact value/label, none disagreeing) | E26: all-correspondence evidence (E13 rule) fails on star-shaped KG cases even with labels; anchored evidence learns 16 pairs, 14 correct |
 | 2026-09-27 | For natural-language memories: MAC = RRF(MARS fingerprint, lexical), FAC = LLM verifier on a short list; analogy scoring discounts MARS's surface channel | E23: surface discount 0.458 → 0.514; E24: fusion best end-to-end, MARS shortlists cleanest |
 | 2026-09-27 | No hierarchical generalization; fragmentation is treated as a data property, and evidence is pooled at recall time (E15) | E21: level 2 moves along the purity/completeness curve; fragments are rankable but not identifiable at realistic base rates |
 | 2026-09-27 | Concept memory: per-fact *emphasis* from near-misses (soft), not hard must-have conditions | E20: hard rules ≈ no gain under noise; soft emphasis beats 1-NN at 1–2 near-misses |
@@ -132,6 +133,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E26 | 2026-09-28 | 1,000 DBpedia/Wikidata films, 170 properties, 11 gold pairs present; anchors none / values / values+labels × neighbour profile × evidence rule | labels + anchored evidence: 16 pairs, 14 correct by labels (gold 6 correct / 5 'wrong', 4 of them gold gaps), gold recall 0.55; no anchors or values only: ≤ 1 correct | [results/E26](../results/E26/README.md) |
 | E24 | 2026-09-28 | 1,800 pooled StoryAnalogy stories; 360 queries; lexical / embedding / MARS / RRF retrievers; GLM verifier on top-10 | R@10: lexical 0.317, MARS 0.178, RRF 0.311; MRR RRF 0.180; end-to-end: RRF 0.222, lexical 0.211, MARS 0.147 (precision given in top-10 0.83), embeddings 0.089 | [results/E24](../results/E24/README.md) |
 | E23 | 2026-09-28 | StoryAnalogy MC, 360 questions; 2 LLM front ends; MARS scores vs lexical, embeddings, LLM direct | accuracy: embeddings 0.125, lexical 0.183, MARS analogy 0.458 / 0.414, analogy − 0.5·surface 0.514 / 0.467, LLM direct 0.786 (GLM, 360) / 0.843 (MiMo, 70) | [results/E23](../results/E23/README.md) |
 | E22 | 2026-09-27 | level-1 schemas at 10³/10⁴; fresh present + absent-template cases; 4 membership scores | symmetric FAC best (AUC 0.965 / 0.908; recall@P≥0.9 0.780 / 0.674); core fraction worst (0.855 / 0.679) | [results/E22](../results/E22/README.md) |
