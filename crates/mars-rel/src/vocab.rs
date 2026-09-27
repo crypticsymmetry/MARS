@@ -135,6 +135,13 @@ impl Vocabulary {
         }
     }
 
+    /// Replace a predicate's taxonomy parents (e.g. after learning an alignment).
+    pub fn set_parents(&mut self, p: Sym, parents: Vec<Sym>) {
+        if let Some(i) = self.preds.get_mut(&p) {
+            i.parents = parents;
+        }
+    }
+
     pub fn is_canonical(&self, p: Sym) -> bool {
         self.preds.get(&p).map(|i| i.canonical).unwrap_or(true)
     }

@@ -37,6 +37,9 @@ pub struct MapConfig {
     /// Optional informativeness weight per structural functor, multiplied
     /// into the local score of relation MHs (e.g. normalized IDF). `None` = 1.
     pub pred_weights: Option<std::sync::Arc<FxHashMap<Sym, f32>>>,
+    /// Re-representation: let *different* relations of the same arity match
+    /// with this local score when their arguments align (None = off).
+    pub wildcard: Option<f32>,
 }
 
 impl Default for MapConfig {
@@ -50,6 +53,7 @@ impl Default for MapConfig {
             max_mappings: 3,
             max_mhs: 50_000,
             pred_weights: None,
+            wildcard: None,
         }
     }
 }
@@ -313,6 +317,14 @@ impl<'a> Mapper<'a> {
             }
         }
         let mut b = Builder { kb, cfg: &self.cfg, mhs: Vec::new(), index: FxHashMap::default(), truncated: false };
+        let mut by_arity: FxHashMap<usize, Vec<ExprId>> = FxHashMap::default();
+        if self.cfg.wildcard.is_some() {
+            for &t in &texprs {
+                if kb.vocab.kind(kb.expr(t).functor) == PredKind::Relation {
+                    by_arity.entry(kb.expr(t).args.len()).or_default().push(t);
+                }
+            }
+        }
         let weight = |f: Sym| -> f32 { self.cfg.pred_weights.as_ref().and_then(|w| w.get(&f).copied()).unwrap_or(1.0) };
         // Post-order: children before parents, so child MHs exist when needed.
         for &be in &bexprs {
@@ -321,6 +333,17 @@ impl<'a> Mapper<'a> {
             if let Some(ts) = by_fun.get(&f) {
                 for &te in ts {
                     b.try_pair(be, te, wf);
+                }
+            }
+            if let Some(ws) = self.cfg.wildcard {
+                if kb.vocab.kind(f) == PredKind::Relation {
+                    if let Some(ts) = by_arity.get(&kb.expr(be).args.len()) {
+                        for &te in ts {
+                            if kb.vocab.structural(kb.expr(te).functor) != f {
+                                b.try_pair(be, te, ws * wf);
+                            }
+                        }
+                    }
                 }
             }
             if self.cfg.ascension && kb.vocab.kind(f) == PredKind::Relation {

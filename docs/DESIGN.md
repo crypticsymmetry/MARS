@@ -24,6 +24,7 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | SDM | modes A/B/H in the core | **dropped from the core** (G4). Learned-address buckets (= IVF) kept as the sublinear index; SDM prototypes ≈ k-NN bundling | E5 |
 | Standing queries | exact top-k | **pipeline semantics** by default (exact incremental fingerprint top-64 + fused re-rank; tie-inclusive boundary). Exact-fused mode kept (≈10× costlier) | E6 |
 | Consolidation | SAGE-style | as designed; assimilation θ = 0.4, merge threshold 0.6 (stricter than θ) | E7 |
+| Unresolved vocabularies | open problem (representation) | **analogical bootstrapping**: wildcard mappings between retrieved neighbours → mutual-best predicate correspondences (one per domain) → canonical clusters, re-estimated each round | E13 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
 
 Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).

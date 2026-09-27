@@ -1,0 +1,67 @@
+{
+  "oracle": [
+    0.996,
+    1.0,
+    1.0
+  ],
+  "rows": [
+    {
+      "aligned": 0,
+      "clusters": 0,
+      "coverage": 0.0,
+      "evidence_pairs": 35808,
+      "fac": 0.0,
+      "fp": 0.554,
+      "fused": 0.151,
+      "pairs_mapped": 40000,
+      "precision": null,
+      "round": 0
+    },
+    {
+      "aligned": 646,
+      "clusters": 56,
+      "coverage": 0.9969135802469136,
+      "evidence_pairs": 18739,
+      "fac": 0.965,
+      "fp": 0.968,
+      "fused": 0.971,
+      "pairs_mapped": 40000,
+      "precision": 0.9870503597122302,
+      "round": 1
+    },
+    {
+      "aligned": 648,
+      "clusters": 55,
+      "coverage": 1.0,
+      "evidence_pairs": 18605,
+      "fac": 0.992,
+      "fp": 0.992,
+      "fused": 0.993,
+      "pairs_mapped": 40000,
+      "precision": 0.9997177533163986,
+      "round": 2
+    },
+    {
+      "aligned": 648,
+      "clusters": 55,
+      "coverage": 1.0,
+      "evidence_pairs": 18676,
+      "fac": 0.992,
+      "fp": 0.989,
+      "fused": 0.993,
+      "pairs_mapped": 40000,
+      "precision": 0.9997177533163986,
+      "round": 3
+    },
+    {
+      "aligned": 648,
+      "clusters": 55,
+      "coverage": 1.0,
+      "fac": 0.992,
+      "fp": 0.99,
+      "fused": 0.993,
+      "precision": 0.9997177533163986,
+      "round": 4
+    }
+  ]
+}

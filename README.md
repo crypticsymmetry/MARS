@@ -35,6 +35,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 | H4 generalized schemas help | ✅ for few-shot inference (+41% deleted-fact recall); clusters fragment | [E7](results/E7/README.md) |
 | H5 structure beats surface on adversarial / real data | ✅ synthetic; partial on real code (MRR 0.33 vs 0.15 lexical) | [E4](results/E4/README.md), [E9](results/E9/README.md) |
 | Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
+| Analogy can learn its own vocabulary alignment (re-representation) | ✅ unsupervised cross-domain predicate alignment, precision 1.000; retrieval 0.15 → 0.99 | [E13](results/E13/README.md) |
 | H6 SDM adds value over plain k-NN | ❌ dropped from the core (k-means buckets = IVF kept) | [E5](results/E5/README.md) |
 
 The mapper is validated in [E2](results/E2/README.md), and memory-bandwidth measurements are in [results/bw](results/bw/). Progress, decisions and the task board are in [docs/PROGRESS.md](docs/PROGRESS.md).
