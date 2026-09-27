@@ -1,5 +1,5 @@
 //! E26: analogical vocabulary alignment on real knowledge graphs
-//! (DBpedia ↔ Wikidata films).
+//! (DBpedia ↔ Wikidata; films, or any class fetched by tools/kg_fetch.py).
 //!
 //! Each film is a case in each KG: its outgoing triples with the KG's own,
 //! unresolved property names (`dbo:director`, `wdt:p57`). The E13/E14 loop —
@@ -180,7 +180,7 @@ pub fn run(args: &Args) -> Result<(), String> {
 
     let mut md = String::new();
     writeln!(md, "# E26: knowledge-graph vocabulary alignment ({tag})\n").unwrap();
-    writeln!(md, "Data: `{dir}` — {n} film cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, `{}` profile), wildcard mapping (local score {wildcard}, attributes included), evidence (`{}` correspondences) from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster{}, re-estimated each round. Counterpart retrieval: each DBpedia film ranks the Wikidata films (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len(), prof.name, if anchored_only { "anchored" } else { "all" }, if many_to_one { format!(" plus many-to-one joins (evidence ≥ {share} × the pair's)") } else { String::new() }).unwrap();
+    writeln!(md, "Data: `{dir}` — {n} cases, {} properties ({n_d} DBpedia, {} Wikidata); {} gold property pairs occur in the data. Loop: {neighbours} other-KG neighbours per case (fingerprint, `{}` profile), wildcard mapping (local score {wildcard}, attributes included), evidence (`{}` correspondences) from mappings with normalized score ≥ {theta}, mutual-best pairs (evidence ≥ {min_evidence}), one property per KG per cluster{}, re-estimated each round. Counterpart retrieval: each DBpedia entity ranks the Wikidata entities (FP = fingerprint, fused = ½FAC + ½FP over the FP top-50).\n", preds.len(), preds.len() - n_d, gold_present.len(), prof.name, if anchored_only { "anchored" } else { "all" }, if many_to_one { format!(" plus many-to-one joins (evidence ≥ {share} × the pair's)") } else { String::new() }).unwrap();
     writeln!(md, "| round | aligned pairs | correct / wrong / unjudged | precision (judged) | gold recall | counterpart R@1 FP / fused | MRR FP / fused |\n|---|---|---|---|---|---|---|").unwrap();
     let mut aligned: Vec<(Sym, Sym, f64)> = Vec::new();
     let mut rows = Vec::new();
