@@ -17,3 +17,11 @@ python3 tools/py2mars.py "$OUT" \
   algorithms:$EXT/algorithms-1.0.1/algorithms \
   pygorithm:$EXT/pygorithm-1.0.4/pygorithm \
   pyalgs:$EXT/python_algorithms-0.2.2/python_algorithms
+
+# JavaScript: npm `algorithms` 0.10.0 (MIT), parsed with acorn (E12, cross-language).
+JS=$EXT/js
+mkdir -p "$JS"
+(cd "$JS" && npm install --silent --no-audit --no-fund acorn@8 >/dev/null && \
+  curl -s -o algorithms-0.10.0.tgz https://registry.npmjs.org/algorithms/-/algorithms-0.10.0.tgz && tar xzf algorithms-0.10.0.tgz)
+node tools/js_ast.js "$JS/node_modules" "$JS/package" > "$JS/ast.jsonl"
+python3 tools/js2mars.py "$JS/ast.jsonl" jsalgs "$OUT"

@@ -1,6 +1,6 @@
 {
   "n": 1113,
-  "runtime_s": 5.6298814969999995,
+  "runtime_s": 5.361189306,
   "task_a": [
     {
       "method": "B2 lexical TF-IDF (identifiers + operations)",

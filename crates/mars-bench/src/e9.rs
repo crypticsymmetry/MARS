@@ -23,6 +23,8 @@ use std::time::Instant;
 struct Meta {
     case: CaseId,
     pkg: String,
+    lang: String,
+    norm: String,
     category: String,
     stem: String,
     is_main: bool,
@@ -30,13 +32,16 @@ struct Meta {
 
 pub fn run(args: &Args) -> Result<(), String> {
     let dir = args.str("data", "data/e9");
-    let out_dir = args.str("out", "results/E9");
+    let out_dir = args.str("out", if args.str("task", "cross-pkg") == "cross-lang" { "results/E12" } else { "results/E9" });
     let t0 = Instant::now();
     let mut kb = Kb::new();
     kb.load_str(&std::fs::read_to_string(format!("{dir}/vocab.mars")).map_err(|e| format!("{e} (run tools/fetch_e9_corpus.sh)"))?).map_err(|e| e.to_string())?;
-    for pkg in ["algorithms", "pygorithm", "pyalgs"] {
-        kb.load_str(&std::fs::read_to_string(format!("{dir}/{pkg}.mars")).map_err(|e| e.to_string())?).map_err(|e| format!("{pkg}: {e}"))?;
+    let mut files: Vec<_> = std::fs::read_dir(&dir).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).map(|e| e.path()).filter(|p| p.extension().map(|x| x == "mars").unwrap_or(false) && !p.ends_with("vocab.mars")).collect();
+    files.sort();
+    for f in &files {
+        kb.load_str(&std::fs::read_to_string(f).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", f.display()))?;
     }
+    let cross_lang = args.str("task", "cross-pkg") == "cross-lang";
     let manifest: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/manifest.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
     let metas: Vec<Meta> = manifest
         .as_array()
@@ -44,9 +49,20 @@ pub fn run(args: &Args) -> Result<(), String> {
         .iter()
         .filter_map(|m| {
             let case = kb.case_by_name(m["case"].as_str()?)?;
-            Some(Meta { case, pkg: m["pkg"].as_str()?.into(), category: m["category"].as_str()?.into(), stem: m["stem"].as_str()?.into(), is_main: m["is_main"].as_bool()? })
+            let stem: String = m["stem"].as_str()?.into();
+            Some(Meta {
+                case,
+                pkg: m["pkg"].as_str()?.into(),
+                lang: m["lang"].as_str().unwrap_or("py").into(),
+                norm: normalize_stem(&stem),
+                category: m["category"].as_str()?.into(),
+                stem,
+                is_main: m["is_main"].as_bool()?,
+            })
         })
         .collect();
+    // Cross-package (E9) is defined on the Python corpus only; cross-language (E12) uses everything.
+    let metas: Vec<Meta> = if cross_lang { metas } else { metas.into_iter().filter(|m| m.lang == "py").collect() };
     let n = metas.len();
     eprintln!("[e9] loaded {n} functions ({:.1?})", t0.elapsed());
 
@@ -102,21 +118,22 @@ pub fn run(args: &Args) -> Result<(), String> {
     let all: Vec<usize> = (0..n).collect();
     let mains: Vec<usize> = (0..n).filter(|&i| metas[i].is_main).collect();
     // Task A queries.
-    let queries_a: Vec<usize> = mains
-        .iter()
-        .copied()
-        .filter(|&i| mains.iter().any(|&j| j != i && metas[j].stem == metas[i].stem && metas[j].pkg != metas[i].pkg))
-        .collect();
     let metas_ref = &metas;
-    let rel_a = |q: usize| move |c: usize| metas_ref[c].is_main && metas_ref[c].stem == metas_ref[q].stem && metas_ref[c].pkg != metas_ref[q].pkg;
+    let counterpart = move |q: usize, c: usize| -> bool {
+        let (a, b) = (&metas_ref[q], &metas_ref[c]);
+        b.is_main && b.norm == a.norm && if cross_lang { b.lang != a.lang } else { b.pkg != a.pkg }
+    };
+    let queries_a: Vec<usize> = mains.iter().copied().filter(|&i| mains.iter().any(|&j| j != i && counterpart(i, j))).collect();
+    let rel_a = |q: usize| move |c: usize| counterpart(q, c);
     // Task B queries: mains in categories with ≥ 3 mains.
     let cat_count = |c: &str| mains.iter().filter(|&&i| metas[i].category == c).count();
     let queries_b: Vec<usize> = mains.iter().copied().filter(|&i| cat_count(&metas[i].category) >= 3).collect();
 
     let mut md = String::new();
     writeln!(md, "# E9: program analogy on real code\n").unwrap();
-    writeln!(md, "Corpus: {n} functions from 3 independently written Python algorithm packages (`algorithms` 1.0.1, `pygorithm` 1.0.4, `python-algorithms` 0.2.2), converted to relational cases automatically by `tools/py2mars.py` (no per-program tuning). {} main functions. Runtime {:.1?}.\n", mains.len(), t0.elapsed()).unwrap();
-    writeln!(md, "## Task A: same algorithm, different author ({} queries; ranked among all {n} functions)\n", queries_a.len()).unwrap();
+    let pkgs: std::collections::BTreeSet<&str> = metas.iter().map(|m| m.pkg.as_str()).collect();
+    writeln!(md, "Corpus: {n} functions from packages {:?}, converted to relational cases automatically (`tools/py2mars.py`, `tools/js2mars.py`; no per-program tuning). {} main functions. Runtime {:.1?}.\n", pkgs, mains.len(), t0.elapsed()).unwrap();
+    writeln!(md, "## Task A: same algorithm, different {} ({} queries; ranked among all {n} functions)\n", if cross_lang { "language" } else { "author" }, queries_a.len()).unwrap();
     writeln!(md, "| method | R@1 | R@5 | R@10 | MRR |").unwrap();
     writeln!(md, "|---|---|---|---|---|").unwrap();
     let mut ja = Vec::new();
@@ -170,8 +187,20 @@ pub fn run(args: &Args) -> Result<(), String> {
         jb.push(json!({"method": name, "p1": mean(&p1), "p5": mean(&p5), "mrr": mrr(&ranks)}));
     }
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
-    std::fs::write(format!("{out_dir}/E9.md"), &md).map_err(|e| e.to_string())?;
-    std::fs::write(format!("{out_dir}/E9.json"), serde_json::to_string_pretty(&json!({"n": n, "task_a": ja, "task_b": jb, "runtime_s": t0.elapsed().as_secs_f64()})).unwrap()).map_err(|e| e.to_string())?;
+    let stem_out = if cross_lang { "E12" } else { "E9" };
+    std::fs::write(format!("{out_dir}/{stem_out}.md"), &md).map_err(|e| e.to_string())?;
+    std::fs::write(format!("{out_dir}/{stem_out}.json"), serde_json::to_string_pretty(&json!({"n": n, "task_a": ja, "task_b": jb, "runtime_s": t0.elapsed().as_secs_f64()})).unwrap()).map_err(|e| e.to_string())?;
     println!("{md}");
     Ok(())
+}
+
+/// Algorithm identity from a file stem: lowercase alphanumerics, with a few
+/// well-known abbreviations expanded.
+fn normalize_stem(stem: &str) -> String {
+    let s: String = stem.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>().to_ascii_lowercase();
+    match s.as_str() {
+        "bfs" => "breadthfirstsearch".into(),
+        "dfs" => "depthfirstsearch".into(),
+        _ => s,
+    }
 }

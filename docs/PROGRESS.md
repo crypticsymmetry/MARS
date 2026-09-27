@@ -36,6 +36,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] E9 follow-up: syntactic normalization passes for code (negative result); fusion 0.3 also best on real code (MRR 0.359)
 - [x] **Persistence**: snapshot (`kb.mars` + `meta.txt`) + frozen IDF epoch (`epoch.idf`) + append-only op log, replay on open; round-trip test reproduces results and inferences exactly
 - [x] **`mars serve`**: line protocol (case/fact/unfact/retire/declare/query/watch/top/infer/explain/map/events/checkpoint/stats); `data/examples/session.txt`
+- [x] E12 cross-language program analogy (Python ↔ JS; `tools/js_ast.js` + `tools/js2mars.py` into the shared vocabulary) → [results/E12](../results/E12/README.md): structure ≈ 2× lexical (MRR 0.168 vs 0.089), low absolute accuracy
 - [x] E11 inference calibration → [results/E11](../results/E11/README.md): precision rises 0.07 → 0.86 with support 1 → 5; 5 analogues with support ≥ 2 keep precision and add 59% recall. Default `infer_from` = 5; `corroborated()` API
 - [x] **Corroborated inferences**: inferences drawn from the top analogues, one JTMS justification per analogue; `support()` = corroboration count; E6 still exact (0/500)
 
@@ -89,6 +90,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E12 | 2026-09-27 | 1308 functions (Python + npm JS); 52 cross-language same-algorithm queries | fused ½FAC+½FP-literal MRR 0.168 vs lexical 0.089 / MAC 0.114; R@5 0.35 vs 0.10; strategy-level differences unsolved | [results/E12](../results/E12/README.md) |
 | E11 | 2026-09-27 | 100 templates × 10 instances; 500 queries with a deleted fact | precision by support 0.07/0.48/0.59/0.74/0.86; m=5, support≥2: recall 0.646 vs 0.407 at equal precision 0.62 | [results/E11](../results/E11/README.md) |
 | E10 | 2026-09-27 | scoring variants × fusion weight; case size (compose 1–3) × N (10⁴–10⁶) | normalization/IDF ≤1.5 pts; w=0.3 best; composed cases: 0.999 (10⁴), 0.999 (10⁵), 0.996 (10⁶) → degradation was an information limit | [results/E10](../results/E10/README.md) |
 | E9 | 2026-09-27 | 1113 real Python functions from 3 packages; 33 cross-author same-algorithm queries; 365 category queries | fused FAC + literal FP: MRR 0.334 vs lexical 0.147 / MAC 0.188; category P@1 0.636 vs 0.578; syntax-level representation misses algorithm-level identity (quick/merge sort) | [results/E9](../results/E9/README.md) |
