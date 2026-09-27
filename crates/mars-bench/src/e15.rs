@@ -34,10 +34,10 @@ use std::time::Instant;
 
 /// A retrievable pool item: its case, and per base fact the (count, members)
 /// evidence behind it (`None` = a plain instance).
-struct Item {
-    case: CaseId,
-    tmpl: usize,
-    counts: Option<(FxHashMap<ExprId, u32>, u32)>,
+pub(crate) struct Item {
+    pub case: CaseId,
+    pub tmpl: usize,
+    pub counts: Option<(FxHashMap<ExprId, u32>, u32)>,
 }
 
 impl Item {
@@ -49,18 +49,18 @@ impl Item {
     }
 }
 
-struct Query {
-    case: CaseId,
-    tmpl: usize,
-    deleted: String,
-    truth: HashSet<String>,
+pub(crate) struct Query {
+    pub case: CaseId,
+    pub tmpl: usize,
+    pub deleted: String,
+    pub truth: HashSet<String>,
 }
 
 /// Per query and per retrieved rank: the proposed (inference text, probability) list.
 /// (label, items, build ms per case, (gens, outliers, purity, completeness)).
 type Pool = (String, Vec<Item>, f64, Option<(usize, usize, f64, f64)>);
 type QueryProposals = Vec<Vec<(String, f64)>>;
-type Proposals = Vec<QueryProposals>;
+pub(crate) type Proposals = Vec<QueryProposals>;
 
 fn sketch_all(kb: &Kb, stats: &FeatureStats, sk: &Sketcher, cases: &[CaseId]) -> Vec<HyperVector> {
     let fx = FeatureExtractor::new(kb, FeatureConfig::default());
@@ -74,7 +74,7 @@ fn sketch_all(kb: &Kb, stats: &FeatureStats, sk: &Sketcher, cases: &[CaseId]) ->
         .collect()
 }
 
-fn propose(kb: &Kb, stats: &FeatureStats, sk: &Sketcher, items: &[Item], queries: &[Query], m_max: usize, prefilter: usize) -> (Proposals, Vec<usize>, f64) {
+pub(crate) fn propose(kb: &Kb, stats: &FeatureStats, sk: &Sketcher, items: &[Item], queries: &[Query], m_max: usize, prefilter: usize) -> (Proposals, Vec<usize>, f64) {
     let t = Instant::now();
     let icases: Vec<CaseId> = items.iter().map(|i| i.case).collect();
     let ifp = sketch_all(kb, stats, sk, &icases);
@@ -121,17 +121,17 @@ fn propose(kb: &Kb, stats: &FeatureStats, sk: &Sketcher, items: &[Item], queries
     (props, tops, ms)
 }
 
-struct Scores {
-    recall: f64,
-    precision: f64,
-    per_q: f64,
-    r_at_p60: f64,
-    r_at_p80: f64,
-    calib: Vec<(f64, f64, usize, f64)>,
+pub(crate) struct Scores {
+    pub recall: f64,
+    pub precision: f64,
+    pub per_q: f64,
+    pub r_at_p60: f64,
+    pub r_at_p80: f64,
+    pub calib: Vec<(f64, f64, usize, f64)>,
 }
 
 /// Aggregate the top-m proposals by summed probability and sweep a confidence threshold.
-fn score(props: &Proposals, queries: &[Query], m: usize) -> Scores {
+pub(crate) fn score(props: &Proposals, queries: &[Query], m: usize) -> Scores {
     // (confidence, true, deleted, query)
     let mut all: Vec<(f64, bool, bool)> = Vec::new();
     for (qi, q) in queries.iter().enumerate() {
