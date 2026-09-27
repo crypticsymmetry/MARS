@@ -15,6 +15,8 @@ mars-encode = { path = "crates/mars-encode" }
 mars-gen = { path = "crates/mars-gen" }
 mars-index = { path = "crates/mars-index" }
 mars-map = { path = "crates/mars-map" }
+mars-tms = { path = "crates/mars-tms" }
+mars-engine = { path = "crates/mars-engine" }
 rayon = "1.10"
 rustc-hash = "2"
 smallvec = { version = "1.13", features = ["union", "const_generics"] }

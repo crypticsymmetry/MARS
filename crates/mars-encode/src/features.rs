@@ -150,13 +150,22 @@ pub struct FeatureExtractor<'a> {
     kb: &'a Kb,
     cfg: FeatureConfig,
     /// Stable (name-based) hash per symbol, indexed by `Sym.0`.
-    sym_hash: Vec<u64>,
+    sym_hash: std::borrow::Cow<'a, [u64]>,
+}
+
+/// Name hashes for every symbol of `kb` (cache for [`FeatureExtractor::with_hashes`]).
+pub fn symbol_hashes(kb: &Kb) -> Vec<u64> {
+    (0..kb.interner.len()).map(|i| hash_str(kb.interner.name(Sym(i as u32)))).collect()
 }
 
 impl<'a> FeatureExtractor<'a> {
     pub fn new(kb: &'a Kb, cfg: FeatureConfig) -> Self {
-        let sym_hash = (0..kb.interner.len()).map(|i| hash_str(kb.interner.name(Sym(i as u32)))).collect();
-        FeatureExtractor { kb, cfg, sym_hash }
+        FeatureExtractor { kb, cfg, sym_hash: std::borrow::Cow::Owned(symbol_hashes(kb)) }
+    }
+
+    /// Reuse a precomputed symbol-hash cache (symbols beyond it are hashed on the fly).
+    pub fn with_hashes(kb: &'a Kb, cfg: FeatureConfig, hashes: &'a [u64]) -> Self {
+        FeatureExtractor { kb, cfg, sym_hash: std::borrow::Cow::Borrowed(hashes) }
     }
 
     pub fn config(&self) -> &FeatureConfig {

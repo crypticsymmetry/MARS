@@ -44,6 +44,7 @@ name = "mars-bench"
 version = "0.1.0"
 dependencies = [
  "mars-encode",
+ "mars-engine",
  "mars-gen",
  "mars-hv",
  "mars-index",
@@ -63,6 +64,20 @@ dependencies = [
  "mars-rel",
  "rustc-hash",
  "serde",
+]
+
+[[package]]
+name = "mars-engine"
+version = "0.1.0"
+dependencies = [
+ "mars-encode",
+ "mars-hv",
+ "mars-index",
+ "mars-map",
+ "mars-rel",
+ "mars-tms",
+ "rayon",
+ "rustc-hash",
 ]
 
 [[package]]
@@ -103,6 +118,13 @@ name = "mars-rel"
 version = "0.1.0"
 dependencies = [
  "rustc-hash",
+ "smallvec",
+]
+
+[[package]]
+name = "mars-tms"
+version = "0.1.0"
+dependencies = [
  "smallvec",
 ]
 

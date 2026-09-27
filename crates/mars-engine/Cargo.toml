@@ -1,26 +1,19 @@
 [package]
-name = "mars-bench"
-description = "Experiment runners (E0, E1, ...) and metrics"
+name = "mars-engine"
+description = "Incremental analogical memory: live index, standing queries with exact fused top-k, TMS-maintained inferences"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-
-[[bin]]
-name = "mars-bench"
-path = "src/main.rs"
 
 [dependencies]
 mars-hv.workspace = true
 mars-rel.workspace = true
 mars-encode.workspace = true
-mars-gen.workspace = true
-mars-map.workspace = true
 mars-index.workspace = true
-mars-engine.workspace = true
+mars-map.workspace = true
+mars-tms.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 
 [lints]
 workspace = true

@@ -1,0 +1,82 @@
+{
+  "build_s": 57.696892096,
+  "checks": 250,
+  "experiment": "E6",
+  "k": 5,
+  "mean_us": 276.6662341999999,
+  "mismatches": 0,
+  "n_live": 1000200,
+  "n_sq": 200,
+  "n_updates": 5000,
+  "ops": [
+    {
+      "encodes": 1.0,
+      "fac_evals": 12.147752808988765,
+      "mean_us": 313.9483348314607,
+      "n": 1780,
+      "op": "remove-fact",
+      "p50_us": 133.305,
+      "p99_us": 1750.2030000000002,
+      "remaps": 0.060112359550561795,
+      "sq_bound_checks": 200.0,
+      "sq_full_recomputes": 0.0,
+      "tms_touched": 0.3646067415730337
+    },
+    {
+      "encodes": 0.9882537196554424,
+      "fac_evals": 6.801096319498825,
+      "mean_us": 236.82972435395436,
+      "n": 1277,
+      "op": "re-add-fact",
+      "p50_us": 131.999,
+      "p99_us": 1555.409,
+      "remaps": 0.06186374314800313,
+      "sq_bound_checks": 197.6507439310885,
+      "sq_full_recomputes": 0.0,
+      "tms_touched": 0.3688332028191073
+    },
+    {
+      "encodes": 0.9878542510121457,
+      "fac_evals": 14.139676113360323,
+      "mean_us": 361.02149392712545,
+      "n": 494,
+      "op": "add-fact",
+      "p50_us": 151.577,
+      "p99_us": 1997.2509999999997,
+      "remaps": 0.0708502024291498,
+      "sq_bound_checks": 197.57085020242914,
+      "sq_full_recomputes": 0.0,
+      "tms_touched": 0.4251012145748988
+    },
+    {
+      "encodes": 1.0,
+      "fac_evals": 0.5927051671732523,
+      "mean_us": 260.8418409321177,
+      "n": 987,
+      "op": "add-case",
+      "p50_us": 119.846,
+      "p99_us": 769.577,
+      "remaps": 0.0,
+      "sq_bound_checks": 200.0,
+      "sq_full_recomputes": 0.0,
+      "tms_touched": 0.0
+    },
+    {
+      "encodes": 0.0,
+      "fac_evals": 10.29004329004329,
+      "mean_us": 186.74472294372296,
+      "n": 462,
+      "op": "remove-case",
+      "p50_us": 11.305,
+      "p99_us": 1813.261,
+      "remaps": 0.05194805194805195,
+      "sq_bound_checks": 0.0,
+      "sq_full_recomputes": 0.0,
+      "tms_touched": 0.45454545454545453
+    }
+  ],
+  "p50_us": 126.996,
+  "scratch_all_ms": 5860.45453,
+  "sq_init_s": 5.1310582,
+  "tag": "pipeline-n1000000"
+}

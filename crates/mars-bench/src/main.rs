@@ -4,6 +4,7 @@
 //! mars-bench sample [--groups N] [--naming canonical|synonyms|unresolved]
 //! mars-bench e2 [--groups 1000] [--distractors 2]
 //! mars-bench bw [--rows 1000000]
+//! mars-bench e6 [--groups 1250] [--sq 200] [--updates 5000]
 //! mars-bench e5 [--groups 12500] [--parts a,b,c]
 //! mars-bench e3 [--groups 1250] [--queries 1000] [--k 64] [--ops all --severity 1] [--baselines auto|yes|no] [--exhaustive 50]
 //! mars-bench e0 [--groups 1000] [--seed 1] [--naming canonical] [--distractors 2] [--out results/E0] [--tag NAME]
@@ -14,6 +15,7 @@ mod e0;
 mod e2;
 mod e3;
 mod e5;
+mod e6;
 pub mod metrics;
 
 use rustc_hash::FxHashMap;
@@ -98,6 +100,7 @@ fn main() {
         "e2" => e2::run(&args),
         "e3" => e3::run(&args),
         "e5" => e5::run(&args),
+        "e6" => e6::run(&args),
         other => Err(format!("unknown command {other}")),
     };
     if let Err(e) = r {

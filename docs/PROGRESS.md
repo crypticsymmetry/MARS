@@ -4,7 +4,7 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**P5 next.** H0, H1 and H2 hold on synthetic data up to 10⁶ cases (E0, E3); the mapper is validated (E2); robustness is characterized (E4); SDM failed its gate and is dropped from the core (E5). Open weakness: partial analogues degrade with corpus size (E3 finding 5). Next: incremental maintenance + JTMS + standing queries (P5, E6), then schemas/consolidation (P6), which may also address the scaling weakness.
+**P6 next.** H0–H3 hold on synthetic data up to 10⁶ cases (E0, E2, E3, E6); robustness is characterized (E4); SDM failed its gate and is dropped (E5). Open weakness: partial analogues degrade with corpus size (E3 finding 5). Next: consolidation (SAGE-style generalization, near-miss memory, idle scheduler; E7), then real data (P7).
 
 ## Task board
 
@@ -36,7 +36,9 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 - [x] E3 end-to-end MAC→FAC (fused re-rank) at 10⁴–10⁶ with sparse baselines (B2/B4/B5) and exhaustive upper bound → [results/E3](../results/E3/README.md)
 - [ ] Cascade (1024-bit pre-scan), MIH / IVF comparisons (needed only at ≥10⁷)
 - [x] P4 SDM: Mode B (buckets; random / data / k-means addresses), Mode A (autoassociative i16 counters, parallel batch writes); E5 → [results/E5](../results/E5/README.md). **G4: SDM dropped from core** (learned-address buckets kept as IVF)
-- [ ] P5 TMS, event log, standing queries; E6
+- [x] P5 `mars-tms` (JTMS, well-founded support, circular-support test), `mars-engine` (live Mode K with soft delete, frozen IDF epoch, memoized FAC by case versions, standing queries in pipeline and exact-fused modes, TMS-maintained inferences with provenance, events, work counters); E6 → [results/E6](../results/E6/README.md). **G5 passed**
+- [ ] Event log + snapshot persistence (currently in-memory only)
+- [ ] Reverse index over standing queries (for ≥ 10³ SQs)
 - [ ] P6 consolidation (SAGE-style), near-miss memory; E7
 - [ ] P7 real data (Karla, ARN), program analogy; E8/E9
 
@@ -53,6 +55,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | 2026-09-27 | **Canonical predicate resolution**: structural channels use the nearest canonical ancestor; non-canonical identity → C0; unresolved → anonymized (kind, arity) | E0: domain synonyms made MA beat TA (leaf identity acted as surface). The fix makes resolved synonyms identical to canonical |
 | 2026-09-27 | Added **C4 topology** channel (predicate-agnostic WL); layout 1024/1024/3072/2048/1024 | Signal for unresolved vocabularies; weak alone (≈0.5), kept at weight 0.1 |
 | 2026-09-27 | Primary E0 metric = **per-group ranking** (TA-top); pooled AUC reported but secondary | Retrieval is per-query; pooled AUC mixes similarity scales across cases |
+| 2026-09-27 | Standing queries default to **pipeline semantics** (exact incremental fp top-64 + fused re-rank), with a tie-inclusive candidate boundary | E6: exact-fused semantics costs ~10× more per update (loose FAC ≤ 1 bound); boundary ties caused 1 mismatch at 10⁶ before the tie-inclusive rule |
 | 2026-09-27 | **G4: SDM Mode A and random-address SDM dropped from the core**; learned-address buckets (= IVF) kept as the sublinear index | E5: random addresses fail (R@64 ≤ 0.8 at 19% scanned); Mode A cleanup destroys partial cues at 10⁵ load; SDM prototypes ≈ kNN-bundle(50) |
 | 2026-09-27 | **FAC re-ranks with a fused score** ½·normalized structural score + ½·fingerprint profile score | E4: MAC and FAC fail in complementary ways (role noise vs spurious additions); fusion ≥ both, 0.96–1.00 on discriminable groups |
 | 2026-09-27 | Mode K integer-weighted fused kernel, TILE = 32 rows | 1.7–2× over the per-segment kernel; TILE 32 best among 32/64/256 |
@@ -65,6 +68,7 @@ Legend: `[x]` done · `[~]` in progress · `[ ]` todo · `[-]` dropped
 | E0 | 2026-09-27 | 1000 groups, 6 configs (naming × distractors) | fingerprint TA-top ≥ 0.995 at 0–10 distractors (after label-noise fix); MAC/lexical 0.000; unresolved vocab 0.55 | [results/E0](../results/E0/README.md) |
 | bw | 2026-09-27 | 10⁶ random fingerprints, analogy profile | 1 query 22 ms (79% of 52 GB/s probe); batched 6.6 ms/query (4 cores) | [results/bw](../results/bw/) |
 | E4 | 2026-09-27 | 5 operators + mixed × severity 1–4 | fused MAC+FAC ≥ both; 0.96–1.00 on discriminable groups; delete-fact collapse is intrinsic ambiguity | [results/E4](../results/E4/README.md) |
+| E6 | 2026-09-27 | 10⁴/10⁵/10⁶ live cases, 200 SQs, 5000 updates | 0 mismatches / 1150 checks; mean update 350 → 300 → 277 µs (flat in N); 680× → 21,000× cheaper than recompute | [results/E6](../results/E6/README.md) |
 | E5 | 2026-09-27 | 100K corpus; 100 templates × 100 instances | k-means buckets R@64 1.000 at 0.47% scanned (random addresses ≤ 0.8); Mode A cleanup 0.02 vs 0.95 raw; SDM prototype 0.713 ≈ kNN-bundle 0.704 → SDM dropped | [results/E5](../results/E5/README.md) |
 | E3 | 2026-09-27 | 10⁴/10⁵/10⁶ cases, 1000 queries, severity 0–2 | clean: fused acc@1 0.994 at 10⁶, TA in top-64 100%; MAC content vectors 0.35 at 10⁵; pipeline = exhaustive-FAC bound at 1/1100 the cost; partial analogues degrade with N (0.91→0.75) | [results/E3](../results/E3/README.md) |
 | E2 | 2026-09-27 | 1000 groups, distractors 0/2/5/10 | entity corr. P≈1.0 R≈0.99; FAC TA-top 1.000; greedy = optimal; deleted-fact re-inference 0.99 (0.92 at d=10); 16–38 µs/pair | [results/E2](../results/E2/README.md) |

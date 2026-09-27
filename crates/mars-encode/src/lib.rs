@@ -12,7 +12,7 @@ pub mod features;
 pub mod sketch;
 pub mod sparse;
 
-pub use features::{lexical_tokens, mac_content_vector, Channel, FeatureConfig, FeatureExtractor, Features, SparseVec, N_CHANNELS};
+pub use features::{lexical_tokens, mac_content_vector, symbol_hashes, Channel, FeatureConfig, FeatureExtractor, Features, SparseVec, N_CHANNELS};
 pub use sketch::{channel_sims, Layout, Profile, Sketcher};
 pub use sparse::{channel_cosines, cosine, FeatureStats};
 

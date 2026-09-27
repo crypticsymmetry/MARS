@@ -27,6 +27,9 @@ pub struct ModeK {
     n: usize,
     /// All segment lengths are multiples of 8 words (fused AVX-512 kernel usable).
     fused_ok: bool,
+    /// Soft-deleted rows (skipped by searches).
+    dead: Vec<bool>,
+    n_dead: usize,
 }
 
 /// Precomputed scoring coefficients for a profile.
@@ -52,7 +55,7 @@ impl ModeK {
             off += seg_words[c];
         }
         let fused_ok = seg_words.iter().all(|w| w % 8 == 0);
-        ModeK { layout, seg_words, seg_off, segs: Default::default(), n: 0, fused_ok }
+        ModeK { layout, seg_words, seg_off, segs: Default::default(), n: 0, fused_ok, dead: Vec::new(), n_dead: 0 }
     }
 
     pub fn with_capacity(layout: Layout, n: usize) -> Self {
@@ -83,7 +86,20 @@ impl ModeK {
             self.segs[c].extend_from_slice(&fp[s..s + self.seg_words[c]]);
         }
         self.n += 1;
+        self.dead.push(false);
         (self.n - 1) as u32
+    }
+
+    /// Soft-delete a row: it is skipped by all searches.
+    pub fn remove(&mut self, id: u32) {
+        if !self.dead[id as usize] {
+            self.dead[id as usize] = true;
+            self.n_dead += 1;
+        }
+    }
+
+    pub fn is_alive(&self, id: u32) -> bool {
+        !self.dead[id as usize]
     }
 
     /// Overwrite row `id` in place (incremental fingerprint update).
@@ -190,6 +206,9 @@ impl ModeK {
                     thr = ((s.base - th) as f64 * QSCALE).ceil() as u64 + 1;
                 }
                 for r in t..te {
+                    if self.n_dead > 0 && self.dead[r] {
+                        continue;
+                    }
                     let d = self.wdist(s, q, r);
                     if d > thr {
                         continue;
