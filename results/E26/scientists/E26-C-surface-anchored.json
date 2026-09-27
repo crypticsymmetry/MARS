@@ -1,0 +1,149 @@
+{
+  "data": "data/kg-scientists → kg2mars --condition C",
+  "final": [
+    {
+      "dbpedia": "dbo:almamater",
+      "evidence": 1100.1293136613187,
+      "wikidata": "wdt:p69"
+    },
+    {
+      "dbpedia": "dbo:birthdate",
+      "evidence": 631.0443248093956,
+      "wikidata": "wdt:p569"
+    },
+    {
+      "dbpedia": "dbo:academicdiscipline",
+      "evidence": 538.6599496803426,
+      "wikidata": "wdt:p101"
+    },
+    {
+      "dbpedia": "dbo:birthplace",
+      "evidence": 534.1297862430202,
+      "wikidata": "wdt:p19"
+    },
+    {
+      "dbpedia": "dbo:institution",
+      "evidence": 511.7537673622347,
+      "wikidata": "wdt:p108"
+    },
+    {
+      "dbpedia": "dbo:deathdate",
+      "evidence": 403.6730621507806,
+      "wikidata": "wdt:p570"
+    },
+    {
+      "dbpedia": "dbo:award",
+      "evidence": 353.6691309776281,
+      "wikidata": "wdt:p166"
+    },
+    {
+      "dbpedia": "dbo:deathplace",
+      "evidence": 271.90148180267374,
+      "wikidata": "wdt:p20"
+    },
+    {
+      "dbpedia": "dbo:doctoraladvisor",
+      "evidence": 189.6638327010972,
+      "wikidata": "wdt:p184"
+    },
+    {
+      "dbpedia": "dbo:doctoralstudent",
+      "evidence": 128.55492591082583,
+      "wikidata": "wdt:p185"
+    },
+    {
+      "dbpedia": "dbo:knownfor",
+      "evidence": 70.1921144548314,
+      "wikidata": "wdt:p800"
+    },
+    {
+      "dbpedia": "dbo:spouse",
+      "evidence": 28.17098860122988,
+      "wikidata": "wdt:p26"
+    },
+    {
+      "dbpedia": "dbo:child",
+      "evidence": 26.314575328319275,
+      "wikidata": "wdt:p40"
+    }
+  ],
+  "gold_present": 13,
+  "rows": [
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.597176647716957,
+        "r1": 0.5397784491440081,
+        "r10": 0.7079556898288016
+      },
+      "fused": {
+        "mrr": 0.8016208698988155,
+        "r1": 0.7895266868076536,
+        "r10": 0.8197381671701913
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 0,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 13,
+      "correct": 10,
+      "fp": {
+        "mrr": 0.597176647716957,
+        "r1": 0.5397784491440081,
+        "r10": 0.7079556898288016
+      },
+      "fused": {
+        "mrr": 0.658956635107866,
+        "r1": 0.6092648539778449,
+        "r10": 0.7522658610271903
+      },
+      "gold_recall": 0.7692307692307693,
+      "precision": 0.7692307692307693,
+      "round": 1,
+      "unjudged": 0,
+      "wrong": 3
+    },
+    {
+      "aligned": 13,
+      "correct": 10,
+      "fp": {
+        "mrr": 0.597176647716957,
+        "r1": 0.5397784491440081,
+        "r10": 0.7079556898288016
+      },
+      "fused": {
+        "mrr": 0.658956635107866,
+        "r1": 0.6092648539778449,
+        "r10": 0.7522658610271903
+      },
+      "gold_recall": 0.7692307692307693,
+      "precision": 0.7692307692307693,
+      "round": 2,
+      "unjudged": 0,
+      "wrong": 3
+    },
+    {
+      "aligned": 13,
+      "correct": 10,
+      "fp": {
+        "mrr": 0.597176647716957,
+        "r1": 0.5397784491440081,
+        "r10": 0.7079556898288016
+      },
+      "fused": {
+        "mrr": 0.658956635107866,
+        "r1": 0.6092648539778449,
+        "r10": 0.7522658610271903
+      },
+      "gold_recall": 0.7692307692307693,
+      "precision": 0.7692307692307693,
+      "round": 3,
+      "unjudged": 0,
+      "wrong": 3
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "data": "data/kg-scientists → kg2mars --condition A",
+  "final": [
+    {
+      "dbpedia": "dbo:almamater",
+      "evidence": 8234.707754997524,
+      "wikidata": "wdt:p106"
+    },
+    {
+      "dbpedia": "dbo:academicdiscipline",
+      "evidence": 4602.838242521268,
+      "wikidata": "wdt:p108"
+    },
+    {
+      "dbpedia": "dbo:birthplace",
+      "evidence": 1331.779515318457,
+      "wikidata": "wdt:p101"
+    }
+  ],
+  "gold_present": 13,
+  "rows": [
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.003971672964113043,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 0,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 1,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.0033771250955015315,
+        "r1": 0.0,
+        "r10": 0.007049345417925478
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 1,
+      "unjudged": 0,
+      "wrong": 1
+    },
+    {
+      "aligned": 2,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.004981581620482958,
+        "r1": 0.0010070493454179255,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 2,
+      "unjudged": 0,
+      "wrong": 2
+    },
+    {
+      "aligned": 3,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.007285630824366452,
+        "r1": 0.002014098690835851,
+        "r10": 0.014098690835850957
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 3,
+      "unjudged": 0,
+      "wrong": 3
+    }
+  ]
+}

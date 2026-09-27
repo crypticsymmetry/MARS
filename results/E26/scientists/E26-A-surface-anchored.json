@@ -1,0 +1,83 @@
+{
+  "data": "data/kg-scientists → kg2mars --condition A",
+  "final": [],
+  "gold_present": 13,
+  "rows": [
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.003971672964113043,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 0,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.003971672964113043,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 1,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.003971672964113043,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 2,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.006921591735181959,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "fused": {
+        "mrr": 0.003971672964113043,
+        "r1": 0.0,
+        "r10": 0.010070493454179255
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 3,
+      "unjudged": 0,
+      "wrong": 0
+    }
+  ]
+}

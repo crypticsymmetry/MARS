@@ -1,0 +1,114 @@
+{
+  "data": "data/kg-scientists → kg2mars --condition B",
+  "final": [
+    {
+      "dbpedia": "dbo:almamater",
+      "evidence": 7584.302834098273,
+      "wikidata": "wdt:p108"
+    },
+    {
+      "dbpedia": "dbo:academicdiscipline",
+      "evidence": 7437.926715963454,
+      "wikidata": "wdt:p106"
+    },
+    {
+      "dbpedia": "dbo:institution",
+      "evidence": 5639.637705516016,
+      "wikidata": "wdt:p69"
+    },
+    {
+      "dbpedia": "dbo:birthplace",
+      "evidence": 5438.606876691255,
+      "wikidata": "wdt:p31"
+    },
+    {
+      "dbpedia": "dbo:knownfor",
+      "evidence": 3564.8060253847602,
+      "wikidata": "wdt:p735"
+    },
+    {
+      "dbpedia": "dbo:award",
+      "evidence": 1762.4146052846854,
+      "wikidata": "wdt:p101"
+    }
+  ],
+  "gold_present": 13,
+  "rows": [
+    {
+      "aligned": 0,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.03407064171250205,
+        "r1": 0.006042296072507553,
+        "r10": 0.08257804632426989
+      },
+      "fused": {
+        "mrr": 0.04650340579258351,
+        "r1": 0.016112789526686808,
+        "r10": 0.1027190332326284
+      },
+      "gold_recall": 0.0,
+      "precision": null,
+      "round": 0,
+      "unjudged": 0,
+      "wrong": 0
+    },
+    {
+      "aligned": 3,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.07105918914525428,
+        "r1": 0.03927492447129909,
+        "r10": 0.13293051359516617
+      },
+      "fused": {
+        "mrr": 0.08543897606487454,
+        "r1": 0.05740181268882175,
+        "r10": 0.14803625377643503
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 1,
+      "unjudged": 1,
+      "wrong": 2
+    },
+    {
+      "aligned": 5,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.05429264061566022,
+        "r1": 0.025176233635448138,
+        "r10": 0.10976837865055387
+      },
+      "fused": {
+        "mrr": 0.04118669131828775,
+        "r1": 0.017119838872104734,
+        "r10": 0.08157099697885196
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 2,
+      "unjudged": 1,
+      "wrong": 4
+    },
+    {
+      "aligned": 6,
+      "correct": 0,
+      "fp": {
+        "mrr": 0.051063879003046896,
+        "r1": 0.023162134944612285,
+        "r10": 0.10372608257804633
+      },
+      "fused": {
+        "mrr": 0.03788767876227648,
+        "r1": 0.01812688821752266,
+        "r10": 0.08157099697885196
+      },
+      "gold_recall": 0.0,
+      "precision": 0.0,
+      "round": 3,
+      "unjudged": 1,
+      "wrong": 5
+    }
+  ]
+}

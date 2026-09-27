@@ -89,3 +89,56 @@ Gold pairs present but not learned: composer↔P86 (the 1:1 constraint gave P86 
 - Counterpart retrieval is unchanged (R@1 FP 0.557, fused 0.617).
 
 So many-to-one joins are cheap and safe at this threshold (one correct addition, no new errors), but the film sample does not exercise them much. The film KGs are nearly one-to-one at the property level.
+
+## Addendum: a second domain (scientists)
+
+Is this specific to films? The same pipeline and parameters were run on 1,000 DBpedia `Scientist` entities with an alma mater, and their Wikidata items.
+- Data: `data/kg-scientists`, from `tools/kg_fetch.py --class Scientist --require almaMater`.
+- Per-configuration tables: [scientists/](scientists/).
+- 126 properties (21 DBpedia). 13 gold pairs occur in the data; one of them, `party ↔ P102`, has only 2 occurrences.
+
+| anchors | profile | evidence | pairs | gold: correct / "wrong" / not in gold | counterpart R@1 FP / fused, before → after |
+|---|---|---|---|---|---|
+| none (A) | either | all | 3–6 | 0 correct | chance |
+| none (A) | either | anchored | 0 | — | chance |
+| values (B) | either | all | 4–6 | 0–1 / 3–5 | — |
+| values (B) | either | anchored | 2 | 2 / 0 (birth date, death date) | — |
+| values + labels (C) | literal | all | 7 | 1 / 5 / 1 | 0.008 / 0.133 → 0.042 / 0.057 |
+| **values + labels (C)** | **literal** | **anchored** | **14** | **11 / 3 / 0** | 0.008 / 0.133 → **0.156 / 0.363** |
+| **C + many-to-one** | **literal** | **anchored** | **15** | **12 / 3 / 0** | 0.008 / 0.133 → 0.157 / 0.368 |
+| values + labels (C) | surface | all | 11 | 8 / 3 / 0 | 0.540 / 0.790 → 0.540 / 0.524 |
+| values + labels (C) | surface | anchored | 13 | 10 / 3 / 0 | 0.540 / 0.790 → 0.540 / 0.609 |
+| C + many-to-one | surface | anchored | 14 | 10 / 4 / 0 | 0.540 / 0.790 → 0.540 / 0.604 |
+
+**The 15 pairs learned** (C, literal, anchored, many-to-one):
+
+| DBpedia | Wikidata (label) | gold | by label |
+|---|---|---|---|
+| almaMater | P69 educated at | ✓ | ✓ |
+| academicDiscipline | P101 field of work | ✗ (gold: `dbo:discipline`) | ✓ |
+| birthDate | P569 date of birth | ✓ | ✓ |
+| institution | P108 employer | ✗ (gold: `dbo:employer`) | ✓ |
+| birthPlace | P19 place of birth | ✓ | ✓ |
+| award | P166 award received | ✓ | ✓ |
+| deathDate | P570 date of death | ✓ | ✓ |
+| deathPlace | P20 place of death | ✓ | ✓ |
+| nationality | P27 country of citizenship | ✓ | ✓ |
+| doctoralAdvisor | P184 doctoral advisor | ✓ | ✓ |
+| doctoralStudent | P185 doctoral student | ✓ | ✓ |
+| knownFor | P800 notable work | ✗ (gold: `dbo:notableWork`) | ≈ (sibling) |
+| citizenship | P27 country of citizenship | ✓ (many-to-one join) | ✓ |
+| child | P40 child | ✓ | ✓ |
+| spouse | P26 spouse | ✓ | ✓ |
+
+1. **The result generalizes.** The anchoring pattern is the same as on films:
+   - structure alone learns nothing;
+   - values alone learn only what exact values identify (here birth and death dates, both correct);
+   - labels with anchored evidence learn the core vocabulary.
+2. **Precision and recall are higher on scientists.** Gold recall is 12 of 13 pairs present; the one miss, `party`, has 2 occurrences. No pair is wrong by label. The 3 gold "errors" are gold gaps: DBpedia maps a sibling property (`discipline`, `employer`, `notableWork`) instead of the one its data actually uses.
+3. **Many-to-one joins work where the vocabulary needs them.** `nationality` and `citizenship` both map to P27 in the gold standard. The join recovers the second one with the literal profile.
+   - With the surface profile it instead adds `birthPlace → P27`. That is wrong: birth-place labels are often countries that coincide with citizenship. It is the join's typical failure, a correlated property rather than an equivalent one.
+   - Keep the share threshold conservative (0.25).
+4. **Aligned structure makes instances comparable; alignment dilutes label identity.** Both hold on scientists as on films:
+   - With the literal profile, counterpart retrieval rises after alignment: fingerprint R@1 0.008 → 0.157, fused 0.133 → 0.368.
+   - With the surface profile, fused retrieval falls: 0.790 → 0.609.
+5. **Profiles differ across domains.** On films, literal and surface profiles each learned 16 pairs (6 / 5 / 5). On scientists, the literal profile is slightly better and makes the safer many-to-one join. Scientist neighbourhoods are more varied: advisors, students, institutions and awards give structure that identifies them, unlike films' generic director/cast stars.
