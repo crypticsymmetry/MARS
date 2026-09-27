@@ -41,3 +41,21 @@ This is the first test in which **the representations were not designed together
 - Add **profile tuning per domain** (a small dev split). For code, surface identifiers are legitimately informative.
 - Try **representation normalization** for code: canonical loop forms (`while` + counter ↔ `for range`), comprehension ↔ loop-append, swap idioms, one more level of inlining, and a dataflow (def-use) view instead of syntax trees.
 - Get more real data: larger code corpora (other PyPI/npm algorithm collections), and narrative analogies (ARN) if network access to datasets becomes available.
+
+## Follow-up: syntactic normalization passes (negative result)
+
+`tools/py2mars.py` gained optional passes, controlled by `MARS_NORM` as a comma list:
+- `comp`: comprehension → explicit loop-append;
+- `enum`: `enumerate` → index loop;
+- `swap`: temp-variable swap → `swap`;
+- `while`: while-loops keyed by their condition variable, like for-loops;
+- `flows`: def-use dataflow edges.
+
+Ablated individually and together (inlining depth 1 and 2) on both tasks, none improved results beyond noise (±0.03–0.06 with 33 Task A queries):
+- `while` traded R@1 (0.24 → 0.12–0.15) for R@10 (0.55 → 0.58);
+- `flows` hurt (MRR 0.334 → 0.28): many generic edges dilute the discriminative structure;
+- `comp`, `enum` and `swap` were neutral.
+
+**Conclusion:** local syntactic canonicalization is not the bottleneck. The missed pairs (e.g. in-place Lomuto quicksort vs list-comprehension quicksort; slice-based vs index-based merge sort) differ at the level of *algorithmic strategy*. Matching them needs semantic abstraction (e.g. recognizing "partition around a pivot" as a unit) or learned re-representation. The passes remain available but are off by default.
+
+With the E10 fusion weight (0.3·FAC + 0.7·fingerprint, literal profile), results match the ½/½ fusion within noise (see E9.md).

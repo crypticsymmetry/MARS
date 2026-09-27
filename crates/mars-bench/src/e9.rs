@@ -87,6 +87,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         ("FAC only (exhaustive)", Box::new(fac)),
         ("fused ½FAC+½FP (exhaustive)", Box::new(|a, b| 0.5 * fac(a, b) + 0.5 * fp(a, b))),
         ("fused ½FAC+½FP-literal (exhaustive)", Box::new(|a, b| 0.5 * fac(a, b) + 0.5 * literal.score(&sk.channel_sims(&fps[a], &fps[b])))),
+        ("fused 0.3FAC+0.7FP-literal (exhaustive)", Box::new(|a, b| 0.3 * fac(a, b) + 0.7 * literal.score(&sk.channel_sims(&fps[a], &fps[b])))),
     ];
 
     // Rank of each relevant item for query q under a scorer, over candidate pool.

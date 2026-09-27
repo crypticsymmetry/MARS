@@ -119,6 +119,8 @@ VOCAB = """
 (defpredicate guards :arity 2 :kind relation :parents (control))
 (defpredicate on-error :arity 1 :kind relation)
 (defpredicate inlined :arity 2 :kind relation)
+(defpredicate flows :arity 2 :kind relation)
+(defpredicate loop-cond :arity 2 :kind relation)
 """
 EXTRA_PREDS = ["bi-" + b for b in sorted(BUILTINS)] + ["m-" + m for m in sorted(METHODS)] + ["m-other"]
 
@@ -213,9 +215,44 @@ class FuncEncoder:
 
     def stmts(self, body):
         out = []
-        for s in body:
-            out.extend(self.stmt(s))
+        i = 0
+        while i < len(body):
+            if "swap" in NORM and i + 2 < len(body):
+                a, b, c = body[i], body[i + 1], body[i + 2]
+                if (all(isinstance(x, ast.Assign) and len(x.targets) == 1 for x in (a, b, c))
+                        and isinstance(a.targets[0], ast.Name) and isinstance(c.value, ast.Name)
+                        and c.value.id == a.targets[0].id
+                        and ast.dump(b.targets[0]) == ast.dump(a.value)
+                        and ast.dump(c.targets[0]) == ast.dump(b.value)):
+                    out.append(f"(swap {self.term(a.value)} {self.term(b.value)})")
+                    i += 3
+                    continue
+            out.extend(self.stmt(body[i]))
+            i += 1
         return out
+
+    def comp_as_loop(self, target_term, comp):
+        """[elt for x in it if c] -> res = []; for x in it: if c: res.append(elt)."""
+        elt = comp.value if isinstance(comp, ast.DictComp) else comp.elt
+        inner = [f"(m-append {target_term} {self.term(elt)})"]
+        facts = [f"(assign {target_term} (list-lit))"]
+        for g in reversed(comp.generators):
+            for cond in reversed(g.ifs):
+                t = self.term(cond)
+                inner = [f"(guards {t} {f})" for f in inner]
+            var = self.term(g.target)
+            inner = [f"(iterates {var} {self.term(g.iter)})"] + [f"(in-loop {var} {f})" for f in inner]
+        return facts + inner
+
+    def flows(self, tgt, val):
+        if "flows" not in NORM or not isinstance(val, ast.AST):
+            return []
+        base = tgt
+        while isinstance(base, (ast.Subscript, ast.Attribute)):
+            base = base.value
+        if not isinstance(base, ast.Name):
+            return []
+        return [f"(flows {ident(u)} {ident(base.id)})" for u in names_in(val) if u != base.id]
 
     def assign_facts(self, tgt, val):
         if isinstance(tgt, (ast.Tuple, ast.List)) and isinstance(val, (ast.Tuple, ast.List)) and len(tgt.elts) == len(val.elts):
@@ -235,16 +272,23 @@ class FuncEncoder:
     def stmt(self, s):
         t = type(s)
         if t is ast.Assign:
+            comps = (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)
+            if "comp" in NORM and isinstance(s.value, comps) and len(s.targets) == 1 and isinstance(s.targets[0], ast.Name):
+                return self.comp_as_loop(self.term(s.targets[0]), s.value) + self.flows(s.targets[0], s.value)
             out = []
             for tgt in s.targets:
                 out.extend(self.assign_facts(tgt, s.value))
+                out.extend(self.flows(tgt, s.value))
             return out
         if t is ast.AugAssign:
             op = BINOPS.get(type(s.op), "add")
-            return [self.one_assign(s.target, f"({op} {self.term(s.target)} {self.term(s.value)})")]
+            return [self.one_assign(s.target, f"({op} {self.term(s.target)} {self.term(s.value)})")] + self.flows(s.target, s.value)
         if t is ast.AnnAssign:
             return [self.one_assign(s.target, s.value)] if s.value is not None else []
         if t is ast.Return:
+            comps = (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)
+            if "comp" in NORM and isinstance(s.value, comps):
+                return self.comp_as_loop("_ret", s.value) + ["(returns _ret)"]
             return [f"(returns {self.term(s.value) if s.value is not None else 'cnone'})"]
         if t is ast.Expr:
             if isinstance(s.value, ast.Constant) and isinstance(s.value.value, str):
@@ -259,8 +303,20 @@ class FuncEncoder:
             return out
         if t is ast.While:
             test = self.term(s.test)
+            if "while" in NORM:
+                vs = names_in(s.test)
+                var = ident(vs[0]) if vs else "cnone"
+                return [f"(loop-cond {var} {test})"] + [f"(in-loop {var} {f})" for f in self.stmts(s.body) + self.stmts(s.orelse)]
             return [f"(while-loop {test} {f})" for f in self.stmts(s.body) + self.stmts(s.orelse)]
         if t in (ast.For, ast.AsyncFor):
+            it = s.iter
+            if ("enum" in NORM and isinstance(it, ast.Call) and isinstance(it.func, ast.Name) and it.func.id == "enumerate"
+                    and it.args and isinstance(s.target, ast.Tuple) and len(s.target.elts) == 2):
+                i_t, v_t = self.term(s.target.elts[0]), self.term(s.target.elts[1])
+                seq = self.term(it.args[0])
+                out = [f"(iterates {i_t} (bi-range (bi-len {seq})))", f"(in-loop {i_t} (assign {v_t} (index {seq} {i_t})))"]
+                out += [f"(in-loop {i_t} {f})" for f in self.stmts(s.body) + self.stmts(s.orelse)]
+                return out
             var = self.term(s.target)
             out = [f"(iterates {var} {self.term(s.iter)})"]
             out += [f"(in-loop {var} {f})" for f in self.stmts(s.body) + self.stmts(s.orelse)]
@@ -310,6 +366,12 @@ def functions(tree):
 
 
 INLINE = int(os.environ.get("MARS_INLINE", "1"))
+# Normalization passes (comma list): comp, enum, swap, while, flows.
+NORM = set(x for x in os.environ.get("MARS_NORM", "").split(",") if x)
+
+
+def names_in(node):
+    return sorted({n.id for n in ast.walk(node) if isinstance(n, ast.Name)})
 
 
 def main():
