@@ -134,7 +134,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                     None
                 } else {
                     let mp_ = mean(&pos_train.iter().map(|(_, m)| dscore(m)).collect::<Vec<_>>());
-                    let mn_ = mean(&nm_maps.iter().map(|m| dscore(m)).collect::<Vec<_>>());
+                    let mn_ = mean(&nm_maps.iter().map(&dscore).collect::<Vec<_>>());
                     Some((mp_ + mn_) / 2.0)
                 };
                 let labeled: Vec<(CaseId, bool)> = p[..p_train].iter().map(|&x| (x, true)).chain(n[..k].iter().map(|&x| (x, false))).collect();
