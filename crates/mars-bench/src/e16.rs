@@ -15,7 +15,11 @@
 //!   score = −log₁₀ E;
 //! * **local null** (fused): z of the top-1 fused score against the fused
 //!   scores of the fingerprint ranks k/2..k (the tail of the candidate list);
-//!   and the same with fingerprint scores only (no FAC needed).
+//!   and the same with fingerprint scores only (no FAC needed);
+//! * **sibling support**: other top-16 candidates that map onto the top-1
+//!   item (FAC ≥ 0.5), and their local z combined with the top-1's
+//!   (Stouffer: Σz/√m) — a real analogue brings its pattern's other
+//!   instances, a chance match stands alone.
 //!
 //! A threshold is fixed at the smallest memory for precision ≥ 0.9 and
 //! reused unchanged at 10× and 100× the memory.
@@ -34,7 +38,10 @@ use serde_json::json;
 use std::fmt::Write as _;
 use std::time::Instant;
 
-const SCORES: [&str; 7] = ["fused score", "normalized FAC", "fingerprint score", "fused margin to #2", "fingerprint −log₁₀E (global null)", "fused z (local null)", "fingerprint z (local null, FAC-free)"];
+const SCORES: [&str; 9] = ["fused score", "normalized FAC", "fingerprint score", "fused margin to #2", "fingerprint −log₁₀E (global null)", "fused z (local null)", "fingerprint z (local null, FAC-free)", "sibling support (top-16 items mapping onto the top-1)", "**fused z + siblings (Stouffer)**"];
+
+/// Normalized FAC between a candidate and the top-1 item for it to count as a sibling.
+const SIBLING_FAC: f64 = 0.5;
 
 /// ln Q(z) for the standard normal upper tail, via erfc (Numerical Recipes
 /// `erfcc`, relative error < 1.2e-7 everywhere, so usable deep in the tail).
@@ -52,7 +59,7 @@ fn ln_q(z: f64) -> f64 {
 struct Obs {
     correct: bool,
     present: bool,
-    s: [f64; 7],
+    s: [f64; 9],
 }
 
 fn run_size(args: &Args, n_mem_t: usize, per: usize, n_q: usize, k: usize) -> (Vec<Obs>, usize, f64) {
@@ -131,7 +138,24 @@ fn run_size(args: &Args, n_mem_t: usize, per: usize, n_q: usize, k: usize) -> (V
             let second = cands.get(1).map(|x| x.1).unwrap_or(0.0);
             let z = (top.3 - mu) / sd;
             let neg_log10_e = -((n as f64).ln() + ln_q(z)) / std::f64::consts::LN_10;
-            Obs { correct: memory[top.0].1 == t, present, s: [top.1, top.2, top.3, top.1 - second, neg_log10_e, (top.1 - tm) / ts, (top.3 - fm) / fs] }
+            // Siblings: other top-16 candidates that map onto the top-1 item itself
+            // (FAC ≥ 0.5). A real analogue usually has siblings (other instances of
+            // its pattern); a chance match stands alone. Their fused z-scores are
+            // combined with the top-1's by Stouffer's method.
+            let tc = memory[top.0].0;
+            let ts_self = mapper.score(tc, tc) as f64;
+            let zf = |x: f64| (x - tm) / ts;
+            let mut zs = vec![zf(top.1)];
+            for c in cands.iter().skip(1).take(15) {
+                let cc = memory[c.0].0;
+                let raw = mapper.score(cc, tc) as f64;
+                let cs = mapper.score(cc, cc) as f64;
+                if raw > 0.0 && raw / (ts_self * cs).sqrt() >= SIBLING_FAC {
+                    zs.push(zf(c.1));
+                }
+            }
+            let stouffer = zs.iter().sum::<f64>() / (zs.len() as f64).sqrt();
+            Obs { correct: memory[top.0].1 == t, present, s: [top.1, top.2, top.3, top.1 - second, neg_log10_e, (top.1 - tm) / ts, (top.3 - fm) / fs, (zs.len() - 1) as f64, stouffer] }
         })
         .collect();
     (obs, n, t0.elapsed().as_secs_f64())

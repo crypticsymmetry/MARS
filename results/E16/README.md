@@ -55,3 +55,21 @@ This is E10's information-per-case limit. The difference between the scores is *
 
 - Use the same criterion for SAGE assimilation (E15 finding 2: a fixed θ loses purity as memory grows).
 - Recover recall at 10⁶: a richer null (tail beyond rank 64, or decoys), or more information per case (E10: multi-template cases).
+
+## Addendum: can recall at 10⁶ be recovered?
+
+**Argument.** Under an exponential chance-score tail, a z-score against fixed tail ranks is equivalent to an E-value: the expected number of chance matches at least as good *in the whole memory*. A real match of fixed strength therefore *should* become less significant as memory grows. The recall drop at 10⁶ is the information limit of the case (E10), not miscalibration, and a better null cannot remove it. Only more evidence per decision can.
+
+**Test: sibling pooling.** A real analogue usually has *siblings* in memory (other instances of its pattern) that also rank high for the query. New scores:
+- sibling support: other top-16 candidates mapping onto the top-1 at FAC ≥ 0.5;
+- the Stouffer combination Σz/√m of the local z of the top-1 and its siblings. It is parameter-free and reduces to z without siblings.
+
+| score | AUC 10³ / 10⁴ / 10⁵ / 10⁶ | precision / recall / absent false-accept at 10⁶ (τ from 10³) |
+|---|---|---|
+| fused z (local null) | 0.972 / 0.961 / 0.940 / 0.868 | 0.951 / 0.492 / 0.012 |
+| sibling count alone | 0.690 / 0.736 / 0.742 / 0.626 | 0.428 / 0.299 / 0.212 |
+| **fused z + siblings (Stouffer)** | 0.972 / 0.969 / 0.957 / **0.895** | 0.945 / **0.523** / 0.016 |
+
+- Pooling recovers a little: +3 points recall at 10⁶ and +2 at 10⁵ (0.790 vs 0.767), with memory-size-invariant precision.
+- The sibling *count* is uninformative: every stored item, chance matches included, has siblings. Only siblings that also match the query carry evidence.
+- Consistent with the argument, recall at 10⁶ is bounded by per-case information. E10's remedy (richer cases: 2-template cases reach 0.996 at 10⁶) is the lever, not the acceptance rule.
