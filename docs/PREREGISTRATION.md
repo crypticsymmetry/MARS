@@ -168,3 +168,36 @@ Written before any E34 run.
 Scored with `tools/ev_report.py`'s criteria ("A > B": CI of the difference above 0; "A ≥ B": point estimate ≥ 0 and CI not entirely below 0).
 
 **Outcome (added after the test run):** P10, P11 and P12 confirmed; deviations (per-value context facts dropped on development; names kept as attributes; a harness bug fixed before any test metric) are listed in [results/E34](../results/E34/README.md).
+
+## Addendum B (2026-09-28, after E34 and E35): E36, learned fusion and conformal abstention for code retrieval
+
+Written before any E36 run on either sample.
+
+**Motivation.** E34 found that re-ranking the code embedding's top-100 with MARS by a fixed ½ cosine + ½ FAC improves MAP@R (0.473 → 0.498). The gain is concentrated where the embedding is least confident (an exploratory split). E36 tests two upgrades:
+1. a *learned*, query-dependent fusion;
+2. *conformal* abstention: answer with a top-1 program only when a calibrated confidence guarantees precision.
+
+**Data.** Candidates: the code embedding's top-100 per query, as in E34. Features: MARS FAC from E34's final py2pdg front end.
+- **Development** (fitting and calibration): E34's development sample (seed 2, 200 problems outside EV2's; 5,970 programs).
+- **Test:** EV2's sample (5,982 programs), run once.
+- Nothing is fit or tuned on test.
+
+**Arms.**
+- **A3, learned fusion.** A pointwise logistic-regression ranker over (query, candidate) pairs of the development sample, predicting "same problem". Features:
+  - candidate: cosine, FAC, cosine rank, FAC rank within the list;
+  - query-level: top-1 cosine, top-1 minus top-2 cosine margin, maximum FAC over the list;
+  - the interactions of cosine and FAC with top-1 cosine.
+
+  Features are standardized on development; L2 regularization C = 1; no other tuning. Candidates are ranked by predicted probability. Compared with E34's fixed ½ cosine + ½ FAC (B) and with the embedding alone (E).
+- **A4, conformal selective top-1.** Confidence = the A3 model's probability for its top-1 candidate.
+  - Calibration: Learn-then-Test with fixed-sequence testing over thresholds (from high confidence down, a grid of 200 quantiles of the development confidences) and exact binomial p-values.
+  - Target: precision among answered queries ≥ 1 − α with probability ≥ 1 − δ; α = 0.05, δ = 0.1.
+  - Calibration uses all development queries. The chosen threshold is applied unchanged to test.
+  - Baseline: the same procedure with the embedding's top-1 cosine as the confidence (embedding top-1 answered).
+
+**Predictions** (test; criteria of `tools/ev_report.py`):
+- **P13:** A3 > B on MAP@R (paired over queries).
+- **P14:** A3's test precision among answered queries is ≥ 0.95. The guarantee assumes exchangeable queries. Problems are drawn at random from the same pool for both samples, but queries within a problem are correlated, so this is an empirical check of the guarantee. Scored "confirmed" if the point estimate is ≥ 0.95, and "inconclusive" if the point estimate is below 0.95 but its 95% CI includes 0.95.
+- **P15:** at the same guarantee, coverage (the fraction of queries answered) with A3's confidence > coverage with the embedding's cosine. Paired bootstrap over queries of the difference in answered indicators; "A > B".
+
+Scored after the test run with the same "A > B" / "A ≥ B" rules as P1–P12.
