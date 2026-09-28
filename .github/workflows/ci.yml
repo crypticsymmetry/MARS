@@ -16,7 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned to the toolchain the results were produced with (new clippy lints must not break CI unannounced).
+      - uses: dtolnay/rust-toolchain@1.94.1
         with:
           components: clippy
       - uses: Swatinem/rust-cache@v2
