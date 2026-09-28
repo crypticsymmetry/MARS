@@ -166,3 +166,5 @@ Written before any E34 run.
 - **P12** (weak): embedding + MARS re-rank ≥ embedding alone.
 
 Scored with `tools/ev_report.py`'s criteria ("A > B": CI of the difference above 0; "A ≥ B": point estimate ≥ 0 and CI not entirely below 0).
+
+**Outcome (added after the test run):** P10, P11 and P12 confirmed; deviations (per-value context facts dropped on development; names kept as attributes; a harness bug fixed before any test metric) are listed in [results/E34](../results/E34/README.md).

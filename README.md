@@ -34,12 +34,13 @@ These were planned in [docs/PREREGISTRATION.md](docs/PREREGISTRATION.md) before 
 |---|---|---|---|
 | **KG link prediction**, FB15k-237 / WN18RR (standard filtered protocol) | MRR 0.163 / 0.372 vs RotatE 0.338 / 0.476. On FB15k-237 MARS is **below relation popularity** (0.233). On WN18RR, when the answer is within 2 hops, Hits@1 is 0.75; otherwise 0.05 | below the embedding models (P1 ✓); beats popularity on WN18RR only (P2 ✗ on FB15k-237); learned reliability helps (P4 ✓) | [EV1](results/EV1/README.md) |
 | **Code retrieval by problem**, CodeNet Python800 (5,982 programs) | MAP@R: MARS 0.211 > lexical 0.129, but a pretrained code embedding scores 0.473; fusing MARS with lexical hurts (0.164) | P6 ✓, P7 ✓ (embedding ≫ MARS), P8 ✗ | [EV2](results/EV2/README.md) |
+| **… with a dataflow front end** (E34, pre-registered addendum) | same programs, only the representation changes: MARS 0.211 → **0.319**; MARS re-ranking the embedding's top-100: **0.498 vs 0.473** (Hits@1 0.856 → 0.892), with the largest gains where the embedding is least confident | P10 ✓, P11 ✓ (still below the embedding), P12 ✓ | [E34](results/E34/README.md) |
 | **Incident agent** (synthetic, structural) vs stronger baselines | MARS 0.728 vs embedding RAG 0.349 vs name recall 0.200 (5 seeds); an LLM given MARS-retrieved episodes scores 0.676 vs 0.459 (embedding) / 0.372 (names) | P9 ✓ | [EV3](results/EV3/README.md) |
 
 **Bottom line:**
 - MARS is not competitive as a general link predictor or a general code retriever: learned embeddings win by wide margins, and on FB15k-237 even a frequency prior wins.
 - It is strong where the answer lies in relational structure that its representation exposes and surface similarity misleads: WN18RR's within-2-hops half, and structural agent memory.
-- Its main bottleneck on real data is representation.
+- Its main bottleneck on real data is representation. The first representation upgrade confirms this: a dataflow front end lifts code retrieval by half (E34). Used as a structural re-ranker on top of a pretrained embedding, MARS improves on the embedding: the division of labour it is positioned for.
 
 ### Works (strong evidence, mostly on controlled synthetic data)
 

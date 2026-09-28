@@ -1,0 +1,45 @@
+{
+ "note": "exploratory, not pre-registered: E34 test MAP@R by quartile of the embedding's top-1 cosine (known at query time)",
+ "rows": [
+  {
+   "quartile": 1,
+   "cos_range": [
+    0.624,
+    0.849
+   ],
+   "n": 1496,
+   "embedding": 0.3215,
+   "reranked": 0.37
+  },
+  {
+   "quartile": 2,
+   "cos_range": [
+    0.849,
+    0.893
+   ],
+   "n": 1495,
+   "embedding": 0.4485,
+   "reranked": 0.4814
+  },
+  {
+   "quartile": 3,
+   "cos_range": [
+    0.893,
+    0.928
+   ],
+   "n": 1496,
+   "embedding": 0.5207,
+   "reranked": 0.5344
+  },
+  {
+   "quartile": 4,
+   "cos_range": [
+    0.928,
+    1.0
+   ],
+   "n": 1495,
+   "embedding": 0.6019,
+   "reranked": 0.6044
+  }
+ ]
+}
