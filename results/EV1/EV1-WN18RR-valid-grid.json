@@ -1,0 +1,114 @@
+{
+  "cap": 100,
+  "chosen": {
+    "hits1": 0.32075,
+    "hits10": 0.383,
+    "identity": 0.85,
+    "k": 30,
+    "mrr": 0.34600622519229013,
+    "profile": "literal"
+  },
+  "dataset": "WN18RR",
+  "fac": 0.5,
+  "grid": [
+    {
+      "hits1": 0.09675,
+      "hits10": 0.107,
+      "identity": 0.0,
+      "k": 10,
+      "mrr": 0.10144459086427482,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.15225,
+      "hits10": 0.164,
+      "identity": 0.0,
+      "k": 30,
+      "mrr": 0.15717366152389053,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.12775,
+      "hits10": 0.167,
+      "identity": 0.5,
+      "k": 10,
+      "mrr": 0.14950494198705294,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.19675,
+      "hits10": 0.23675,
+      "identity": 0.5,
+      "k": 30,
+      "mrr": 0.21673324355605011,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.2275,
+      "hits10": 0.3075,
+      "identity": 0.85,
+      "k": 10,
+      "mrr": 0.26377604944299216,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.29625,
+      "hits10": 0.369,
+      "identity": 0.85,
+      "k": 30,
+      "mrr": 0.3269603394247343,
+      "profile": "analogy"
+    },
+    {
+      "hits1": 0.123,
+      "hits10": 0.13225,
+      "identity": 0.0,
+      "k": 10,
+      "mrr": 0.127669815376129,
+      "profile": "literal"
+    },
+    {
+      "hits1": 0.18525,
+      "hits10": 0.2005,
+      "identity": 0.0,
+      "k": 30,
+      "mrr": 0.19218685576650368,
+      "profile": "literal"
+    },
+    {
+      "hits1": 0.165,
+      "hits10": 0.23675,
+      "identity": 0.5,
+      "k": 10,
+      "mrr": 0.20348253363831437,
+      "profile": "literal"
+    },
+    {
+      "hits1": 0.23775,
+      "hits10": 0.29875,
+      "identity": 0.5,
+      "k": 30,
+      "mrr": 0.26913114608713734,
+      "profile": "literal"
+    },
+    {
+      "hits1": 0.244,
+      "hits10": 0.31975,
+      "identity": 0.85,
+      "k": 10,
+      "mrr": 0.27828498802729934,
+      "profile": "literal"
+    },
+    {
+      "hits1": 0.32075,
+      "hits10": 0.383,
+      "identity": 0.85,
+      "k": 30,
+      "mrr": 0.34600622519229013,
+      "profile": "literal"
+    }
+  ],
+  "sample_triples": 2000,
+  "seed": 1,
+  "shortlist": 50
+}

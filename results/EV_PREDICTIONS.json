@@ -1,4 +1,12 @@
 {
+ "P1": "confirmed",
+ "P2-FB15k-237": "not confirmed",
+ "P3-FB15k-237": "inconclusive",
+ "P4-FB15k-237": "confirmed",
+ "P2-WN18RR": "confirmed",
+ "P3-WN18RR": "confirmed",
+ "P4-WN18RR": "confirmed",
+ "P5": "confirmed",
  "P6": "confirmed",
  "P7": "confirmed",
  "P8": "not confirmed",

@@ -26,6 +26,21 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 **Working research prototype**: a Rust workspace of 11 crates, including Python bindings, and 33 experiments reproducible from versioned data. The evidence is summarized below by how well each claim holds, failures included. Details are in each `results/E*/README.md`. Paired 95% confidence intervals and p-values for the headline comparisons: [results/STATS.md](results/STATS.md) (`python3 tools/stats.py`).
 
+### External, pre-registered evaluation of the frozen v0.1
+
+These were planned in [docs/PREREGISTRATION.md](docs/PREREGISTRATION.md) before running: settings chosen on validation only, test run once, predictions scored with criteria committed in advance ([results/EV_PREDICTIONS.md](results/EV_PREDICTIONS.md)).
+
+| evaluation | result | verdict on predictions | evidence |
+|---|---|---|---|
+| **KG link prediction**, FB15k-237 / WN18RR (standard filtered protocol) | MRR 0.163 / 0.372 vs RotatE 0.338 / 0.476. On FB15k-237 MARS is **below relation popularity** (0.233). On WN18RR, when the answer is within 2 hops, Hits@1 is 0.75; otherwise 0.05 | below the embedding models (P1 ✓); beats popularity on WN18RR only (P2 ✗ on FB15k-237); learned reliability helps (P4 ✓) | [EV1](results/EV1/README.md) |
+| **Code retrieval by problem**, CodeNet Python800 (5,982 programs) | MAP@R: MARS 0.211 > lexical 0.129, but a pretrained code embedding scores 0.473; fusing MARS with lexical hurts (0.164) | P6 ✓, P7 ✓ (embedding ≫ MARS), P8 ✗ | [EV2](results/EV2/README.md) |
+| **Incident agent** (synthetic, structural) vs stronger baselines | MARS 0.728 vs embedding RAG 0.349 vs name recall 0.200 (5 seeds); an LLM given MARS-retrieved episodes scores 0.676 vs 0.459 (embedding) / 0.372 (names) | P9 ✓ | [EV3](results/EV3/README.md) |
+
+**Bottom line:**
+- MARS is not competitive as a general link predictor or a general code retriever: learned embeddings win by wide margins, and on FB15k-237 even a frequency prior wins.
+- It is strong where the answer lies in relational structure that its representation exposes and surface similarity misleads: WN18RR's within-2-hops half, and structural agent memory.
+- Its main bottleneck on real data is representation.
+
 ### Works (strong evidence, mostly on controlled synthetic data)
 
 | claim | result | evidence |
@@ -43,13 +58,13 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 | claim | result | evidence |
 |---|---|---|
-| Structure beats surface on real code | cross-author algorithm retrieval MRR 0.33 vs lexical 0.15 (33 queries; paired difference +0.19, 95% CI [+0.04, +0.33]); cross-language R@10 0.37 vs 0.17 (significant), but MRR 0.17 vs 0.09 is not significant at 52 queries. Different *strategies* for the same algorithm are not found: the representation is too syntactic | [E9](results/E9/README.md), [E12](results/E12/README.md) |
+| Structure beats surface on real code | cross-author algorithm retrieval MRR 0.33 vs lexical 0.15 (33 queries; paired difference +0.19, 95% CI [+0.04, +0.33]); cross-language R@10 0.37 vs 0.17 (significant), but MRR 0.17 vs 0.09 is not significant at 52 queries. Different *strategies* for the same algorithm are not found: the representation is too syntactic. On CodeNet (EV2) MARS beats lexical search (MAP@R 0.21 vs 0.13) but is far below a pretrained code embedding (0.47) | [E9](results/E9/README.md), [E12](results/E12/README.md), [EV2](results/EV2/README.md) |
 | Candidate inference on real data | KGs: projecting through the mapping beats copying from the same analogues, more so with relational depth (E27, E28). It works where the answer is already linked in the query (Hits@1 0.71–0.84, 29–39% of queries); "new value" prediction is recommendation-like (0.10–0.32). Code: ~10× chance, but exact restoration is rare (7.6%) | [E27](results/E27/README.md), [E28](results/E28/README.md), [E31](results/E31/README.md), [E17](results/E17/README.md) |
 | Learning which transfers to trust | feedback learns per-transfer-type precision online (persisted): +0.008 / +0.015 Hits@1; the learned types read as rules ("studied where the doctoral advisor worked") | [E29](results/E29/README.md), [E30](results/E30/README.md) |
 | Vocabulary alignment by analogy | synthetic: precision 1.000. DBpedia ↔ Wikidata: 14/16 (films) and 15/15 (scientists) property pairs plausible, *given* entity-label anchors. On real code only frequent pairs are learned | [E13](results/E13/README.md), [E26](results/E26/README.md), [E14](results/E14/README.md) |
 | Schemas (SAGE) | help as a *complement* to instances (few-shot inference +41%); schema-only memory degrades at scale | [E7](results/E7/README.md), [E15](results/E15/README.md) |
 | Natural language via an LLM front end | resists same-topic look-alikes (0.51 vs 0.13–0.18, chance 0.25), but an LLM judging directly is better (0.79). The LLM front end is the bottleneck; abstraction-first prompting and ensembles help (0.59–0.61) | [E23](results/E23/README.md)–[E25](results/E25/README.md) |
-| Agent episodic memory | synthetic incident response (task designed to be structural): remedy + target 0.995 / 0.76 at noise 0 / 2 vs recall by names 0.48 / 0.32. An LLM agent does 0.66 with MARS-retrieved memories vs 0.35 with name-recalled ones (small model, 150 incidents, one seed) | [E33](results/E33/README.md) |
+| Agent episodic memory | synthetic incident response (task designed to be structural): remedy + target 0.995 / 0.76 at noise 0 / 2 vs recall by names 0.48 / 0.32. Against an embedding-RAG memory: 0.73 vs 0.35 (5 seeds); as an LLM's retriever: 0.68 vs 0.46 (EV3, pre-registered) | [E33](results/E33/README.md), [EV3](results/EV3/README.md) |
 | Near-misses | soft per-fact emphasis from 1–2 near-misses beats 1-NN (+0.04–0.09); hard rules fail under noise | [E20](results/E20/README.md) |
 | Identity (entity-overlap) channel | helps where instances share entities (Wikidata scientists 0.409 → 0.445), not elsewhere (films; incidents: hurts) | [E32](results/E32/README.md), [E33](results/E33/README.md) |
 
@@ -67,7 +82,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 ### Unknown or not yet tested
 
-- **Independent evaluation.** Every benchmark, baseline and setting so far was built in the same loop as the method. Some baselines are weak: no KG-embedding baselines for E27–E32, no embedding-RAG baseline for E33, and the planned SMTB comparison was never run. Some weights (e.g. E32's identity weight) were chosen on the data they are reported on. Next: a frozen v0.1, pre-registered evaluations on external benchmarks, and bootstrap confidence intervals for every headline comparison.
+- **Independent evaluation, still partial.** E0–E33 were built in the same loop as the method, and some of their settings were chosen on the data they report (e.g. E32's identity weight). The pre-registered EV1–EV3 above address this for three tasks, but they are still run by the same developers, and the SMTB comparison was never run.
 - **Representation.** How to produce relational representations at the level where analogies live (algorithmic roles rather than syntax, abstract causal patterns rather than story text). This is the main open research problem.
 - **Scale of standing queries** (10⁵+), real incident data, and non-English or multimodal inputs.
 
