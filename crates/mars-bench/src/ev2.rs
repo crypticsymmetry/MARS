@@ -101,6 +101,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             fp_rank.push(a);
             fused_rank.push(b);
         }
+        eprintln!("[ev2] {}/{n} queries ({:.1?})", fp_rank.len(), t0.elapsed());
     }
     eprintln!("[ev2] rankings done ({:.1?})", t0.elapsed());
     let to_names = |r: &Vec<Vec<usize>>| -> serde_json::Map<String, serde_json::Value> { names.iter().zip(r).map(|(n, l)| (n.clone(), json!(l.iter().map(|&i| names[i].as_str()).collect::<Vec<_>>()))).collect() };
