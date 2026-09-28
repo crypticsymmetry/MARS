@@ -232,6 +232,7 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E33](../results/E33/README.md) | MARS as an agent's episodic memory (incident response) | remedy + target 0.995 → 0.65 with noise vs names 0.48 → 0.23; better retriever for an LLM agent (0.66 vs 0.35) and better alone (0.78) |
 | [EV1](../results/EV1/README.md) | Pre-registered: KG link prediction, FB15k-237 / WN18RR | MRR 0.163 / 0.372; below popularity on FB15k-237; WN18RR Hits@1 0.75 when the answer is within 2 hops |
 | [EV2](../results/EV2/README.md) | Pre-registered: code retrieval, CodeNet Python800 | MAP@R MARS 0.211 > lexical 0.129; code embedding 0.473 |
+| [E36](../results/E36/README.md) | Pre-registered (addendum B): learned fusion and conformal abstention, code retrieval | learned fusion 0.503 vs fixed 0.498 MAP@R; 16.5% of queries answered at certified ≥ 0.95 precision (test 0.968); embedding cosine certifies none |
 | [E35](../results/E35/README.md) | Exploratory: soft relation similarity learned from role contexts | negative: no gain on code; a learned taxonomy hurts on unresolved synonyms |
 | [E34](../results/E34/README.md) | Pre-registered (addendum A): dataflow front end for code | MAP@R 0.211 → 0.319; as a re-ranker of the code embedding's top-100, 0.473 → 0.498 |
 | [EV3](../results/EV3/README.md) | Pre-registered: agent memory vs embedding RAG and LLM agents | MARS 0.728 vs embedding RAG 0.349; LLM + MARS 0.676 vs + embedding 0.459 |

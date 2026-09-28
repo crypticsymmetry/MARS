@@ -19,4 +19,7 @@ Criteria fixed in `tools/ev_report.py` before any result was seen (see its docst
 | P10 py2pdg > py2mars (MARS fused, MAP@R) | Δ +0.1079 [+0.1034, +0.1122] | confirmed |
 | P11 code embedding > MARS with py2pdg (MAP@R) | Δ +0.1543 [+0.1471, +0.1616] | confirmed |
 | P12 embedding re-ranked by ½cos + ½FAC ≥ embedding (MAP@R) | Δ +0.0244 [+0.0204, +0.0284] | confirmed |
+| P13 learned fusion > fixed ½cos + ½FAC (MAP@R) | Δ +0.0055 [+0.0038, +0.0073] | confirmed |
+| P14 conformal selective top-1: test precision ≥ 0.95 | 0.9676 [0.9565, 0.9777], answered 988/5982 | confirmed |
+| P15 coverage with learned confidence > with embedding cosine | Δ +0.1652 [+0.1560, +0.1747] | confirmed |
 

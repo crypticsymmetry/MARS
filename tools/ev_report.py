@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Score the pre-registered predictions P1–P9 (docs/PREREGISTRATION.md) from the
-EV1/EV2/EV3 result files, and P10–P12 (addendum A) from results/E34/E34-test.json. Written and committed *before* any EV result was seen, so
+EV1/EV2/EV3 result files, P10–P12 (addendum A) from results/E34/E34-test.json and
+P13–P15 (addendum B) from results/E36/E36.json. Written and committed *before* any EV result was seen, so
 the operational criteria below are fixed in advance.
 
     python3 tools/ev_report.py [results/EV_PREDICTIONS.md]
@@ -138,6 +139,17 @@ def main():
         L.append(f"| P11 code embedding > MARS with py2pdg (MAP@R) | Δ {fmt(d11)} | {verdict_gt(d11)} |")
         L.append(f"| P12 embedding re-ranked by ½cos + ½FAC ≥ embedding (MAP@R) | Δ {fmt(d12)} | {verdict_ge(d12)} |")
         rec.update({"P10": verdict_gt(d10), "P11": verdict_gt(d11), "P12": verdict_ge(d12)})
+    if os.path.exists("results/E36/E36.json"):
+        # Addendum B: P13 "A > B"; P14 point estimate of test precision ≥ 0.95 (inconclusive if
+        # below but the CI includes 0.95); P15 "A > B" on paired answered indicators.
+        d = json.load(open("results/E36/E36.json"))
+        d13, p14, d15 = d["P13"], d["P14"], d["P15"]
+        pr = p14["precision"]
+        v14 = "confirmed" if pr[0] >= 0.95 else ("inconclusive" if pr[2] >= 0.95 else "not confirmed")
+        L.append(f"| P13 learned fusion > fixed ½cos + ½FAC (MAP@R) | Δ {fmt(d13)} | {verdict_gt(d13)} |")
+        L.append(f"| P14 conformal selective top-1: test precision ≥ 0.95 | {pr[0]:.4f} [{pr[1]:.4f}, {pr[2]:.4f}], answered {p14['answered']}/{p14['n']} | {v14} |")
+        L.append(f"| P15 coverage with learned confidence > with embedding cosine | Δ {fmt(d15)} | {verdict_gt(d15)} |")
+        rec.update({"P13": verdict_gt(d13), "P14": v14, "P15": verdict_gt(d15)})
     L.append("")
     open(out, "w").write("\n".join(L) + "\n")
     json.dump(rec, open(out.replace(".md", ".json"), "w"), indent=1)
