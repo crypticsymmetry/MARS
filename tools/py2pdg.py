@@ -36,7 +36,7 @@ import re
 NAMES = os.environ.get("PDG_NAMES", "1") == "1"
 # Context facts per value: "all" (d-ctx/d-guard on every value), "effects" (only on
 # effectful operations: output, stores, collection updates), "none".
-CTX = os.environ.get("PDG_CTX", "all")
+CTX = os.environ.get("PDG_CTX", "none")  # E34 dev: context facts did not help (0.361 none vs 0.360 effects)
 CSE = os.environ.get("PDG_CSE", "1") == "1"
 
 BINOPS = {ast.Add: "add", ast.Sub: "sub", ast.Mult: "mul", ast.Div: "div", ast.FloorDiv: "floordiv", ast.Mod: "mod", ast.Pow: "pow",

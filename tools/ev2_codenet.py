@@ -51,7 +51,7 @@ def prepare(work, n_problems, per, seed, frontend="mars", exclude_seed=0, same_a
     rng = random.Random(seed)
     problems = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)))
     if exclude_seed:  # E34 development sample: problems outside the sample drawn with exclude_seed (EV2's = 1)
-        held = set(random.Random(exclude_seed).sample(problems, n_problems))
+        held = set(random.Random(exclude_seed).sample(problems, 200))  # EV2 drew 200 problems
         problems = [p for p in problems if p not in held]
     names_used = set()
     chosen = sorted(rng.sample(problems, n_problems))
