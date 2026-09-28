@@ -124,8 +124,43 @@ pub fn run(args: &Args) -> Result<(), String> {
 
     let t0 = std::time::Instant::now();
     let gcfg = GenConfig { seed, n_groups: groups, naming, distractors, perturb_ops: ops, severity, ..Default::default() };
-    let ds = generate(&gcfg);
+    #[allow(unused_mut)]
+    let mut ds = generate(&gcfg);
     eprintln!("[e0] generated {} cases in {:.2?}", ds.items.len(), t0.elapsed());
+    // Upgrade 2: learned taxonomy for unresolved vocabularies (off unless --learn-taxonomy MIN_SIM > 0).
+    let lt = args.f64("learn-taxonomy", 0.0) as f32;
+    if lt > 0.0 {
+        let cases: Vec<mars_rel::CaseId> = (0..ds.kb.n_cases()).map(|c| mars_rel::CaseId(c as u32)).collect();
+        if args.usize("lt-diag", 0) == 1 {
+            // Diagnostic: how do true synonyms rank among all unresolved relations?
+            let rs = mars_map::RelSim::fit_with(&ds.kb, &cases, usize::MAX, 0.0, 1.0, true);
+            let canon = |p: mars_rel::Sym| ds.kb.interner.name(p).split_once(':').map(|(_, c)| c.to_string());
+            let (mut mrr, mut n, mut top1s) = (0.0, 0usize, Vec::new());
+            for (&p, ns) in &rs.neighbours {
+                let Some(cp) = canon(p) else { continue };
+                n += 1;
+                if let Some(r) = ns.iter().filter(|(q, _)| canon(*q).is_some()).position(|(q, _)| canon(*q).as_deref() == Some(cp.as_str())) {
+                    mrr += 1.0 / (r + 1) as f64;
+                }
+                top1s.push(ns.first().map_or(0.0, |x| x.1));
+            }
+            top1s.sort_by(|a, b| a.total_cmp(b));
+            eprintln!("[e0] synonym MRR among unresolved relations: {:.3} over {n}; median top-1 similarity {:.3}", mrr / n.max(1) as f64, top1s.get(top1s.len() / 2).copied().unwrap_or(0.0));
+        }
+        let tax = mars_map::learn_taxonomy(&mut ds.kb, &cases, lt, args.usize("lt-iters", 2));
+        // Diagnostic only: purity against the generator's hidden canonical names (`domain:canonical`).
+        let canon = |p: mars_rel::Sym| ds.kb.interner.name(p).split_once(':').map_or(String::new(), |(_, c)| c.to_string());
+        let (mut covered, mut majority) = (0usize, 0usize);
+        for (_, ms) in &tax.clusters {
+            let mut cnt: std::collections::HashMap<String, usize> = Default::default();
+            for &m in ms {
+                *cnt.entry(canon(m)).or_insert(0) += 1;
+            }
+            covered += ms.len();
+            majority += cnt.values().max().copied().unwrap_or(0);
+        }
+        eprintln!("[e0] learned taxonomy (min_sim {lt}): {} clusters over {covered} relations, purity {:.3} ({:.2?})", tax.clusters.len(), majority as f64 / covered.max(1) as f64, t0.elapsed());
+    }
 
     let base_cfg = FeatureConfig::default();
     let raw = extract_all(&ds, &base_cfg);

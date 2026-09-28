@@ -11,7 +11,7 @@
 use crate::Args;
 use mars_encode::{FeatureConfig, FeatureExtractor, FeatureStats, Features, Layout, Profile, Sketcher, N_CHANNELS};
 use mars_index::ModeK;
-use mars_map::{MapConfig, Mapper};
+use mars_map::{MapConfig, Mapper, RelSim};
 use mars_rel::{CaseId, Kb};
 use rayon::prelude::*;
 use serde_json::json;
@@ -47,7 +47,24 @@ pub fn run(args: &Args) -> Result<(), String> {
         index.push(f);
     }
     let scorer = index.scorer(&Profile::literal().weights);
-    let mapper = Mapper::new(&kb, MapConfig::default());
+    // Soft relation similarity (upgrade 2), fit on the memory itself; off unless --soft-k > 0.
+    let soft_k = args.usize("soft-k", 0);
+    let mut map_cfg = MapConfig::default();
+    if soft_k > 0 {
+        let rs = RelSim::fit(&kb, &cases, soft_k, args.f64("soft-min", 0.3) as f32, args.f64("soft-scale", 0.5) as f32);
+        let n_pairs: usize = rs.neighbours.values().map(|v| v.len()).sum();
+        eprintln!("[ev2] soft relation similarity: {} predicates, {n_pairs} neighbour pairs ({:.1?})", rs.neighbours.len(), t0.elapsed());
+        if args.usize("soft-dump", 0) == 1 {
+            let mut rows: Vec<_> = rs.neighbours.iter().collect();
+            rows.sort_by_key(|(p, _)| kb.interner.name(**p).to_string());
+            for (p, ns) in rows {
+                let list: Vec<String> = ns.iter().map(|(q, s)| format!("{} {:.2}", kb.interner.name(*q), s)).collect();
+                eprintln!("  {} -> {}", kb.interner.name(*p), list.join(", "));
+            }
+        }
+        map_cfg.soft = Some(std::sync::Arc::new(rs));
+    }
+    let mapper = Mapper::new(&kb, map_cfg);
     let self_s: Vec<f64> = cases.par_iter().map(|&c| mapper.score(c, c) as f64).collect();
     eprintln!("[ev2] {n} programs encoded ({:.1?})", t0.elapsed());
     let fac = |q: usize, c: usize| -> f64 {

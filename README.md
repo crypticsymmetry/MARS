@@ -80,6 +80,7 @@ These were planned in [docs/PREREGISTRATION.md](docs/PREREGISTRATION.md) before 
 | Applying rules induced from analogy directly | adds ~nothing: analogy already covers them | [E31](results/E31/README.md) |
 | Support-conditioned transfer reliability | no gain (fragments evidence); reverted | [E32](results/E32/README.md) |
 | Vocabulary alignment without anchors (structure or values alone) on real KGs | learns nothing | [E26](results/E26/README.md) |
+| Soft relation similarity learned from role contexts (soft matching, learned taxonomy) | no gain on code; a learned taxonomy on unresolved synonyms hurts (TA-top 0.55 → 0.08–0.13); off by default | [E35](results/E35/README.md) |
 
 ### Unknown or not yet tested
 

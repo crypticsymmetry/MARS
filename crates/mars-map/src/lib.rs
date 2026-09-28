@@ -2,8 +2,10 @@
 
 pub mod bitset;
 pub mod mapper;
+pub mod relsim;
 
 pub use bitset::BitSet;
+pub use relsim::{learn_taxonomy, LearnedTaxonomy, RelSim};
 pub use mapper::{predicate_idf, CandidateInference, Grounding, Kernel, MapConfig, Mapper, Mapping, MatchSet, Mh, Proj};
 
 #[cfg(test)]
@@ -138,5 +140,32 @@ mod tests {
         let m = mp.best(kb.case_by_name("b").unwrap(), kb.case_by_name("t").unwrap()).unwrap();
         // Only (causes a b) ↔ (causes x y) aligns; b's second fact projects with a skolem.
         assert!(m.inferences.iter().any(|i| i.has_skolem));
+    }
+
+    #[test]
+    fn relsim_finds_role_synonyms_and_soft_matching_uses_them() {
+        // `pulls` is used exactly like `attracts` (same roles under `cause`), `sings` is not.
+        let mut kb = Kb::new();
+        kb.load_str(
+            r#"(defcase a1 (cause (attracts s p) (orbits p s)))
+               (defcase a2 (cause (attracts n e) (orbits e n)))
+               (defcase b1 (cause (pulls m q) (orbits q m)))
+               (defcase b2 (cause (pulls x y) (orbits y x)))
+               (defcase c1 (sings u v) (likes v u))
+               (defcase c2 (sings g h) (likes h g))"#,
+        )
+        .unwrap();
+        let cases: Vec<_> = (0..kb.n_cases()).map(|i| mars_rel::CaseId(i as u32)).collect();
+        let rs = RelSim::fit(&kb, &cases, 3, 0.1, 1.0);
+        let sym = |s: &str| kb.interner.get(s).unwrap();
+        let top = rs.of(sym("attracts"));
+        assert_eq!(top.first().map(|x| x.0), Some(sym("pulls")), "{top:?}");
+        assert!(!top.iter().any(|x| x.0 == sym("sings")));
+        // Without soft matching, attracts/pulls do not align; with it they do.
+        let (b, t) = (kb.case_by_name("a1").unwrap(), kb.case_by_name("b1").unwrap());
+        let hard = Mapper::new(&kb, MapConfig::default()).best(b, t).unwrap();
+        let soft = Mapper::new(&kb, MapConfig { soft: Some(std::sync::Arc::new(rs)), ..Default::default() }).best(b, t).unwrap();
+        assert!(soft.score > hard.score, "soft {} vs hard {}", soft.score, hard.score);
+        assert!(ent_map(&kb, &soft).contains(&("s".into(), "m".into())));
     }
 }

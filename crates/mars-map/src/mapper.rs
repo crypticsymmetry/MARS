@@ -40,6 +40,9 @@ pub struct MapConfig {
     /// Re-representation: let *different* relations of the same arity match
     /// with this local score when their arguments align (None = off).
     pub wildcard: Option<f32>,
+    /// Soft relation similarity: learned neighbours of each predicate, matched
+    /// with their graded local score (see [`crate::relsim`]; None = off).
+    pub soft: Option<std::sync::Arc<crate::relsim::RelSim>>,
 }
 
 impl Default for MapConfig {
@@ -54,6 +57,7 @@ impl Default for MapConfig {
             max_mhs: 50_000,
             pred_weights: None,
             wildcard: None,
+            soft: None,
         }
     }
 }
@@ -333,6 +337,15 @@ impl<'a> Mapper<'a> {
             if let Some(ts) = by_fun.get(&f) {
                 for &te in ts {
                     b.try_pair(be, te, wf);
+                }
+            }
+            if let Some(soft) = &self.cfg.soft {
+                for &(g, sim) in soft.of(f) {
+                    if let Some(ts) = by_fun.get(&g) {
+                        for &te in ts {
+                            b.try_pair(be, te, sim * wf);
+                        }
+                    }
                 }
             }
             if let Some(ws) = self.cfg.wildcard {

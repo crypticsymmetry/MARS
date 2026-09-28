@@ -1,0 +1,45 @@
+{
+ "sample": "E34 development sample (seed 2, exclude-seed 1), py2pdg PDG_CTX=none; baseline without soft matching 0.3608",
+ "rows": [
+  {
+   "soft_k": 3,
+   "soft_scale": 0.3,
+   "soft_min": 0.3,
+   "map_at_r_fused": [
+    0.35891551871733174,
+    0.3522985690079783,
+    0.3653183060905529
+   ]
+  },
+  {
+   "soft_k": 3,
+   "soft_scale": 0.5,
+   "soft_min": 0.3,
+   "map_at_r_fused": [
+    0.3595063634666276,
+    0.35288870457798954,
+    0.36592745239709434
+   ]
+  },
+  {
+   "soft_k": 3,
+   "soft_scale": 0.8,
+   "soft_min": 0.3,
+   "map_at_r_fused": [
+    0.3599905166595799,
+    0.35340407421729936,
+    0.36641351110435466
+   ]
+  },
+  {
+   "soft_k": 5,
+   "soft_scale": 0.5,
+   "soft_min": 0.3,
+   "map_at_r_fused": [
+    0.35960530218600134,
+    0.35300937302593266,
+    0.3660304073342435
+   ]
+  }
+ ]
+}
