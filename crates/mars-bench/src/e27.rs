@@ -18,9 +18,16 @@
 //! Votes are summed over the top-m analogues, weighted by similarity.
 //! Neighbours: MARS fused (fingerprint top-k re-ranked by ½FAC + ½FP), fingerprint
 //! only, lexical TF-IDF over entity and predicate names, and random entities.
-//! Baselines: global popularity of the relation's objects; length-1 rules
-//! r'(x,y) ⇒ r(x,y) with leave-one-out confidence (the global counterpart of a
-//! substitution), alone and added to lexical nearest-neighbour votes.
+//! Baselines: global popularity of the relation's objects; mined rules with
+//! leave-one-out confidence (the global counterpart of a substitution), length 1
+//! r'(x,y) ⇒ r(x,y) and length ≤ 2 (adding r1(x,z) ∧ r2(z,y) ⇒ r(x,y)), alone and
+//! added to neighbour votes.
+//!
+//! E28 (relational depth) runs the same experiment on `kg2mars --hop2` cases,
+//! which also hold second-hop claims (the advisor's employer, the country of
+//! origin's official language). Only the root entity's own facts of the relation
+//! are held out, and the query keeps only facts still reachable from the root,
+//! so a removed object cannot survive as the subject of its own claims.
 //! Metrics: Hits@1, Hits@10 and MRR (first correct object), per relation;
 //! calibration of the top-1 by support (number of analogues voting for it).
 
@@ -74,6 +81,58 @@ fn score(r: &Ranked, gold: &FxHashSet<Sym>) -> [f64; 4] {
     }
 }
 
+#[derive(Default)]
+struct RuleCounts {
+    pair1: FxHashMap<(Sym, Sym), f64>,
+    body1: FxHashMap<Sym, f64>,
+    pair2: FxHashMap<(Sym, Sym, Sym), f64>,
+    body2: FxHashMap<(Sym, Sym), f64>,
+}
+
+impl RuleCounts {
+    fn add(&mut self, o: &RuleCounts, sign: f64) {
+        for (k, v) in &o.pair1 {
+            *self.pair1.entry(*k).or_insert(0.0) += sign * v;
+        }
+        for (k, v) in &o.body1 {
+            *self.body1.entry(*k).or_insert(0.0) += sign * v;
+        }
+        for (k, v) in &o.pair2 {
+            *self.pair2.entry(*k).or_insert(0.0) += sign * v;
+        }
+        for (k, v) in &o.body2 {
+            *self.body2.entry(*k).or_insert(0.0) += sign * v;
+        }
+    }
+}
+
+/// Two-step paths from `x` in case `c`: (r1, r2) → objects y with r1(x,z) ∧ r2(z,y), y ≠ x.
+fn paths(kb: &Kb, c: CaseId, x: Sym) -> FxHashMap<(Sym, Sym), FxHashSet<Sym>> {
+    let rel = |f: ExprId| -> Option<(Sym, Sym, Sym)> {
+        let e = kb.expr(f);
+        if kb.vocab.kind(e.functor) == PredKind::Attribute {
+            return None;
+        }
+        match (e.args.first(), e.args.get(1)) {
+            (Some(Term::Ent(s)), Some(Term::Ent(o))) => Some((e.functor, *s, *o)),
+            _ => None,
+        }
+    };
+    let facts: Vec<(Sym, Sym, Sym)> = kb.case(c).facts.iter().filter_map(|&f| rel(f)).collect();
+    let mut out: FxHashMap<(Sym, Sym), FxHashSet<Sym>> = FxHashMap::default();
+    for &(a, s, z) in &facts {
+        if s != x {
+            continue;
+        }
+        for &(b, s2, y) in &facts {
+            if s2 == z && y != x {
+                out.entry((a, b)).or_default().insert(y);
+            }
+        }
+    }
+    out
+}
+
 pub fn run(args: &Args) -> Result<(), String> {
     let dir = args.str("data", "data/kg-scientists/C");
     let kg = args.str("kg", "wikidata");
@@ -99,15 +158,28 @@ pub fn run(args: &Args) -> Result<(), String> {
         Some(Term::Ent(o)) => Some(*o),
         _ => None,
     };
-    // Objects of relation r in case c.
-    let objects = |kb: &Kb, c: CaseId, r: Sym| -> Vec<Sym> { kb.case(c).facts.iter().filter(|&&f| kb.expr(f).functor == r).filter_map(|&f| obj(kb, f)).collect() };
+    // The case's root entity: the most frequent subject (with --hop2 cases also
+    // hold facts about the root's objects, e.g. the doctoral advisor's employer).
+    let root_of = |kb: &Kb, c: CaseId| -> Option<Sym> {
+        let mut cnt: FxHashMap<Sym, usize> = FxHashMap::default();
+        for &f in &kb.case(c).facts {
+            if let (false, Some(Term::Ent(x))) = (is_attr(kb, f), kb.expr(f).args.first()) {
+                *cnt.entry(*x).or_insert(0) += 1;
+            }
+        }
+        cnt.into_iter().max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0))).map(|x| x.0)
+    };
+    let roots: Vec<Sym> = mem.iter().map(|&c| root_of(&kb, c).unwrap_or(Sym(0))).collect();
+    let own = |kb: &Kb, f: ExprId, x: Sym| !is_attr(kb, f) && kb.expr(f).args.first() == Some(&Term::Ent(x));
+    // Objects of relation r of entity x in case c.
+    let objects = |kb: &Kb, c: CaseId, x: Sym, r: Sym| -> Vec<Sym> { kb.case(c).facts.iter().filter(|&&f| kb.expr(f).functor == r && own(kb, f, x)).filter_map(|&f| obj(kb, f)).collect() };
     // Global popularity per relation (tie-break and baseline).
     let pops: Vec<FxHashMap<Sym, f64>> = rels
         .iter()
         .map(|&r| {
             let mut p = FxHashMap::default();
-            for &c in &mem {
-                for o in objects(&kb, c, r) {
+            for (i, &c) in mem.iter().enumerate() {
+                for o in objects(&kb, c, roots[i], r) {
                     *p.entry(o).or_insert(0.0) += 1.0;
                 }
             }
@@ -115,40 +187,45 @@ pub fn run(args: &Args) -> Result<(), String> {
         })
         .collect();
 
-    // Length-1 rules r'(x,y) ⇒ r(x,y) (AMIE-style, same object): per-case counts,
-    // so each query's confidence is estimated leave-one-out.
-    let rule_counts = |kb: &Kb, c: CaseId| -> (FxHashMap<(Sym, Sym), f64>, FxHashMap<Sym, f64>) {
+    // Rules (AMIE-style), counted per case so each query's confidence is estimated
+    // leave-one-out: length 1, r'(x,y) ⇒ r(x,y); length 2, r1(x,z) ∧ r2(z,y) ⇒ r(x,y).
+    // Confidence = #(x,y) with body and head / #(x,y) with body.
+    let rule_counts = |kb: &Kb, c: CaseId, x: Sym| -> RuleCounts {
+        let mut rc = RuleCounts::default();
+        let mine: Vec<(Sym, Sym)> = kb.case(c).facts.iter().filter(|&&f| own(kb, f, x)).filter_map(|&f| Some((kb.expr(f).functor, obj(kb, f)?))).collect();
         let mut by_obj: FxHashMap<Sym, FxHashSet<Sym>> = FxHashMap::default();
-        for &f in &kb.case(c).facts {
-            if let (false, Some(o)) = (kb.vocab.kind(kb.expr(f).functor) == PredKind::Attribute, obj(kb, f)) {
-                by_obj.entry(o).or_default().insert(kb.expr(f).functor);
-            }
+        for &(a, y) in &mine {
+            by_obj.entry(y).or_default().insert(a);
         }
-        let (mut pair, mut body) = (FxHashMap::default(), FxHashMap::default());
         for ps in by_obj.values() {
             for &a in ps {
-                *body.entry(a).or_insert(0.0) += 1.0;
+                *rc.body1.entry(a).or_insert(0.0) += 1.0;
                 for &b in ps {
                     if a != b {
-                        *pair.entry((a, b)).or_insert(0.0) += 1.0;
+                        *rc.pair1.entry((a, b)).or_insert(0.0) += 1.0;
                     }
                 }
             }
         }
-        (pair, body)
+        for ((a, b), ys) in paths(kb, c, x) {
+            *rc.body2.entry((a, b)).or_insert(0.0) += ys.len() as f64;
+            for y in ys {
+                if let Some(heads) = by_obj.get(&y) {
+                    for &h in heads {
+                        *rc.pair2.entry((a, b, h)).or_insert(0.0) += 1.0;
+                    }
+                }
+            }
+        }
+        rc
     };
-    let per_case_rules: Vec<_> = mem.iter().map(|&c| rule_counts(&kb, c)).collect();
-    let (mut rule_pair, mut rule_body): (FxHashMap<(Sym, Sym), f64>, FxHashMap<Sym, f64>) = Default::default();
-    for (p, b) in &per_case_rules {
-        for (k2, v) in p {
-            *rule_pair.entry(*k2).or_insert(0.0) += v;
-        }
-        for (k2, v) in b {
-            *rule_body.entry(*k2).or_insert(0.0) += v;
-        }
+    let per_case_rules: Vec<RuleCounts> = mem.iter().enumerate().map(|(i, &c)| rule_counts(&kb, c, roots[i])).collect();
+    let mut all_rules = RuleCounts::default();
+    for rc in &per_case_rules {
+        all_rules.add(rc, 1.0);
     }
 
-    // Queries: entities with the relation and at least 3 other relation facts.
+    // Queries: entities with the relation and at least 3 other facts of their own.
     let mut queries: Vec<Query> = Vec::new();
     for (ri, &r) in rels.iter().enumerate() {
         let mut idx: Vec<usize> = (0..n).collect();
@@ -158,16 +235,34 @@ pub fn run(args: &Args) -> Result<(), String> {
             if taken == per_rel {
                 break;
             }
-            let c = mem[i];
+            let (c, person) = (mem[i], roots[i]);
             let facts = kb.case(c).facts.clone();
-            let gold: FxHashSet<Sym> = objects(&kb, c, r).into_iter().collect();
-            let kept_rel: Vec<ExprId> = facts.iter().copied().filter(|&f| !is_attr(&kb, f) && kb.expr(f).functor != r).collect();
-            if gold.is_empty() || kept_rel.len() < 3 {
+            let gold: FxHashSet<Sym> = objects(&kb, c, person, r).into_iter().collect();
+            let held = |f: ExprId| kb.expr(f).functor == r && own(&kb, f, person);
+            let kept_own = facts.iter().filter(|&&f| own(&kb, f, person) && !held(f)).count();
+            if gold.is_empty() || kept_own < 3 {
                 continue;
             }
-            let Some(Term::Ent(person)) = kb.expr(kept_rel[0]).args.first().copied() else { continue };
-            let live: FxHashSet<Sym> = kept_rel.iter().filter_map(|&f| obj(&kb, f)).collect();
-            let kept: Vec<ExprId> = facts.iter().copied().filter(|&f| !is_attr(&kb, f) && kb.expr(f).functor != r || is_attr(&kb, f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(e)) if live.contains(e))).collect();
+            // Keep only relation facts still reachable from the root without the held
+            // facts: a held object must not survive as the subject of its own
+            // second-hop claims (e.g. the removed alma mater's country).
+            let mut reach: FxHashSet<Sym> = FxHashSet::from_iter([person]);
+            loop {
+                let before = reach.len();
+                for &f in &facts {
+                    if let (false, false, Some(Term::Ent(x)), Some(y)) = (is_attr(&kb, f), held(f), kb.expr(f).args.first(), obj(&kb, f)) {
+                        if reach.contains(x) {
+                            reach.insert(y);
+                        }
+                    }
+                }
+                if reach.len() == before {
+                    break;
+                }
+            }
+            let kept_rel: Vec<ExprId> = facts.iter().copied().filter(|&f| !is_attr(&kb, f) && !held(f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(x)) if reach.contains(x))).collect();
+            let live: FxHashSet<Sym> = kept_rel.iter().flat_map(|&f| kb.expr(f).args.iter().filter_map(|a| if let Term::Ent(e) = a { Some(*e) } else { None }).collect::<Vec<_>>()).collect();
+            let kept: Vec<ExprId> = kept_rel.iter().copied().chain(facts.iter().copied().filter(|&f| is_attr(&kb, f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(e)) if live.contains(e)))).collect();
             let name = format!("q{}-{}", queries.len(), kb.name(kb.case(c).name));
             let q = kb.add_case(&name, CaseKind::Query, kept);
             queries.push(Query { case: q, orig: i, rel: ri, person, gold });
@@ -213,6 +308,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         ana_lex: Vec<Vec<Vote>>,   // lexical analogues: analogy votes
         ana_hyb: Vec<Vec<Vote>>,   // hybrid analogues: analogy votes
         rules: Vec<Vote>,          // length-1 rule predictions (confidence as weight)
+        rules2: Vec<Vote>,         // length ≤ 2 rule predictions
     }
     let res: Vec<Res> = queries
         .par_iter()
@@ -253,7 +349,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             let mut hybrid: Vec<(usize, f64)> = rrf.into_iter().collect();
             hybrid.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
             let sets = [&fused, &by_fp, &lexs, &rand, &hybrid];
-            let copy = sets.iter().map(|s| s.iter().take(m_max).map(|&(c, w)| objects(&kb, mem[c], r).into_iter().map(|o| (o, w.max(1e-3), false)).collect()).collect()).collect();
+            let copy = sets.iter().map(|s| s.iter().take(m_max).map(|&(c, w)| objects(&kb, mem[c], roots[c], r).into_iter().map(|o| (o, w.max(1e-3), false)).collect()).collect()).collect();
             let analogy = |list: &Vec<(usize, f64)>| -> Vec<Vec<Vote>> {
                 list.iter()
                     .take(m_max)
@@ -261,7 +357,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                         let Some(m) = mapper.best(mem[c], q.case) else { return Vec::new() };
                         m.inferences
                             .iter()
-                            .filter(|i| kb.expr(i.base_fact).functor == r)
+                            .filter(|i| kb.expr(i.base_fact).functor == r && kb.expr(i.base_fact).args.first() == Some(&Term::Ent(roots[c])))
                             .filter_map(|i| match &i.projected {
                                 Proj::Expr { args, .. } if args.len() == 2 && args[0] == Proj::Target(Term::Ent(q.person)) => match args[1] {
                                     Proj::Target(Term::Ent(y)) => Some((y, w.max(1e-3), true)),
@@ -274,24 +370,38 @@ pub fn run(args: &Args) -> Result<(), String> {
                     })
                     .collect()
             };
-            // Rules: each query object y of r' proposes r(x,y) with conf(r' ⇒ r), leave-one-out.
-            let (own_pair, own_body) = &per_case_rules[q.orig];
-            let mut best: FxHashMap<Sym, f64> = FxHashMap::default();
+            // Rules, leave-one-out: each query object y of r' proposes r(x,y) with
+            // conf(r' ⇒ r); each 2-path r1(x,z) ∧ r2(z,y) with conf(r1·r2 ⇒ r).
+            let mut loo = RuleCounts::default();
+            loo.add(&all_rules, 1.0);
+            loo.add(&per_case_rules[q.orig], -1.0);
+            let conf = |num: Option<&f64>, den: Option<&f64>| match (num.copied().unwrap_or(0.0), den.copied().unwrap_or(0.0)) {
+                (a, b) if a > 0.0 && b > 0.0 => Some(a / b),
+                _ => None,
+            };
+            let mut best1: FxHashMap<Sym, f64> = FxHashMap::default();
             for &f in &kb.case(q.case).facts {
-                let rp = kb.expr(f).functor;
-                if kb.vocab.kind(rp) == PredKind::Attribute {
+                if !own(&kb, f, q.person) {
                     continue;
                 }
-                let Some(y) = obj(&kb, f) else { continue };
-                let num = rule_pair.get(&(rp, r)).copied().unwrap_or(0.0) - own_pair.get(&(rp, r)).copied().unwrap_or(0.0);
-                let den = rule_body.get(&rp).copied().unwrap_or(0.0) - own_body.get(&rp).copied().unwrap_or(0.0);
-                if num > 0.0 && den > 0.0 {
-                    let e = best.entry(y).or_insert(0.0);
-                    *e = e.max(num / den);
+                let (rp, Some(y)) = (kb.expr(f).functor, obj(&kb, f)) else { continue };
+                if let Some(cf) = conf(loo.pair1.get(&(rp, r)), loo.body1.get(&rp)) {
+                    let e = best1.entry(y).or_insert(0.0);
+                    *e = e.max(cf);
                 }
             }
-            let rules = best.into_iter().map(|(y, c)| (y, c, true)).collect();
-            Res { copy, ana: analogy(&fused), ana_lex: analogy(&lexs), ana_hyb: analogy(&hybrid), rules }
+            let mut best2 = best1.clone();
+            for ((a, b), ys) in paths(&kb, q.case, q.person) {
+                if let Some(cf) = conf(loo.pair2.get(&(a, b, r)), loo.body2.get(&(a, b))) {
+                    for y in ys {
+                        let e = best2.entry(y).or_insert(0.0);
+                        *e = e.max(cf);
+                    }
+                }
+            }
+            let rules = best1.into_iter().map(|(y, c)| (y, c, true)).collect();
+            let rules2 = best2.into_iter().map(|(y, c)| (y, c, true)).collect();
+            Res { copy, ana: analogy(&fused), ana_lex: analogy(&lexs), ana_hyb: analogy(&hybrid), rules, rules2 }
         })
         .collect();
     eprintln!("[e27] mapped ({:.1?})", t0.elapsed());
@@ -317,6 +427,9 @@ pub fn run(args: &Args) -> Result<(), String> {
         ("rules (length-1, same object)".into(), Box::new(|qi, r, _| rank(&r.rules, &pops[queries[qi].rel]))),
         ("rules + copy · lexical (vote share + confidence)".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.copy[2], m), &r.rules), &pops[queries[qi].rel]))),
         ("rules + analogy · hybrid".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.ana_hyb, m), &r.rules), &pops[queries[qi].rel]))),
+        ("rules ≤ 2 (length-1 and 2-path)".into(), Box::new(|qi, r, _| rank(&r.rules2, &pops[queries[qi].rel]))),
+        ("rules ≤ 2 + copy · lexical".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.copy[2], m), &r.rules2), &pops[queries[qi].rel]))),
+        ("rules ≤ 2 + analogy · hybrid".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.ana_hyb, m), &r.rules2), &pops[queries[qi].rel]))),
     ];
     let rel_names: Vec<String> = rels.iter().map(|&r| kb.name(r).to_string()).collect();
     let mut md = String::new();

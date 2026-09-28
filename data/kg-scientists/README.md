@@ -10,3 +10,5 @@ The file layout is the same as `data/kg-films`, and `films.json` keeps its name,
 - `wd_prop_labels.json`: English labels of every Wikidata property in the sample and in gold (`tools/wd_prop_labels.py`).
 
 DBpedia content is CC BY-SA; Wikidata content is CC0.
+
+`wikidata_hop2.jsonl` (E28, fetched 2026-09-28): second-hop Wikidata claims of the sample's objects, from `tools/kg_hop2.py data/kg-scientists` (defaults: via P184 doctoral advisor, P19/P20 birth/death place, P69 educated at, P108 employer; properties P69, P108, P27, P101, P17).
