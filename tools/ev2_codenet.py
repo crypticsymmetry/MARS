@@ -158,7 +158,8 @@ def evaluate(work, out_dir):
     from fastembed import TextEmbedding
     avail = {m["model"] for m in TextEmbedding.list_supported_models()}
     model = "jinaai/jina-embeddings-v2-base-code" if "jinaai/jina-embeddings-v2-base-code" in avail else "BAAI/bge-small-en-v1.5"
-    E = np.array(list(TextEmbedding(model_name=model).embed([src[c][:8000] for c in cases], batch_size=32)))
+    # Inputs capped at 2,000 characters, batches of 4 (8,000 / 32 ran out of memory; deviation recorded in results/EV2).
+    E = np.array(list(TextEmbedding(model_name=model).embed([src[c][:2000] for c in cases], batch_size=4)))
     E /= np.linalg.norm(E, axis=1, keepdims=True)
     S = E @ E.T
     np.fill_diagonal(S, -np.inf)
