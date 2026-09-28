@@ -71,6 +71,8 @@ pub fn run(args: &Args) -> Result<(), String> {
                 let list: Vec<f64> = cj[nm].as_array().map(|a| a.iter().filter_map(|x| x.as_str().and_then(|s| pos.get(s)).map(|&c| fac(q, c))).collect()).unwrap_or_default();
                 (nm.clone(), json!(list))
             })
+            .collect::<Vec<_>>()
+            .into_iter()
             .collect();
         std::fs::write(format!("{dir}/fac_cands.json"), serde_json::to_string(&out).unwrap()).map_err(|e| e.to_string())?;
         eprintln!("[ev2] FAC for supplied candidates done ({:.1?})", t0.elapsed());
