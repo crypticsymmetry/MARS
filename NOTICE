@@ -1,0 +1,17 @@
+MARS
+Copyright 2026 The MARS contributors
+Licensed under either of the Apache License, Version 2.0 (LICENSE-APACHE) or the
+MIT license (LICENSE-MIT), at your option.
+
+Third-party data versioned in this repository (not covered by the above licences):
+
+* data/kg-films/, data/kg-scientists/: samples of DBpedia (https://www.dbpedia.org,
+  CC BY-SA 3.0) and Wikidata (https://www.wikidata.org, CC0 1.0), fetched 2026-09-27/28
+  with tools/kg_fetch.py and tools/kg_hop2.py. The DBpedia-derived files remain under
+  CC BY-SA 3.0.
+* data/storyanalogy/: questions from StoryAnalogy (Jiayang et al., EMNLP 2023;
+  https://github.com/loginaway/StoryAnalogy, MIT licence) and LLM-generated relational
+  conversions of its stories (tools/llm2mars.py).
+
+Corpora fetched by tools/fetch_e9_corpus.sh (PyPI and npm packages) are downloaded into
+data/external/ and are not redistributed here (git-ignored).

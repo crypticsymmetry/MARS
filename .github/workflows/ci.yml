@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # mars-py's tests link against libpython (the extension-module feature is maturin-only).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Unit and property tests
+        run: cargo test --workspace -q
+      - name: Build release binaries
+        run: cargo build --release -p mars-bench -p mars-cli
+      - name: Smoke / regression checks (E0, E2, CLI)
+        run: python3 scripts/ci_smoke.py target/release
+      - name: Python bindings
+        run: |
+          pip install maturin
+          (cd crates/mars-py && maturin build --release -o dist)
+          pip install crates/mars-py/dist/*.whl
+          python3 crates/mars-py/python/tests/test_mars.py

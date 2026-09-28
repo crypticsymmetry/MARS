@@ -74,7 +74,7 @@ MARS is a continuously learning analogical memory for commodity hardware. Compac
 
 ### 1.2 The research question
 
-> **Can a cheap binary associative front end keep the right structural analogues in a small candidate set, reliably enough that exact analogical reasoning becomes practical over millions of continually changing relational memories on one workstation?**
+> **Can a cheap binary associative front end keep the right structural analogues in a small candidate set, reliably enough that explicit analogical reasoning becomes practical over millions of continually changing relational memories on one workstation?**
 
 The project is built to answer this question quickly and falsifiably, in stages. Each stage has a gate (§15). If a stage fails, we learn which link broke instead of ending up with a large, uninterpretable "cognitive architecture" demo.
 
@@ -119,7 +119,7 @@ What we have not found built, and what this project contributes:
 
 ## 3. Design principles
 
-1. **Approximate proposes, exact disposes.** Fingerprints and SDM only choose *what to look at*. Every analogy that leaves the system has passed explicit structure mapping.
+1. **Approximate proposes, explicit mapping disposes.** Fingerprints only choose *what to look at*. Every analogy that leaves the system has passed explicit structure mapping. The mapper is an SME-class greedy matcher, so "explicit" means correspondences, constraint checks and candidate inferences, not a guaranteed global optimum. Greedy matched exhaustive search on every small case in E2.
 2. **Every approximate component must beat an exact or classical baseline** on the same features, or it gets removed. SDM in particular has to earn its place against plain Hamming k-NN.
 3. **No derived object without provenance.** Retrievals, mappings, inferences and schemas all carry justifications and version stamps.
 4. **Work proportional to change.** A single-fact update should cost roughly the same at 10⁴ and 10⁷ cases.

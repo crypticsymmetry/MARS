@@ -13,37 +13,63 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 ```text
  new situation ─▶ relational case ─▶ structural fingerprint ─▶ top-k candidates (cheap)
                                                                     │
-                     provenance-tracked inferences ◀── structure mapping (exact)
+                     provenance-tracked inferences ◀── structure mapping (explicit)
                                    │
                   dependency graph + truth maintenance ─▶ persistent memory ─▶ consolidation
 ```
 
 ## The research question
 
-> Can a cheap binary associative front end keep the right structural analogues in a small candidate set, reliably enough that exact analogical reasoning becomes practical over millions of continually changing relational memories on one workstation?
+> Can a cheap binary associative front end keep the right structural analogues in a small candidate set, reliably enough that explicit analogical reasoning (structure mapping with correspondences, constraint checks and candidate inferences) becomes practical over millions of continually changing relational memories on one workstation?
 
 ## Status
 
-**Working research prototype** (Rust workspace, 11 crates incl. Python bindings; 33 experiments, all reproducible from versioned data). Current results:
+**Working research prototype**: a Rust workspace of 11 crates, including Python bindings, and 33 experiments reproducible from versioned data. The evidence is summarized below by how well each claim holds, failures included. Details are in each `results/E*/README.md`.
 
-| hypothesis | result | evidence |
+### Works (strong evidence, mostly on controlled synthetic data)
+
+| claim | result | evidence |
 |---|---|---|
-| H0 structural fingerprints separate true analogues from look-alikes | ✅ ≥ 0.995 (MAC content vectors / lexical: 0.000) | [E0](results/E0/README.md) |
-| H1 retrieval keeps the true analogue in the top-k | ✅ 100% in top-64 at 10⁶ cases | [E3](results/E3/README.md) |
-| H2 cheap MAC + exact FAC matches exhaustive mapping | ✅ same accuracy at ~1/1100 of the cost (12 ms vs 14 s per query at 10⁶) | [E3](results/E3/README.md) |
-| H3 updates cost ∝ change, not memory size | ✅ ~300 µs per update from 10⁴ to 10⁶ cases, exact vs recompute, 21,000× cheaper | [E6](results/E6/README.md) |
-| H4 generalized schemas help | ✅ as a *complement*: few-shot inference +41% (E7); schemas added alongside instances are best at 10³–10⁴ cases, while schema-only memory degrades at scale (fixed assimilation threshold) | [E7](results/E7/README.md), [E15](results/E15/README.md) |
-| H5 structure beats surface on adversarial / real data | ✅ synthetic; partial on real code (MRR 0.33 vs 0.15 lexical) | [E4](results/E4/README.md), [E9](results/E9/README.md) |
-| Works on natural language via an LLM front end | ✅ partial: on StoryAnalogy, MARS resists same-topic look-alikes that fool text similarity (0.51 vs 0.13–0.18, chance 0.25) but an LLM judging 4 candidates directly is better (0.79); abstraction-first prompting and ensembles lift MARS to 0.59–0.61; at scale, fusing MARS with pattern embeddings and lexical retrieval nearly doubles recall | [E23](results/E23/README.md), [E24](results/E24/README.md), [E25](results/E25/README.md) |
-| Candidate inference works on real data | ✅ on knowledge graphs, partial on code. Wikidata completion (5,400 held-out relations): projecting through the mapping beats copying from the same analogues, and the gain grows with relational depth (+0.03 → +0.08 Hits@1 on scientists); at 2 hops, analogy without rule mining matches mined length-≤2 rules + kNN. On real code, analogues restore deleted statements ~10× above chance, but exact restoration is rare (7.6%) | [E27](results/E27/README.md), [E28](results/E28/README.md), [E17](results/E17/README.md) |
-| KG completion: which part MARS solves | ✅ relational inference (answer already linked in the query, 29–39% of queries): Hits@1 0.71–0.77, 0.75–0.84 with learned reliability; new-value prediction (61–71%) is recommendation-like (0.10–0.27) and needs better instance retrieval, not rules; rules induced from analogy add little when applied directly (analogy already covers them). An entity-overlap identity channel fused into retrieval lifts scientists 0.409 → 0.445 (films: small) | [E31](results/E31/README.md), [E32](results/E32/README.md) |
-| Works as an agent's episodic memory (end to end, Python API) | ✅ incident response (synthetic, 40 mechanisms): picks remedy + target 0.995 / 0.76 at noise 0 / 2 (recall by names 0.48 / 0.32), inferring unobserved root causes; an LLM agent (GLM-5.3-Flash) does 0.66 with MARS-retrieved memories vs 0.35 with name-recalled ones, and MARS alone 0.78 | [E33](results/E33/README.md) |
-| The memory learns which analogical transfers to trust | ✅ inferences are typed by how they relate to the query; feedback learns each type's precision (online, persisted). +0.008 / +0.015 Hits@1 on a query stream, and the learned types read as rules induced from analogy ("studied where the doctoral advisor worked", "film's country = director's citizenship") | [E29](results/E29/README.md), [E30](results/E30/README.md) |
-| MARS knows when no analogue exists (open-set abstention) | ✅ local-null significance keeps precision 0.90–0.95 from 10³ to 10⁶ cases with one fixed threshold (raw scores: 0.90 → 0.44) | [E16](results/E16/README.md) |
-| Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
-| Analogy can learn its own vocabulary alignment (re-representation) | ✅ synthetic: precision 1.000, retrieval 0.15 → 0.99. Real KGs (DBpedia ↔ Wikidata), two domains: 14 of 16 learned property pairs correct by label on films, and none of 15 wrong on scientists, given entity-label anchors. Partial on real code: frequent py↔js calls learned (len↔length, append↔push), long tail missed; alignment barely matters there because anonymous shapes already match | [E13](results/E13/README.md), [E14](results/E14/README.md), [E26](results/E26/README.md) |
-| Near-misses teach what matters | ✅ soft per-fact emphasis from 1–2 near-misses beats nearest-neighbour classification (+0.04–0.09 balanced accuracy); hard must-have rules fail under noise | [E20](results/E20/README.md) |
-| H6 SDM adds value over plain k-NN | ❌ dropped from the core (k-means buckets = IVF kept) | [E5](results/E5/README.md) |
+| Structural fingerprints separate true analogues from look-alikes | TA-top ≥ 0.995; MAC content vectors and lexical: 0.000 | [E0](results/E0/README.md) |
+| Retrieval keeps the true analogue in a small candidate set at scale | 100% in the top-64 at 10⁶ cases | [E3](results/E3/README.md) |
+| Cheap retrieval + explicit mapping ≈ mapping everything | same accuracy at ~1/1100 of the cost (12 ms vs 14 s per query at 10⁶) | [E3](results/E3/README.md) |
+| The mapper finds correct correspondences | entity correspondences P ≈ 1.0, R ≈ 0.99; greedy = exhaustive optimum on all small cases tested (not guaranteed in general) | [E2](results/E2/README.md) |
+| Updates cost ∝ change, not memory size | ~300 µs per update from 10⁴ to 10⁶ cases; identical to recomputation (0 mismatches / 1,150 checks); cost grows with the number of standing queries | [E6](results/E6/README.md) |
+| Open-set abstention: MARS can say "no analogue" | local-null significance keeps precision 0.90–0.95 from 10³ to 10⁶ cases with one threshold (raw score thresholds: 0.90 → 0.44) | [E16](results/E16/README.md) |
+| Corroboration across analogues is a calibrated confidence | precision 0.07 → 0.86 as support goes 1 → 5 (synthetic); 0.07 → 0.66–0.73 on Wikidata | [E11](results/E11/README.md), [E27](results/E27/README.md) |
+| Provenance and retraction | every inference is justified by its mapping and base facts in a JTMS; retracting a fact withdraws exactly its dependants | [E6](results/E6/README.md) |
+
+### Works partially
+
+| claim | result | evidence |
+|---|---|---|
+| Structure beats surface on real code | cross-author algorithm retrieval MRR 0.33 vs lexical 0.15 (33 queries); cross-language 0.17 vs 0.09 (52 queries). Different *strategies* for the same algorithm are not found: the representation is too syntactic | [E9](results/E9/README.md), [E12](results/E12/README.md) |
+| Candidate inference on real data | KGs: projecting through the mapping beats copying from the same analogues, more so with relational depth (E27, E28). It works where the answer is already linked in the query (Hits@1 0.71–0.84, 29–39% of queries); "new value" prediction is recommendation-like (0.10–0.32). Code: ~10× chance, but exact restoration is rare (7.6%) | [E27](results/E27/README.md), [E28](results/E28/README.md), [E31](results/E31/README.md), [E17](results/E17/README.md) |
+| Learning which transfers to trust | feedback learns per-transfer-type precision online (persisted): +0.008 / +0.015 Hits@1; the learned types read as rules ("studied where the doctoral advisor worked") | [E29](results/E29/README.md), [E30](results/E30/README.md) |
+| Vocabulary alignment by analogy | synthetic: precision 1.000. DBpedia ↔ Wikidata: 14/16 (films) and 15/15 (scientists) property pairs plausible, *given* entity-label anchors. On real code only frequent pairs are learned | [E13](results/E13/README.md), [E26](results/E26/README.md), [E14](results/E14/README.md) |
+| Schemas (SAGE) | help as a *complement* to instances (few-shot inference +41%); schema-only memory degrades at scale | [E7](results/E7/README.md), [E15](results/E15/README.md) |
+| Natural language via an LLM front end | resists same-topic look-alikes (0.51 vs 0.13–0.18, chance 0.25), but an LLM judging directly is better (0.79). The LLM front end is the bottleneck; abstraction-first prompting and ensembles help (0.59–0.61) | [E23](results/E23/README.md)–[E25](results/E25/README.md) |
+| Agent episodic memory | synthetic incident response (task designed to be structural): remedy + target 0.995 / 0.76 at noise 0 / 2 vs recall by names 0.48 / 0.32. An LLM agent does 0.66 with MARS-retrieved memories vs 0.35 with name-recalled ones (small model, 150 incidents, one seed) | [E33](results/E33/README.md) |
+| Near-misses | soft per-fact emphasis from 1–2 near-misses beats 1-NN (+0.04–0.09); hard rules fail under noise | [E20](results/E20/README.md) |
+| Identity (entity-overlap) channel | helps where instances share entities (Wikidata scientists 0.409 → 0.445), not elsewhere (films; incidents: hurts) | [E32](results/E32/README.md), [E33](results/E33/README.md) |
+
+### Failed or dropped
+
+| idea | outcome | evidence |
+|---|---|---|
+| Sparse Distributed Memory in the core (random addresses, autoassociative cleanup) | poor retrieval geometry, destructive under load; prototypes ≈ k-NN bundling. Dropped; learned-address buckets kept, and they are IVF | [E5](results/E5/README.md) |
+| Local syntactic canonicalization of code | did not make different algorithm strategies match | [E9](results/E9/README.md), [E18](results/E18/README.md) |
+| Schema-only memory; schema hierarchies (level-2 SAGE); schema membership scores | degrade at scale / identifiability limit | [E15](results/E15/README.md), [E21](results/E21/README.md), [E22](results/E22/README.md) |
+| Fusing representation views at score level | no gain over the best single view | [E19](results/E19/README.md) |
+| Applying rules induced from analogy directly | adds ~nothing: analogy already covers them | [E31](results/E31/README.md) |
+| Support-conditioned transfer reliability | no gain (fragments evidence); reverted | [E32](results/E32/README.md) |
+| Vocabulary alignment without anchors (structure or values alone) on real KGs | learns nothing | [E26](results/E26/README.md) |
+
+### Unknown or not yet tested
+
+- **Independent evaluation.** Every benchmark, baseline and setting so far was built in the same loop as the method. Some baselines are weak: no KG-embedding baselines for E27–E32, no embedding-RAG baseline for E33, and the planned SMTB comparison was never run. Some weights (e.g. E32's identity weight) were chosen on the data they are reported on. Next: a frozen v0.1, pre-registered evaluations on external benchmarks, and bootstrap confidence intervals for every headline comparison.
+- **Representation.** How to produce relational representations at the level where analogies live (algorithmic roles rather than syntax, abstract causal patterns rather than story text). This is the main open research problem.
+- **Scale of standing queries** (10⁵+), real incident data, and non-English or multimodal inputs.
 
 The mapper is validated in [E2](results/E2/README.md), and memory-bandwidth measurements are in [results/bw](results/bw/). Progress, decisions and the task board are in [docs/PROGRESS.md](docs/PROGRESS.md).
 
@@ -112,7 +138,7 @@ On raw natural language, MARS needs an LLM front end and is best used as a short
 
 ## Key design decisions (short version)
 
-1. **Approximate proposes, exact disposes.** Vectors only choose what to inspect. Every reported analogy passes explicit structure mapping.
+1. **Approximate proposes, explicit mapping disposes.** Vectors only choose what to inspect. Every reported analogy passes explicit structure mapping (an SME-class greedy matcher: explicit correspondences, constraint checks, a mapping score and candidate inferences; greedy matched the exhaustive optimum on every small case tested, but optimality is not guaranteed).
 2. **Entity-anonymous, multi-channel fingerprints.** A bundled binary fingerprint is a SimHash of a structural feature histogram, so the research content is the *feature map*.
 3. **Exact batched Hamming k-NN is the baseline.** SDM has to earn its place (cleanup, prototypes, continual learning, 10⁷+ scale) behind an explicit keep/drop gate.
 4. **Build on SME / MAC/FAC / SAGE**, and compare with SMTB (2026), rather than reinvent them.
