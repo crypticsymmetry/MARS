@@ -1,0 +1,182 @@
+{
+  "config": {
+    "data": "data/kg-films → kg2mars --condition C --hop2",
+    "fac_weight": 0.5,
+    "feedback_top": 3,
+    "k": 10,
+    "kg": "wikidata",
+    "mac_k": 50,
+    "memory": 992,
+    "per_rel": 300,
+    "profile": "surface",
+    "queries": 3000,
+    "relations": [
+      "wdt:p57",
+      "wdt:p161",
+      "wdt:p58",
+      "wdt:p162",
+      "wdt:p86",
+      "wdt:p344",
+      "wdt:p136",
+      "wdt:p495",
+      "wdt:p364",
+      "wdt:p272"
+    ],
+    "seed": 1
+  },
+  "curve": [
+    {
+      "learned": 0.392,
+      "raw": 0.376,
+      "segment": 1
+    },
+    {
+      "learned": 0.36533333333333334,
+      "raw": 0.3546666666666667,
+      "segment": 2
+    },
+    {
+      "learned": 0.36533333333333334,
+      "raw": 0.352,
+      "segment": 3
+    },
+    {
+      "learned": 0.3893333333333333,
+      "raw": 0.37333333333333335,
+      "segment": 4
+    },
+    {
+      "learned": 0.3893333333333333,
+      "raw": 0.37333333333333335,
+      "segment": 5
+    },
+    {
+      "learned": 0.36533333333333334,
+      "raw": 0.35733333333333334,
+      "segment": 6
+    },
+    {
+      "learned": 0.368,
+      "raw": 0.34933333333333333,
+      "segment": 7
+    },
+    {
+      "learned": 0.3626666666666667,
+      "raw": 0.3466666666666667,
+      "segment": 8
+    }
+  ],
+  "feedback_events": 7897,
+  "induced_rules": [
+    {
+      "outcomes": 145.0,
+      "precision": 1.0,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p364(x, z) ∧ wdt:p37(y, z)"
+    },
+    {
+      "outcomes": 71.0,
+      "precision": 0.9577464788732394,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p272(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 43.0,
+      "precision": 0.9302325581395349,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p161(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 284.0,
+      "precision": 0.926056338028169,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p57(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 147.0,
+      "precision": 0.9251700680272109,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p162(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 206.0,
+      "precision": 0.9174757281553398,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p58(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 46.0,
+      "precision": 0.9130434782608695,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p750(x, z) ∧ wdt:p495(z, y)"
+    },
+    {
+      "outcomes": 22.0,
+      "precision": 0.9090909090909091,
+      "rule": "wdt:p86(x, y) ⇐ wdt:p175(x, y)"
+    },
+    {
+      "outcomes": 152.0,
+      "precision": 0.9013157894736842,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p86(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 83.0,
+      "precision": 0.891566265060241,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p750(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 236.0,
+      "precision": 0.8432203389830508,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p57(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 125.0,
+      "precision": 0.84,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p162(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 43.0,
+      "precision": 0.8372093023255814,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p161(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 129.0,
+      "precision": 0.8217054263565892,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p86(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 168.0,
+      "precision": 0.8214285714285714,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p58(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 21.0,
+      "precision": 0.7142857142857143,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p840(x, z) ∧ wdt:p37(z, y)"
+    },
+    {
+      "outcomes": 238.0,
+      "precision": 0.6260504201680672,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p495(x, z) ∧ wdt:p37(z, y)"
+    },
+    {
+      "outcomes": 33.0,
+      "precision": 0.5757575757575758,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p840(x, y)"
+    },
+    {
+      "outcomes": 296.0,
+      "precision": 0.5709459459459459,
+      "rule": "wdt:p58(x, y) ⇐ wdt:p57(x, y)"
+    },
+    {
+      "outcomes": 173.0,
+      "precision": 0.5144508670520231,
+      "rule": "wdt:p272(x, y) ⇐ wdt:p495(x, z) ∧ wdt:p17(y, z)"
+    }
+  ],
+  "learned": {
+    "hits1": 0.37466666666666665,
+    "hits10": 0.4876666666666667,
+    "mrr": 0.4180126429413807
+  },
+  "raw": {
+    "hits1": 0.36033333333333334,
+    "hits10": 0.48633333333333334,
+    "mrr": 0.40806727431898676
+  }
+}

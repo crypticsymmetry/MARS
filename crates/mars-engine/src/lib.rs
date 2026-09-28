@@ -20,14 +20,22 @@
 //!   base fact withdraws exactly the dependent inferences, before any
 //!   re-mapping happens.
 //! * [`Work`] counts the units of work each update causes (E6).
+//! * **Transfer reliability** ([`transfer`], E29/E30): every candidate
+//!   inference is typed by how it relates to the query (e.g. the relation path
+//!   linking its arguments); feedback on inferences ([`Engine::feedback`])
+//!   learns the precision of each type, which weights inferences
+//!   ([`Engine::infer`], [`Engine::ranked_inferences`]) and reads as rules
+//!   induced from analogy ([`Engine::induced_rules`]).
 
 pub mod sage;
 mod store;
+pub mod transfer;
 
 use mars_encode::{symbol_hashes, FeatureConfig, FeatureExtractor, FeatureStats, Features, Layout, Profile, Sketcher, N_CHANNELS};
 use mars_index::{ModeK, Scorer};
-use mars_map::{Grounding, MapConfig, Mapper};
-use mars_rel::{CaseId, CaseKind, ExprId, Kb};
+use mars_map::{Grounding, MapConfig, Mapper, Proj};
+use mars_rel::{CaseId, CaseKind, ExprId, Kb, Sym, Term};
+use transfer::{transfer_keys, TransferStats};
 use mars_tms::{Jtms, NodeId};
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
@@ -48,6 +56,10 @@ pub struct EngineConfig {
     pub infer_from: usize,
     /// Standing-query semantics.
     pub sq_mode: SqMode,
+    /// Also draw inferences whose only mapped parts are entity arguments
+    /// (first-order facts, e.g. knowledge-graph triples; E27–E30). Default:
+    /// structurally grounded inferences only (SME-style).
+    pub first_order_inferences: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -70,6 +82,7 @@ impl Default for EngineConfig {
             slack: 8,
             infer_from: 5,
             sq_mode: SqMode::Pipeline { mac_k: 64 },
+            first_order_inferences: false,
         }
     }
 }
@@ -111,6 +124,33 @@ pub struct StandingQuery {
     mapping_nodes: Vec<NodeId>,
 }
 
+/// An argument of an inferred fact.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InfArg {
+    /// An existing query entity.
+    Entity(Sym),
+    /// A hypothesized new entity, standing for this analogue entity.
+    New(Sym),
+    /// A sub-expression.
+    Expr,
+}
+
+/// A candidate inference with its corroboration and learned reliability.
+#[derive(Clone, Debug)]
+pub struct Inference {
+    pub text: String,
+    pub functor: Sym,
+    pub args: Vec<InfArg>,
+    /// Number of analogues proposing it.
+    pub support: usize,
+    /// Learned precision of its transfer type (the global prior before any feedback).
+    pub reliability: f64,
+    /// Ranking score: reliability × Σ fused score of the proposing analogues.
+    pub score: f64,
+    pub transfers: Vec<String>,
+    pub analogues: Vec<CaseId>,
+}
+
 impl StandingQuery {
     pub fn top(&self) -> &[(CaseId, f64)] {
         &self.ranked
@@ -136,6 +176,10 @@ pub struct Engine {
     inf_nodes: FxHashMap<(usize, String), NodeId>,
     /// Provenance: inference node → (analogue case, base facts).
     inf_prov: FxHashMap<NodeId, Vec<(CaseId, Vec<ExprId>, mars_tms::JustId)>>,
+    /// Learned transfer reliability (feedback outcomes per transfer type).
+    pub transfers: TransferStats,
+    /// (query case, inference text) → transfer types, for feedback.
+    inf_keys: FxHashMap<(CaseId, String), Vec<String>>,
     pub work: Work,
     events: Vec<Event>,
     log: Option<std::io::BufWriter<std::fs::File>>,
@@ -195,6 +239,8 @@ impl Engine {
             fact_nodes: FxHashMap::default(),
             inf_nodes: FxHashMap::default(),
             inf_prov: FxHashMap::default(),
+            transfers: TransferStats::default(),
+            inf_keys: FxHashMap::default(),
             work: Work::default(),
             events: Vec::new(),
             log: None,
@@ -591,22 +637,116 @@ impl Engine {
     /// per analogue. Returns (analogue, [(inference text, base facts)]).
     fn analogue_inferences(&self, q: CaseId, analogues: &[CaseId]) -> Vec<AnalogueInferences> {
         let m = Mapper::new(&self.kb, self.cfg.map.clone());
+        let first_order = self.cfg.first_order_inferences;
         analogues
-            .iter()
+            .par_iter()
             .map(|&a| {
                 let infs = m
                     .best(a, q)
                     .map(|mp| {
                         mp.inferences
                             .iter()
-                            .filter(|i| i.grounding == Grounding::Structural)
-                            .map(|i| (m.render_proj(&i.projected), vec![i.base_fact]))
+                            .filter(|i| i.grounding == Grounding::Structural || first_order)
+                            .map(|i| {
+                                let (functor, args) = match &i.projected {
+                                    Proj::Expr { functor, args } => (
+                                        *functor,
+                                        args.iter()
+                                            .map(|x| match x {
+                                                Proj::Target(Term::Ent(e)) => InfArg::Entity(*e),
+                                                Proj::Skolem(e) => InfArg::New(*e),
+                                                _ => InfArg::Expr,
+                                            })
+                                            .collect(),
+                                    ),
+                                    _ => (self.kb.expr(i.base_fact).functor, Vec::new()),
+                                };
+                                InfItem { text: m.render_proj(&i.projected), base_facts: vec![i.base_fact], keys: transfer_keys(&self.kb, q, &i.projected), functor, args }
+                            })
                             .collect()
                     })
                     .unwrap_or_default();
                 (a, infs)
             })
             .collect()
+    }
+
+    /// One-off analogical inference (not registered): candidate inferences
+    /// from the top-`k` analogues of `q` (excluding `exclude`), merged by
+    /// text, ranked by learned reliability × Σ fused score of the analogues
+    /// proposing each. Feed outcomes back with [`Engine::feedback`].
+    pub fn infer(&mut self, q: CaseId, k: usize, exclude: &[CaseId]) -> Vec<Inference> {
+        let hits: Vec<(CaseId, f64)> = self.query(q, k + exclude.len()).into_iter().filter(|x| !exclude.contains(&x.0)).take(k).collect();
+        let analogues: Vec<CaseId> = hits.iter().map(|x| x.0).collect();
+        let mut by_text: FxHashMap<String, Inference> = FxHashMap::default();
+        for ((a, items), &(_, w)) in self.analogue_inferences(q, &analogues).into_iter().zip(hits.iter()) {
+            for it in items {
+                let e = by_text.entry(it.text.clone()).or_insert_with(|| Inference { text: it.text.clone(), functor: it.functor, args: it.args.clone(), support: 0, reliability: 0.0, score: 0.0, transfers: it.keys.clone(), analogues: Vec::new() });
+                if !e.analogues.contains(&a) {
+                    e.analogues.push(a);
+                    e.support += 1;
+                    e.score += w.max(1e-3);
+                }
+            }
+        }
+        let mut v: Vec<Inference> = by_text.into_values().collect();
+        for inf in &mut v {
+            inf.reliability = self.transfers.reliability(&inf.transfers);
+            inf.score *= inf.reliability;
+            self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
+        }
+        v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
+        v
+    }
+
+    /// Record whether an inference drawn for query case `q` (by [`Engine::infer`]
+    /// or a standing query on `q`) was correct. Updates the reliability of its
+    /// transfer types; logged, so reopening a store reproduces it.
+    pub fn feedback(&mut self, q: CaseId, text: &str, correct: bool) -> Result<(), String> {
+        let keys = self.inf_keys.get(&(q, text.to_string())).cloned().ok_or_else(|| format!("no inference {text} drawn for this query"))?;
+        self.record_transfer(&keys, correct);
+        Ok(())
+    }
+
+    pub(crate) fn record_transfer(&mut self, keys: &[String], correct: bool) {
+        self.transfers.record(keys, correct);
+        self.log_line(format!("transfer-outcome {} {}", if correct { "correct" } else { "wrong" }, keys.join(" ")));
+    }
+
+    /// Transfer types with at least `min_n` outcomes and precision ≥
+    /// `min_precision`, rendered as rules: (rule, precision, outcomes).
+    pub fn induced_rules(&self, min_n: f64, min_precision: f64) -> Vec<(String, f64, f64)> {
+        self.transfers.table(min_n).into_iter().filter(|x| x.1 >= min_precision).map(|(k, p, n)| (transfer::render_rule(&k), p, n)).collect()
+    }
+
+    /// Believed inferences of a standing query, ranked by reliability × support.
+    pub fn ranked_inferences(&self, sq: usize) -> Vec<Inference> {
+        let q = self.sqs[sq].case;
+        let mut v: Vec<Inference> = self
+            .inferences(sq)
+            .into_iter()
+            .map(|t| {
+                let keys = self.inf_keys.get(&(q, t.clone())).cloned().unwrap_or_default();
+                let n = self.inf_nodes[&(sq, t.clone())];
+                let analogues: Vec<CaseId> = self.inf_prov.get(&n).map(|p| p.iter().filter(|x| self.tms.just_holds(x.2)).map(|x| x.0).collect()).unwrap_or_default();
+                let reliability = self.transfers.reliability(&keys);
+                let support = self.tms.support_count(n);
+                Inference { text: t, functor: Sym(0), args: Vec::new(), support, reliability, score: reliability * support as f64, transfers: keys, analogues }
+            })
+            .collect();
+        v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
+        v
+    }
+
+    /// Change the fingerprint profile (e.g. `Profile::surface_only()` when
+    /// instances are identified by labels, E26/E27). Standing queries are recomputed.
+    pub fn set_profile(&mut self, profile: mars_encode::Profile) {
+        self.scorer = self.index.scorer(&profile.weights);
+        self.cfg.profile = profile;
+        self.fac_memo.clear();
+        for sq in 0..self.sqs.len() {
+            self.full_recompute(sq);
+        }
     }
 
     fn top_analogues(&self, sq: usize) -> Vec<CaseId> {
@@ -638,7 +778,8 @@ impl Engine {
             let mapping_node = self.tms.add_node();
             self.tms.assume(mapping_node);
             self.sqs[sq].mapping_nodes.push(mapping_node);
-            for (text, base_facts) in infs {
+            for InfItem { text, base_facts, keys, .. } in infs {
+                self.inf_keys.insert((q, text.clone()), keys);
                 let key = (sq, text.clone());
                 let node = match self.inf_nodes.get(&key) {
                     Some(&n) => n,
@@ -694,6 +835,9 @@ impl Engine {
         let n = *self.inf_nodes.get(&(sq, text.to_string()))?;
         let provs = self.inf_prov.get(&n)?;
         let mut s = format!("{text}\n  believed: {} (supported by {} analogue(s))", self.tms.is_in(n), self.tms.support_count(n));
+        if let Some(keys) = self.inf_keys.get(&(self.sqs[sq].case, text.to_string())) {
+            s.push_str(&format!("\n  transfer: {} (reliability {:.2})", keys.join(" | "), self.transfers.reliability(keys)));
+        }
         for (a, facts, j) in provs {
             if !self.tms.just_holds(*j) {
                 continue;
@@ -725,7 +869,7 @@ impl Engine {
         let mut infs: Vec<String> = self
             .analogue_inferences(q, &analogues)
             .into_iter()
-            .flat_map(|(_, v)| v.into_iter().map(|(t, _)| t))
+            .flat_map(|(_, v)| v.into_iter().map(|it| it.text))
             .collect();
         infs.sort();
         infs.dedup();
@@ -733,8 +877,19 @@ impl Engine {
     }
 }
 
-/// (analogue, [(inference text, base facts it was projected from)])
-type AnalogueInferences = (CaseId, Vec<(String, Vec<ExprId>)>);
+/// One candidate inference from one analogue.
+struct InfItem {
+    text: String,
+    /// Base facts it was projected from.
+    base_facts: Vec<ExprId>,
+    /// Transfer types (see [`transfer`]).
+    keys: Vec<String>,
+    functor: Sym,
+    args: Vec<InfArg>,
+}
+
+/// (analogue, its candidate inferences)
+type AnalogueInferences = (CaseId, Vec<InfItem>);
 
 fn sort_set(set: &mut [(CaseId, f64)]) {
     set.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
@@ -854,4 +1009,48 @@ mod tests {
         assert!(zc < SIGNIFICANT_Z && zc < zr, "chance {zc} vs real {zr}");
     }
 
+
+    #[test]
+    fn feedback_learns_transfer_reliability_and_persists() {
+        // Films whose writer is their director; each has its own producer.
+        let mut src = String::from("(defpredicate director :arity 2 :kind relation)\n(defpredicate writer :arity 2 :kind relation)\n(defpredicate producer :arity 2 :kind relation)\n(defpredicate country :arity 2 :kind relation)\n");
+        for i in 0..8 {
+            src.push_str(&format!("(defcase f{i} (director f{i} d{i}) (writer f{i} d{i}) (producer f{i} p{i}) (country f{i} c{}))\n", i % 2));
+        }
+        src.push_str("(defquery q1 (director q1 dq1) (country q1 c0))\n(defquery q2 (director q2 dq2) (country q2 c1))\n");
+        let mut kb = Kb::new();
+        kb.load_str(&src).unwrap();
+        let (q1, q2) = (kb.case_by_name("q1").unwrap(), kb.case_by_name("q2").unwrap());
+        let cfg = EngineConfig { first_order_inferences: true, ..Default::default() };
+        let mut e = Engine::new(kb, cfg.clone());
+        e.remove_case(q1);
+        e.remove_case(q2);
+        let infs = e.infer(q1, 4, &[]);
+        let writer = infs.iter().find(|i| i.text == "(writer q1 dq1)").expect("substitution inferred");
+        assert_eq!(writer.transfers, vec!["writer<=director".to_string()]);
+        assert_eq!(writer.support, 4);
+        let producer = infs.iter().find(|i| i.text.starts_with("(producer q1")).expect("copy inferred");
+        assert!(producer.transfers[0].starts_with("producer<=new:"), "{:?}", producer.transfers);
+        assert_eq!(writer.reliability, producer.reliability, "no feedback yet: both at the prior");
+        e.feedback(q1, "(writer q1 dq1)", true).unwrap();
+        e.feedback(q1, &producer.text, false).unwrap();
+        assert!(e.feedback(q1, "(writer q1 nobody)", true).is_err());
+        let infs2 = e.infer(q2, 4, &[]);
+        let (w2, p2) = (infs2.iter().find(|i| i.text == "(writer q2 dq2)").unwrap(), infs2.iter().find(|i| i.text.starts_with("(producer q2")).unwrap());
+        assert!(w2.reliability > p2.reliability, "{} vs {}", w2.reliability, p2.reliability);
+        assert_eq!(infs2[0].text, "(writer q2 dq2)");
+        for _ in 0..10 {
+            e.feedback(q2, "(writer q2 dq2)", true).unwrap();
+        }
+        let rules = e.induced_rules(5.0, 0.9);
+        assert_eq!(rules[0].0, "writer(x, y) ⇐ director(x, y)");
+        // Persistence: counts survive a checkpoint, logged feedback survives reopening.
+        let dir = std::env::temp_dir().join(format!("mars-transfer-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        e.checkpoint(&dir).unwrap();
+        e.feedback(q2, &p2.text, false).unwrap();
+        let r = Engine::open(&dir, cfg).unwrap();
+        assert_eq!(r.transfers, e.transfers);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

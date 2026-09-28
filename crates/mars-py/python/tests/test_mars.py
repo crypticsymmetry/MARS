@@ -74,6 +74,30 @@ def test_errors_are_python_exceptions():
         raise AssertionError("expected ValueError")
 
 
+def test_feedback_learns_which_transfers_to_trust():
+    decl = "".join(f"(defpredicate {p} :arity 2 :kind relation)" for p in ("director", "writer", "producer"))
+    films = "".join(f"(defcase f{i} (director f{i} d{i}) (writer f{i} d{i}) (producer f{i} p{i}))" for i in range(8))
+    e = mars.Engine(decl + films + "(defcase q1 (director q1 dq1)) (defcase q2 (director q2 dq2))", first_order=True)
+    e.remove_case("q1")
+    e.remove_case("q2")
+    s1 = {i["text"]: i for i in e.suggest("q1", k=4)}
+    assert s1["(writer q1 dq1)"]["transfers"] == ["writer<=director"]
+    copy = next(t for t in s1 if t.startswith("(producer q1"))
+    e.feedback("q1", "(writer q1 dq1)", True)
+    e.feedback("q1", copy, False)
+    s2 = e.suggest("q2", k=4)
+    assert s2[0]["text"] == "(writer q2 dq2)"
+    assert s2[0]["reliability"] > next(i for i in s2 if i["text"].startswith("(producer"))["reliability"]
+    for _ in range(10):
+        e.feedback("q2", "(writer q2 dq2)", True)
+    assert e.induced_rules(min_n=5, min_precision=0.9)[0][0] == "writer(x, y) ⇐ director(x, y)"
+    with tempfile.TemporaryDirectory() as d:
+        e.checkpoint(d)
+        e.feedback("q2", "(writer q2 dq2)", True)
+        r = mars.Engine.open(d, first_order=True)
+        assert r.induced_rules(min_n=5) == e.induced_rules(min_n=5)
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -50,12 +50,16 @@ use serde_json::json;
 use std::fmt::Write as _;
 use std::time::Instant;
 
-struct Query {
-    case: CaseId,
-    orig: usize,
-    rel: usize,
-    person: Sym,
-    gold: FxHashSet<Sym>,
+pub(crate) struct Query {
+    pub(crate) case: CaseId,
+    /// Index of the full entity case in the memory list.
+    pub(crate) orig: usize,
+    /// Index of the held-out relation.
+    pub(crate) rel: usize,
+    /// The root entity.
+    pub(crate) person: Sym,
+    /// The held-out objects.
+    pub(crate) gold: FxHashSet<Sym>,
 }
 
 /// One proposed object: (object, weight, is_substitution).
@@ -150,6 +154,90 @@ fn paths(kb: &Kb, c: CaseId, x: Sym) -> FxHashMap<(Sym, Sym), FxHashSet<Sym>> {
     out
 }
 
+pub(crate) fn is_attr(kb: &Kb, f: ExprId) -> bool {
+    kb.vocab.kind(kb.expr(f).functor) == PredKind::Attribute
+}
+
+pub(crate) fn obj(kb: &Kb, f: ExprId) -> Option<Sym> {
+    match kb.expr(f).args.get(1) {
+        Some(Term::Ent(o)) => Some(*o),
+        _ => None,
+    }
+}
+
+/// The case's root entity: the most frequent subject (`--hop2` cases also hold
+/// facts about the root's objects, e.g. the doctoral advisor's employer).
+pub(crate) fn root_of(kb: &Kb, c: CaseId) -> Option<Sym> {
+    let mut cnt: FxHashMap<Sym, usize> = FxHashMap::default();
+    for &f in &kb.case(c).facts {
+        if let (false, Some(Term::Ent(x))) = (is_attr(kb, f), kb.expr(f).args.first()) {
+            *cnt.entry(*x).or_insert(0) += 1;
+        }
+    }
+    cnt.into_iter().max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0))).map(|x| x.0)
+}
+
+/// Is `f` a relation fact about entity `x`?
+pub(crate) fn own(kb: &Kb, f: ExprId, x: Sym) -> bool {
+    !is_attr(kb, f) && kb.expr(f).args.first() == Some(&Term::Ent(x))
+}
+
+/// Objects of relation `r` of entity `x` in case `c`.
+pub(crate) fn objects(kb: &Kb, c: CaseId, x: Sym, r: Sym) -> Vec<Sym> {
+    kb.case(c).facts.iter().filter(|&&f| kb.expr(f).functor == r && own(kb, f, x)).filter_map(|&f| obj(kb, f)).collect()
+}
+
+/// Hold-out queries (added to `kb` as query cases): up to `per_rel` entities per
+/// relation, each with all its own facts of the relation removed and only the
+/// facts still reachable from the root kept.
+pub(crate) fn build_queries(kb: &mut Kb, mem: &[CaseId], roots: &[Sym], rels: &[Sym], per_rel: usize, seed: u64) -> Vec<Query> {
+    // Queries: entities with the relation and at least 3 other facts of their own.
+    let mut queries: Vec<Query> = Vec::new();
+    for (ri, &r) in rels.iter().enumerate() {
+        let mut idx: Vec<usize> = (0..mem.len()).collect();
+        Rng::new(seed ^ 0xE27 ^ ri as u64).shuffle(&mut idx);
+        let mut taken = 0;
+        for i in idx {
+            if taken == per_rel {
+                break;
+            }
+            let (c, person) = (mem[i], roots[i]);
+            let facts = kb.case(c).facts.clone();
+            let gold: FxHashSet<Sym> = objects(kb, c, person, r).into_iter().collect();
+            let held = |f: ExprId| kb.expr(f).functor == r && own(kb, f, person);
+            let kept_own = facts.iter().filter(|&&f| own(kb, f, person) && !held(f)).count();
+            if gold.is_empty() || kept_own < 3 {
+                continue;
+            }
+            // Keep only relation facts still reachable from the root without the held
+            // facts: a held object must not survive as the subject of its own
+            // second-hop claims (e.g. the removed alma mater's country).
+            let mut reach: FxHashSet<Sym> = FxHashSet::from_iter([person]);
+            loop {
+                let before = reach.len();
+                for &f in &facts {
+                    if let (false, false, Some(Term::Ent(x)), Some(y)) = (is_attr(kb, f), held(f), kb.expr(f).args.first(), obj(kb, f)) {
+                        if reach.contains(x) {
+                            reach.insert(y);
+                        }
+                    }
+                }
+                if reach.len() == before {
+                    break;
+                }
+            }
+            let kept_rel: Vec<ExprId> = facts.iter().copied().filter(|&f| !is_attr(kb, f) && !held(f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(x)) if reach.contains(x))).collect();
+            let live: FxHashSet<Sym> = kept_rel.iter().flat_map(|&f| kb.expr(f).args.iter().filter_map(|a| if let Term::Ent(e) = a { Some(*e) } else { None }).collect::<Vec<_>>()).collect();
+            let kept: Vec<ExprId> = kept_rel.iter().copied().chain(facts.iter().copied().filter(|&f| is_attr(kb, f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(e)) if live.contains(e)))).collect();
+            let name = format!("q{}-{}", queries.len(), kb.name(kb.case(c).name));
+            let q = kb.add_case(&name, CaseKind::Query, kept);
+            queries.push(Query { case: q, orig: i, rel: ri, person, gold });
+            taken += 1;
+        }
+    }
+    queries
+}
+
 pub fn run(args: &Args) -> Result<(), String> {
     let dir = args.str("data", "data/kg-scientists/C");
     let kg = args.str("kg", "wikidata");
@@ -170,26 +258,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     let mem: Vec<CaseId> = manifest.iter().filter(|m| m["kg"].as_str() == Some(kg.as_str())).filter_map(|m| kb.case_by_name(m["case"].as_str()?)).collect();
     let n = mem.len();
     let rels: Vec<Sym> = rels_arg.split(',').map(|r| kb.sym(r)).collect();
-    let is_attr = |kb: &Kb, f: ExprId| kb.vocab.kind(kb.expr(f).functor) == PredKind::Attribute;
-    let obj = |kb: &Kb, f: ExprId| match kb.expr(f).args.get(1) {
-        Some(Term::Ent(o)) => Some(*o),
-        _ => None,
-    };
-    // The case's root entity: the most frequent subject (with --hop2 cases also
-    // hold facts about the root's objects, e.g. the doctoral advisor's employer).
-    let root_of = |kb: &Kb, c: CaseId| -> Option<Sym> {
-        let mut cnt: FxHashMap<Sym, usize> = FxHashMap::default();
-        for &f in &kb.case(c).facts {
-            if let (false, Some(Term::Ent(x))) = (is_attr(kb, f), kb.expr(f).args.first()) {
-                *cnt.entry(*x).or_insert(0) += 1;
-            }
-        }
-        cnt.into_iter().max_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0))).map(|x| x.0)
-    };
     let roots: Vec<Sym> = mem.iter().map(|&c| root_of(&kb, c).unwrap_or(Sym(0))).collect();
-    let own = |kb: &Kb, f: ExprId, x: Sym| !is_attr(kb, f) && kb.expr(f).args.first() == Some(&Term::Ent(x));
-    // Objects of relation r of entity x in case c.
-    let objects = |kb: &Kb, c: CaseId, x: Sym, r: Sym| -> Vec<Sym> { kb.case(c).facts.iter().filter(|&&f| kb.expr(f).functor == r && own(kb, f, x)).filter_map(|&f| obj(kb, f)).collect() };
     // Global popularity per relation (tie-break and baseline).
     let pops: Vec<FxHashMap<Sym, f64>> = rels
         .iter()
@@ -242,50 +311,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         all_rules.add(rc, 1.0);
     }
 
-    // Queries: entities with the relation and at least 3 other facts of their own.
-    let mut queries: Vec<Query> = Vec::new();
-    for (ri, &r) in rels.iter().enumerate() {
-        let mut idx: Vec<usize> = (0..n).collect();
-        Rng::new(seed ^ 0xE27 ^ ri as u64).shuffle(&mut idx);
-        let mut taken = 0;
-        for i in idx {
-            if taken == per_rel {
-                break;
-            }
-            let (c, person) = (mem[i], roots[i]);
-            let facts = kb.case(c).facts.clone();
-            let gold: FxHashSet<Sym> = objects(&kb, c, person, r).into_iter().collect();
-            let held = |f: ExprId| kb.expr(f).functor == r && own(&kb, f, person);
-            let kept_own = facts.iter().filter(|&&f| own(&kb, f, person) && !held(f)).count();
-            if gold.is_empty() || kept_own < 3 {
-                continue;
-            }
-            // Keep only relation facts still reachable from the root without the held
-            // facts: a held object must not survive as the subject of its own
-            // second-hop claims (e.g. the removed alma mater's country).
-            let mut reach: FxHashSet<Sym> = FxHashSet::from_iter([person]);
-            loop {
-                let before = reach.len();
-                for &f in &facts {
-                    if let (false, false, Some(Term::Ent(x)), Some(y)) = (is_attr(&kb, f), held(f), kb.expr(f).args.first(), obj(&kb, f)) {
-                        if reach.contains(x) {
-                            reach.insert(y);
-                        }
-                    }
-                }
-                if reach.len() == before {
-                    break;
-                }
-            }
-            let kept_rel: Vec<ExprId> = facts.iter().copied().filter(|&f| !is_attr(&kb, f) && !held(f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(x)) if reach.contains(x))).collect();
-            let live: FxHashSet<Sym> = kept_rel.iter().flat_map(|&f| kb.expr(f).args.iter().filter_map(|a| if let Term::Ent(e) = a { Some(*e) } else { None }).collect::<Vec<_>>()).collect();
-            let kept: Vec<ExprId> = kept_rel.iter().copied().chain(facts.iter().copied().filter(|&f| is_attr(&kb, f) && matches!(kb.expr(f).args.first(), Some(Term::Ent(e)) if live.contains(e)))).collect();
-            let name = format!("q{}-{}", queries.len(), kb.name(kb.case(c).name));
-            let q = kb.add_case(&name, CaseKind::Query, kept);
-            queries.push(Query { case: q, orig: i, rel: ri, person, gold });
-            taken += 1;
-        }
-    }
+    let queries = build_queries(&mut kb, &mem, &roots, &rels, per_rel, seed);
     let nq = queries.len();
     eprintln!("[e27] {n} {kg} cases, {} relations, {nq} queries ({:.1?})", rels.len(), t0.elapsed());
 

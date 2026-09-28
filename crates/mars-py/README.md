@@ -17,7 +17,7 @@ The `extension-module` feature is turned on only by maturin (`pyproject.toml`), 
 
 | call | returns |
 |---|---|
-| `Engine(source="")`, `Engine.from_files([paths])`, `Engine.open(dir)` | an engine over `.mars` text / files / a checkpointed store |
+| `Engine(source="", first_order=False, profile="analogy", fac_weight=None)`, `Engine.from_files([paths], ...)`, `Engine.open(dir, ...)` | an engine over `.mars` text / files / a checkpointed store. `first_order=True` also infers first-order facts (e.g. KG triples); `profile="surface"` for label-identified instances |
 | `e.checkpoint(dir)` | writes a snapshot, then logs every later mutation there |
 | `e.add_case("(defcase ...)")`, `e.add_fact(case, "(pred a b)")`, `e.remove_fact(...)`, `e.remove_case(case)`, `e.apply(record)` | mutations (the same records as `mars serve`) |
 | `e.cases()`, `e.render(case)`, `len(e)` | live case names, `.mars` text of a case, number of live cases |
@@ -26,6 +26,11 @@ The `extension-module` feature is turned on only by maturin (`pyproject.toml`), 
 | `e.map(base, target)` | dict: `score`, `entities` [(base, target)], `matches` [(base fact, target fact)], `inferences` [(fact, support, has_skolem)], `differences` |
 | `sq = e.watch(case, k=5)` | id of a standing query maintained incrementally |
 | `e.top(sq)`, `e.infer(sq, min_support=1)`, `e.explain(sq, fact)`, `e.events()` | its current analogues, corroborated inferences (support = number of agreeing analogues, E11), JTMS provenance, drained change events |
+
+| `e.suggest(case, k=5, exclude=[])` | one-off candidate inferences from the top-k analogues: dicts with `text`, `support`, `reliability`, `score`, `transfers`, `analogues`, best first |
+| `e.ranked(sq)` | a standing query's inferences as the same dicts, ranked by reliability × support |
+| `e.feedback(case, text, correct)` | tell the memory whether an inference was right; it learns the reliability of that kind of transfer (E30). Persisted |
+| `e.induced_rules(min_n=10, min_precision=0.5)` | what it has learned, as rules: `[(rule, precision, outcomes)]`, e.g. `writer(x, y) ⇐ director(x, y)` |
 
 Unknown cases or standing queries raise `KeyError`; parse and I/O errors raise `ValueError`. An `Engine` is not thread-safe (`unsendable`); use one per thread.
 

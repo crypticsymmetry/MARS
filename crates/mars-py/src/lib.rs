@@ -9,12 +9,16 @@
 //! e.add_case("(defcase star (attracts star moon) (revolve-around moon star))")
 //! e.top(sq); e.infer(sq, min_support=1); e.explain(sq, text)
 //! e.checkpoint("store/"); e2 = mars.Engine.open("store/")
+//! # one-off inference with learned transfer reliability, and feedback (E30)
+//! for inf in e.suggest("rutherford-atom", k=3): print(inf["text"], inf["reliability"])
+//! e.feedback("rutherford-atom", text, True); e.induced_rules(min_n=10)
 //! ```
 //!
 //! Cases use the `.mars` s-expression format (`mars_rel::load`). Mutations go
 //! through the same records as the persistence log and `mars serve`, so a
 //! checkpointed engine replays them exactly.
 
+use mars_encode::Profile;
 use mars_engine::{Engine, EngineConfig, SIGNIFICANT_Z};
 use mars_map::{Grounding, MapConfig, Mapper};
 use mars_rel::{CaseId, Kb, Term};
@@ -28,6 +32,21 @@ type Hits = Vec<(String, f64)>;
 
 fn err(e: impl std::fmt::Display) -> PyErr {
     PyValueError::new_err(e.to_string())
+}
+
+/// Engine configuration from keyword arguments.
+fn config(first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<EngineConfig> {
+    let mut cfg = EngineConfig { first_order_inferences: first_order, ..Default::default() };
+    cfg.profile = match profile {
+        "analogy" => Profile::analogy(),
+        "literal" => Profile::literal(),
+        "surface" => Profile::surface_only(),
+        other => return Err(PyValueError::new_err(format!("unknown profile {other} (analogy | literal | surface)"))),
+    };
+    if let Some(w) = fac_weight {
+        cfg.fac_weight = w;
+    }
+    Ok(cfg)
 }
 
 /// A MARS engine: incremental analogical memory with standing queries.
@@ -45,6 +64,17 @@ impl PyEngine {
         self.e.kb.name(self.e.kb.case(c).name).to_string()
     }
 
+    fn inference_dict<'py>(&self, py: Python<'py>, i: mars_engine::Inference) -> PyResult<Bound<'py, PyDict>> {
+        let d = PyDict::new(py);
+        d.set_item("text", i.text)?;
+        d.set_item("support", i.support)?;
+        d.set_item("reliability", i.reliability)?;
+        d.set_item("score", i.score)?;
+        d.set_item("transfers", i.transfers)?;
+        d.set_item("analogues", i.analogues.iter().map(|&c| self.name(c)).collect::<Vec<_>>())?;
+        Ok(d)
+    }
+
     fn check_sq(&self, sq: usize) -> PyResult<()> {
         if sq >= self.e.n_standing() {
             return Err(PyKeyError::new_err(format!("no standing query {sq}")));
@@ -56,29 +86,36 @@ impl PyEngine {
 #[pymethods]
 impl PyEngine {
     /// Build an engine from `.mars` source text (declarations and cases).
+    /// `first_order=True` also draws inferences for first-order facts (e.g.
+    /// knowledge-graph triples); `profile` is the fingerprint profile
+    /// (`analogy`, `literal`, or `surface` for label-identified instances);
+    /// `fac_weight` the weight of the structural score in retrieval.
     #[new]
-    #[pyo3(signature = (source = ""))]
-    fn new(source: &str) -> PyResult<Self> {
+    #[pyo3(signature = (source = "", first_order = false, profile = "analogy", fac_weight = None))]
+    fn new(source: &str, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
         let mut kb = Kb::new();
         kb.load_str(source).map_err(err)?;
-        Ok(PyEngine { e: Engine::new(kb, EngineConfig::default()) })
+        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight)?) })
     }
 
-    /// Build an engine from `.mars` files.
+    /// Build an engine from `.mars` files (same keyword arguments as `Engine()`).
     #[staticmethod]
-    fn from_files(paths: Vec<String>) -> PyResult<Self> {
+    #[pyo3(signature = (paths, first_order = false, profile = "analogy", fac_weight = None))]
+    fn from_files(paths: Vec<String>, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
         let mut kb = Kb::new();
         for p in &paths {
             let src = std::fs::read_to_string(p).map_err(|e| err(format!("{p}: {e}")))?;
             kb.load_str(&src).map_err(|e| err(format!("{p}: {e}")))?;
         }
-        Ok(PyEngine { e: Engine::new(kb, EngineConfig::default()) })
+        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight)?) })
     }
 
-    /// Open a checkpointed store directory (snapshot + frozen IDF epoch + log).
+    /// Open a checkpointed store directory (snapshot + frozen IDF epoch + log;
+    /// learned transfer reliability included). Pass the configuration it was built with.
     #[staticmethod]
-    fn open(dir: &str) -> PyResult<Self> {
-        Ok(PyEngine { e: Engine::open(Path::new(dir), EngineConfig::default()).map_err(err)? })
+    #[pyo3(signature = (dir, first_order = false, profile = "analogy", fac_weight = None))]
+    fn open(dir: &str, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
+        Ok(PyEngine { e: Engine::open(Path::new(dir), config(first_order, profile, fac_weight)?).map_err(err)? })
     }
 
     /// Write a snapshot to `dir` and log subsequent mutations there.
@@ -187,6 +224,40 @@ impl PyEngine {
     fn explain(&self, sq: usize, inference: &str) -> PyResult<Option<String>> {
         self.check_sq(sq)?;
         Ok(self.e.explain(sq, inference))
+    }
+
+    /// One-off analogical inference: candidate inferences for `case` from its
+    /// top-`k` analogues (cases in `exclude` skipped), ranked by learned
+    /// reliability × Σ fused score. Each is a dict: `text`, `support`,
+    /// `reliability`, `score`, `transfers` (its transfer types), `analogues`.
+    #[pyo3(signature = (case, k = 5, exclude = Vec::new()))]
+    fn suggest<'py>(&mut self, py: Python<'py>, case: &str, k: usize, exclude: Vec<String>) -> PyResult<Vec<Bound<'py, PyDict>>> {
+        let q = self.case(case)?;
+        let ex = exclude.iter().map(|n| self.case(n)).collect::<PyResult<Vec<_>>>()?;
+        let infs = self.e.infer(q, k, &ex);
+        infs.into_iter().map(|i| self.inference_dict(py, i)).collect()
+    }
+
+    /// Believed inferences of a standing query, ranked by reliability × support
+    /// (same dicts as `suggest`).
+    fn ranked<'py>(&self, py: Python<'py>, sq: usize) -> PyResult<Vec<Bound<'py, PyDict>>> {
+        self.check_sq(sq)?;
+        self.e.ranked_inferences(sq).into_iter().map(|i| self.inference_dict(py, i)).collect()
+    }
+
+    /// Tell the memory whether an inference drawn for `case` (by `suggest` or a
+    /// standing query on it) was correct; it learns the reliability of the
+    /// inference's transfer types. Persisted in the store log.
+    fn feedback(&mut self, case: &str, text: &str, correct: bool) -> PyResult<()> {
+        let q = self.case(case)?;
+        self.e.feedback(q, text, correct).map_err(err)
+    }
+
+    /// Transfer types with ≥ `min_n` feedback outcomes and precision ≥
+    /// `min_precision`, as rules induced from analogy: [(rule, precision, outcomes)].
+    #[pyo3(signature = (min_n = 10.0, min_precision = 0.5))]
+    fn induced_rules(&self, min_n: f64, min_precision: f64) -> Vec<(String, f64, f64)> {
+        self.e.induced_rules(min_n, min_precision)
     }
 
     /// Drain change events (standing-query results and inferences) as strings.

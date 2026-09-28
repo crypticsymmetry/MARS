@@ -8,7 +8,8 @@
 //!
 //! Log records: `declare <defpredicate…>`, `add-case <defcase…>`,
 //! `add-fact <case> <expr>`, `remove-fact <case> <expr>`, `remove-case <case>`,
-//! `standing <case> <k>`.
+//! `standing <case> <k>`, `transfer-outcome correct|wrong <type>...` (feedback).
+//! Meta also holds the learned transfer counts (`transfer-total`, `transfer-counts`).
 
 use crate::{Engine, EngineConfig};
 use mars_encode::FeatureStats;
@@ -60,6 +61,9 @@ impl Engine {
         }
         for sq in &self.sqs {
             meta.push_str(&format!("standing {} {}\n", self.kb.name(self.kb.case(sq.case).name), sq.k));
+        }
+        if !self.transfers.is_empty() {
+            meta.push_str(&self.transfers.to_meta());
         }
         // Write-then-rename for atomicity of each file.
         let write = |name: &str, bytes: &[u8]| -> Result<(), String> {
@@ -145,6 +149,20 @@ impl Engine {
                 let c = self.case_arg(case)?;
                 let k: usize = k.trim().parse().map_err(io)?;
                 self.add_standing_query(c, k);
+            }
+            "transfer-outcome" => {
+                let (ok, keys) = rest.split_once(' ').unwrap_or((rest, ""));
+                let keys: Vec<String> = keys.split_whitespace().map(String::from).collect();
+                self.record_transfer(&keys, ok == "correct");
+            }
+            "transfer-total" | "transfer-counts" => {
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                let num = |s: &str| s.parse::<f64>().map_err(io);
+                match (op, parts.as_slice()) {
+                    ("transfer-total", [h, n]) => self.transfers.set_total(num(h)?, num(n)?),
+                    ("transfer-counts", [k, h, n]) => self.transfers.set_counts(k, num(h)?, num(n)?),
+                    _ => return Err(format!("bad record {line}")),
+                }
             }
             other => return Err(format!("unknown record {other}")),
         }
