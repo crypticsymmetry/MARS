@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Score the pre-registered predictions P1–P9 (docs/PREREGISTRATION.md) from the
-EV1/EV2/EV3 result files. Written and committed *before* any EV result was seen, so
+EV1/EV2/EV3 result files, and P10–P12 (addendum A) from results/E34/E34-test.json. Written and committed *before* any EV result was seen, so
 the operational criteria below are fixed in advance.
 
     python3 tools/ev_report.py [results/EV_PREDICTIONS.md]
@@ -125,6 +125,19 @@ def main():
         v9 = "confirmed" if v9a == v9b == "confirmed" else ("not confirmed" if "not confirmed" in (v9a, v9b) else "inconclusive")
         L.append(f"| P9 MARS > embedding RAG, as memory and as LLM retriever | {'; '.join(parts)} | {v9} (memory: {v9a}; LLM: {v9b}) |")
         rec["P9"] = v9
+    if os.path.exists("results/E34/E34-test.json"):
+        # Addendum A. P10 "py2pdg > py2mars" and P11 "MARS (py2pdg) below the embedding"
+        # use "A > B"; P12 "embedding + MARS re-rank ≥ embedding" uses "A ≥ B".
+        d = json.load(open("results/E34/E34-test.json"))
+        pq = d["per_query"]
+        ap = lambda n: [x[0] for x in pq[n]]
+        pdg, pym, emb = "MARS fused, py2pdg", "MARS fused, py2mars", "code embedding"
+        rer = next(n for n in pq if n.startswith("embedding top-100 re-ranked"))
+        d10, d11, d12 = paired(ap(pdg), ap(pym)), paired(ap(emb), ap(pdg)), paired(ap(rer), ap(emb))
+        L.append(f"| P10 py2pdg > py2mars (MARS fused, MAP@R) | Δ {fmt(d10)} | {verdict_gt(d10)} |")
+        L.append(f"| P11 code embedding > MARS with py2pdg (MAP@R) | Δ {fmt(d11)} | {verdict_gt(d11)} |")
+        L.append(f"| P12 embedding re-ranked by ½cos + ½FAC ≥ embedding (MAP@R) | Δ {fmt(d12)} | {verdict_ge(d12)} |")
+        rec.update({"P10": verdict_gt(d10), "P11": verdict_gt(d11), "P12": verdict_ge(d12)})
     L.append("")
     open(out, "w").write("\n".join(L) + "\n")
     json.dump(rec, open(out.replace(".md", ".json"), "w"), indent=1)

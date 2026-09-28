@@ -55,7 +55,7 @@
    ]
   },
   {
-   "variant": "no context, no names",
+   "variant": "context on effects, no names",
    "env": "PDG_CTX=effects PDG_NAMES=0",
    "fused": [
     0.3260034252355869,
@@ -79,7 +79,7 @@
    ]
   },
   {
-   "variant": "no context on values, no CSE",
+   "variant": "context on effects, no CSE",
    "env": "PDG_CTX=effects PDG_CSE=0",
    "fused": [
     0.3487838547799485,
