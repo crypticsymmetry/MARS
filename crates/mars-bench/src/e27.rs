@@ -595,7 +595,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             _ => None,
         }
     };
-    let mut lt: Vec<(&(usize, Transfer), &(f64, f64))> = learned.iter().filter(|(_, v)| v.1 >= 30.0).collect();
+    let mut lt: Vec<_> = learned.iter().filter(|(_, v)| v.1 >= 30.0).collect();
     lt.sort_by(|a, b| a.0 .0.cmp(&b.0 .0).then((b.1 .0 / b.1 .1).total_cmp(&(a.1 .0 / a.1 .1))).then(a.0 .1.cmp(&b.0 .1)));
     writeln!(md, "\n## Transfers learned from analogy (E29)\n\nPrecision of analogical votes by (relation, transfer type), MARS analogues, all queries (vote-level precision overall {p0_all:.3}); transfer types with ≥ 30 votes, top 4 per relation. `mined` is the confidence of the same pattern as an explicitly mined rule.\n\n| relation | transfer | votes | precision | mined rule confidence |\n|---|---|---|---|---|").unwrap();
     let mut per_rel_count = vec![0usize; rels.len()];
