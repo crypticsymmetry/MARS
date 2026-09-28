@@ -227,6 +227,8 @@ def summarize(recs):
 def main():
     if "--demo" in sys.argv:
         return demo()
+    if "--ev3" in sys.argv:
+        return ev3_eval(sys.argv[1], [int(x) for x in sys.argv[sys.argv.index("--ev3") + 1].split(",")], llm="--no-llm" not in sys.argv)
     if "--seeds" in sys.argv:
         return seeds_eval(sys.argv[1], [int(x) for x in sys.argv[sys.argv.index("--seeds") + 1].split(",")])
     if "--llm" in sys.argv:
@@ -368,6 +370,115 @@ def seeds_eval(out_dir, seed_list, noises=(0, 1, 2, 3)):
     json.dump({"seeds": seed_list, "memories": [c[0] for c in configs], "across_seeds": across, "paired": paired, "config": {"templates": 40, "novel": 10, "incidents": 600, "hidden_root_rate": 0.5}}, open(f"{out_dir}/E33-seeds.json", "w"), indent=1)
     for noise, v in across.items():
         print(noise, {k: f"{m:.3f}±{s:.3f}" for k, (m, s) in v.items()})
+
+
+def ev3_eval(out_dir, seed_list, noise=2, n_llm=150, llm=True):
+    """EV3 (pre-registered): memories compared on the same streams, raw and learned
+    rankings, per-incident outcomes; embedding RAG = top-5 episodes by bge-small cosine
+    over the episodes' facts as text, mapped with the same engine mapper
+    (Engine.suggest_from). On the first seed, every (600 // n_llm)-th incident also goes
+    to the LLM agent with the top-5 episodes of MARS, embedding RAG and name recall."""
+    from concurrent.futures import ThreadPoolExecutor
+    import re
+    import numpy as np
+    from fastembed import TextEmbedding
+    sys.path.insert(0, os.path.dirname(__file__))
+    from stats import ci, paired, seeds as msd
+    emb = TextEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    embed = lambda texts: [v / np.linalg.norm(v) for v in emb.embed(texts)]
+    names_m = ["MARS (structure)", "recall by names (identity only)", "embedding RAG (bge-small)"]
+    per_seed = {}
+    jobs = []
+    for sd in seed_list:
+        templates, novel_ids, seed_eps, stream = build(sd, 40, 10, 600, noise)
+        src = declarations() + "\n".join(defcase(n, f) for n, f in seed_eps)
+        eng = {"MARS (structure)": mars.Engine(src, first_order=True), "recall by names (identity only)": mars.Engine(src, first_order=True, identity_weight=1.0), "embedding RAG (bge-small)": mars.Engine(src, first_order=True)}
+        episodes = dict(seed_eps)
+        ep_names = list(episodes)
+        ep_vecs = embed([" ".join(episodes[n]) for n in ep_names])
+        seen_t = Counter(t for t in range(len(templates)) if t not in novel_ids for _ in range(2))
+        recs = []
+        step = max(1, 600 // n_llm)
+        for i, (ti, inc, facts, remedy, root_facts, hidden) in enumerate(stream):
+            observed = [f for f in facts if not (hidden and f in root_facts)]
+            q = f"case-{inc}"
+            rec = {"template": ti, "novel_first": ti in novel_ids and seen_t[ti] == 0, "hidden_root": hidden}
+            tops = {}
+            for name, e in eng.items():
+                e.add_case(defcase(q, observed))
+                e.remove_case(q)
+                if name.startswith("embedding"):
+                    qv = embed([" ".join(observed)])[0]
+                    sims = sorted(((float(qv @ v), n) for v, n in zip(ep_vecs, ep_names)), reverse=True)[:5]
+                    tops[name] = [n for _, n in sims]
+                    sug = remedies(e.suggest_from(q, [(n, s_) for s_, n in sims]), inc)
+                    rec[name] = {"raw": bool(sug) and sug[0]["text"] == remedy}
+                else:
+                    hits, _ = e.query(q, k=5)
+                    tops[name] = [h for h, _ in hits]
+                    sug = remedies(e.suggest(q, k=5), inc)
+                    raw = sorted(sug, key=lambda s_: (-s_["weight"], s_["text"]))
+                    rec[name] = {"raw": bool(raw) and raw[0]["text"] == remedy, "learned": bool(sug) and sug[0]["text"] == remedy}
+                    for s_ in sug[:3]:
+                        e.feedback(q, s_["text"], s_["text"] == remedy)
+            if llm and sd == seed_list[0] and i % step == 0:
+                for name in names_m:
+                    mem = "\n\n".join(f"Past incident {h}:\n" + "\n".join(episodes[h]) for h in tops[name])
+                    jobs.append((i, name, remedy, LLM_PROMPT.format(memory=mem, inc=inc, incident="\n".join(observed))))
+            ep = f"ep-{inc}-t{ti}"
+            episodes[ep] = facts + [remedy]
+            ep_names.append(ep)
+            ep_vecs.append(embed([" ".join(facts + [remedy])])[0])
+            for e in eng.values():
+                e.add_case(defcase(ep, facts + [remedy]))
+            seen_t[ti] += 1
+            recs.append(rec)
+        per_seed[sd] = recs
+        print(f"[ev3] seed {sd} done", file=sys.stderr, flush=True)
+    llm_res = {}
+    if jobs:
+        print(f"[ev3] {len(jobs)} LLM calls", file=sys.stderr, flush=True)
+        with ThreadPoolExecutor(8) as ex:
+            outs = list(ex.map(lambda j: llm_call(j[3]), jobs))
+        cost = sum(u.get("cost", 0.0) for _, u in outs)
+        by = defaultdict(dict)
+        for (i, name, remedy, _), (msg, _) in zip(jobs, outs):
+            m = re.findall(r"\(remedy-[^()]*\)", msg)
+            by[name][i] = float(bool(m) and m[-1].strip() == remedy)
+        known1 = {i for i, r in enumerate(per_seed[seed_list[0]]) if not r["novel_first"]}
+        idx = sorted(i for i in by[names_m[0]] if i in known1)
+        llm_res = {"n": len(idx), "cost_usd": round(cost, 4), "failed": sum(1 for m, _ in outs if not m), "per_incident": {n: [by[n][i] for i in idx] for n in names_m},
+                   "mars_alone_raw": [float(per_seed[seed_list[0]][i]["MARS (structure)"]["raw"]) for i in idx]}
+    # Summaries.
+    L = [f"# EV3: E33 incident stream with stronger baselines (noise {noise})\n", f"Seeds {seed_list}; 600 incidents each, 40 mechanisms (10 novel), known mechanisms only. Raw = ranking by Σ analogue weight (all memories); learned = with transfer reliability from feedback (engine memories only).\n",
+         "| memory | fix@1 raw, mean ± sd over seeds | fix@1 learned |", "|---|---|---|"]
+    out = {"config": {"seeds": seed_list, "noise": noise, "incidents": 600, "templates": 40, "novel": 10, "k": 5, "embedding": "BAAI/bge-small-en-v1.5", "llm": "z-ai/glm-5.3-flash (reasoning low, temperature 0)"}, "memories": {}}
+    for name in names_m:
+        raw = [np.mean([r[name]["raw"] for r in per_seed[sd] if not r["novel_first"]]) for sd in seed_list]
+        lrn = [np.mean([r[name]["learned"] for r in per_seed[sd] if not r["novel_first"]]) for sd in seed_list] if "learned" in per_seed[seed_list[0]][0][name] else None
+        m1, s1 = msd(raw)
+        L.append(f"| {name} | {m1:.3f} ± {s1:.3f} | " + (f"{msd(lrn)[0]:.3f} ± {msd(lrn)[1]:.3f}" if lrn else "—") + " |")
+        out["memories"][name] = {"raw_per_seed": raw, "learned_per_seed": lrn}
+    k1 = [r for r in per_seed[seed_list[0]] if not r["novel_first"]]
+    d = paired([float(r[names_m[0]]["raw"]) for r in k1], [float(r[names_m[2]]["raw"]) for r in k1])
+    L += ["", f"Paired (seed {seed_list[0]}, raw, n = {d[4]}): MARS − embedding RAG = {d[0]:+.3f} [{d[1]:+.3f}, {d[2]:+.3f}], p = {d[3]:.4f}."]
+    out["paired_mars_vs_embedding_seed1"] = d
+    if llm_res:
+        L += ["", f"**LLM agent** (GLM-5.3-Flash; {llm_res['n']} known-mechanism incidents of seed {seed_list[0]}; ${llm_res['cost_usd']}; {llm_res['failed']} failed calls):", "", "| LLM given top-5 episodes from | fix@1 [95% CI] |", "|---|---|"]
+        for n in names_m:
+            a = ci(llm_res["per_incident"][n])
+            L.append(f"| {n} | {a[0]:.3f} [{a[1]:.3f}, {a[2]:.3f}] |")
+        a = ci(llm_res["mars_alone_raw"])
+        L.append(f"| (MARS alone, raw, same incidents) | {a[0]:.3f} [{a[1]:.3f}, {a[2]:.3f}] |")
+        for x, y in ((names_m[0], names_m[2]), (names_m[0], names_m[1])):
+            d = paired(llm_res["per_incident"][x], llm_res["per_incident"][y])
+            L.append(f"\nPaired: LLM+{x} − LLM+{y} = {d[0]:+.3f} [{d[1]:+.3f}, {d[2]:+.3f}], p = {d[3]:.4f}.")
+        out["llm"] = llm_res
+    out["per_seed"] = {str(k): v for k, v in per_seed.items()}
+    os.makedirs(out_dir, exist_ok=True)
+    json.dump(out, open(f"{out_dir}/EV3.json", "w"))
+    open(f"{out_dir}/EV3.md", "w").write("\n".join(L) + "\n")
+    print("\n".join(L))
 
 
 def demo():

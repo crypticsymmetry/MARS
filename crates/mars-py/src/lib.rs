@@ -256,6 +256,50 @@ impl PyEngine {
         self.e.feedback(q, text, correct).map_err(err)
     }
 
+    /// Candidate inferences for `case` from analogues chosen by the caller
+    /// (e.g. an external retriever): `analogues` = [(case name, weight)].
+    /// Uses the engine's mapper and inference settings; merged by text,
+    /// ranked by Σ weight (raw evidence; no learned reliability, and not
+    /// usable with `feedback`). Same dicts as `suggest` (EV3 baselines).
+    fn suggest_from<'py>(&self, py: Python<'py>, case: &str, analogues: Vec<(String, f64)>) -> PyResult<Vec<Bound<'py, PyDict>>> {
+        let q = self.case(case)?;
+        let kb = &self.e.kb;
+        let mp = Mapper::new(kb, self.e.cfg.map.clone());
+        let first_order = self.e.cfg.first_order_inferences;
+        let mut by: Vec<(String, usize, f64, Vec<String>)> = Vec::new();
+        for (name, w) in &analogues {
+            let a = self.case(name)?;
+            let Some(m) = mp.best(a, q) else { continue };
+            for i in m.inferences.iter().filter(|i| i.grounding == Grounding::Structural || first_order) {
+                let text = mp.render_proj(&i.projected);
+                match by.iter_mut().find(|x| x.0 == text) {
+                    Some(x) => {
+                        if !x.3.contains(name) {
+                            x.1 += 1;
+                            x.2 += w.max(1e-3);
+                            x.3.push(name.clone());
+                        }
+                    }
+                    None => by.push((text, 1, w.max(1e-3), vec![name.clone()])),
+                }
+            }
+        }
+        by.sort_by(|a, b| b.2.total_cmp(&a.2).then(a.0.cmp(&b.0)));
+        by.into_iter()
+            .map(|(text, support, weight, an)| {
+                let d = PyDict::new(py);
+                d.set_item("text", text)?;
+                d.set_item("support", support)?;
+                d.set_item("weight", weight)?;
+                d.set_item("score", weight)?;
+                d.set_item("reliability", py.None())?;
+                d.set_item("transfers", Vec::<String>::new())?;
+                d.set_item("analogues", an)?;
+                Ok(d)
+            })
+            .collect()
+    }
+
     /// Inferences from the rules induced so far, applied directly to `case`
     /// (reaches objects no analogue proposes; E31). Same dicts as `suggest`, support 0.
     #[pyo3(signature = (case, min_n = 20.0, min_precision = 0.5))]
