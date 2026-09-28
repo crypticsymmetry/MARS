@@ -201,3 +201,5 @@ Written before any E36 run on either sample.
 - **P15:** at the same guarantee, coverage (the fraction of queries answered) with A3's confidence > coverage with the embedding's cosine. Paired bootstrap over queries of the difference in answered indicators; "A > B".
 
 Scored after the test run with the same "A > B" / "A ≥ B" rules as P1–P12.
+
+**Amendment B.1 (2026-09-28, before any E36 run on the development or test sample).** A smoke test on a 100-program sample showed a flaw in A4's procedure as written. Fixed-sequence testing starts at the highest threshold, where very few queries are answered. With fewer than ln δ / ln(1 − α) = 45 answered queries, even zero errors cannot reject, so the sequence stops at once and never answers. The sequence therefore starts at the first threshold with at least 45 answered queries. That depends on the confidences only, not on correctness, so the guarantee is unchanged. Nothing else changes.
