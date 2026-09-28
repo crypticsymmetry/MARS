@@ -6,7 +6,7 @@ Paired comparison on one program set, encoded twice:
     python3 tools/ev2_codenet.py prepare W_MARS [--seed S] [--exclude-seed 1]
     python3 tools/ev2_codenet.py prepare W_PDG --frontend pdg --same-as W_MARS
     mars-bench ev2 --data W_MARS ; mars-bench ev2 --data W_PDG
-    python3 tools/e34_eval.py cands W_PDG            # code embedding top-100 -> W_PDG/emb_cands.json (cached)
+    python3 tools/e34_eval.py cands W_PDG W_MARS     # code embedding top-100 over W_MARS's programs -> W_PDG/emb_cands.json (cached)
     mars-bench ev2 --data W_PDG --cands emb_cands.json   # -> W_PDG/fac_cands.json
     python3 tools/e34_eval.py evaluate W_MARS W_PDG OUT [--mars-only]
 
@@ -38,27 +38,30 @@ def load(work):
     return man, src
 
 
-def embedding(work):
-    """Cosine top-DEPTH lists and scores of the code embedding (EV2's model and caps), cached."""
+def embedding(work, src_work):
+    """Cosine top-DEPTH lists and scores of the code embedding (EV2's model and caps) over
+    src_work's programs (the full program set, including any py2pdg could not encode);
+    cached in work/emb.npy with its case list."""
     import numpy as np
     path = f"{work}/emb.npy"
-    man, src = load(work)
+    man, src = load(src_work)
     cases = [m["case"] for m in man["cases"]]
-    if os.path.exists(path):
+    if os.path.exists(path) and json.load(open(f"{work}/emb_cases.json")) == cases:
         E = np.load(path)
     else:
         from fastembed import TextEmbedding
         E = np.array(list(TextEmbedding(model_name=MODEL).embed([src[c][:2000] for c in cases], batch_size=4)))
         E /= np.linalg.norm(E, axis=1, keepdims=True)
         np.save(path, E)
+        json.dump(cases, open(f"{work}/emb_cases.json", "w"))
     S = E @ E.T
     np.fill_diagonal(S, -np.inf)
     order = np.argsort(-S, axis=1, kind="stable")[:, :DEPTH]
     return cases, {c: [cases[j] for j in order[i]] for i, c in enumerate(cases)}, {c: [float(S[i, j]) for j in order[i]] for i, c in enumerate(cases)}
 
 
-def cands(work):
-    cases, top, _ = embedding(work)
+def cands(work, src_work):
+    cases, top, _ = embedding(work, src_work)
     json.dump(top, open(f"{work}/emb_cands.json", "w"))
     print(f"{len(cases)} embedding candidate lists -> {work}/emb_cands.json", file=sys.stderr)
 
@@ -79,7 +82,7 @@ def evaluate(w_mars, w_pdg, out, mars_only):
           "MARS FP-literal, py2mars": {c: rm["fp"][c] for c in cases},
           "MARS FP-literal, py2pdg": {c: rp["fp"].get(c, []) for c in cases}}
     if not mars_only:
-        _, top, cos = embedding(w_pdg)
+        _, top, cos = embedding(w_pdg, w_mars)
         fac = json.load(open(f"{w_pdg}/fac_cands.json"))
         rk["code embedding"] = top
         rer = {}
@@ -120,6 +123,6 @@ def evaluate(w_mars, w_pdg, out, mars_only):
 if __name__ == "__main__":
     cmd = sys.argv[1]
     if cmd == "cands":
-        cands(sys.argv[2])
+        cands(sys.argv[2], sys.argv[3])
     elif cmd == "evaluate":
         evaluate(sys.argv[2], sys.argv[3], sys.argv[4], "--mars-only" in sys.argv)

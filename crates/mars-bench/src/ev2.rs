@@ -59,7 +59,8 @@ pub fn run(args: &Args) -> Result<(), String> {
         }
     };
     // E34 arm A2: FAC scores for externally supplied candidate lists (e.g. a code
-    // embedding's top-100): WORK/<cands> = {case: [case, …]} -> WORK/fac_cands.json.
+    // embedding's top-100): WORK/<cands> = {case: [case, …]} -> WORK/fac_cands.json,
+    // aligned with the lists; candidates not encoded in WORK score 0.
     let cands_file = args.str("cands", "");
     if !cands_file.is_empty() {
         let cj: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/{cands_file}")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
@@ -68,7 +69,7 @@ pub fn run(args: &Args) -> Result<(), String> {
             .par_iter()
             .enumerate()
             .map(|(q, nm)| {
-                let list: Vec<f64> = cj[nm].as_array().map(|a| a.iter().filter_map(|x| x.as_str().and_then(|s| pos.get(s)).map(|&c| fac(q, c))).collect()).unwrap_or_default();
+                let list: Vec<f64> = cj[nm].as_array().map(|a| a.iter().map(|x| x.as_str().and_then(|s| pos.get(s)).map_or(0.0, |&c| fac(q, c))).collect()).unwrap_or_default();
                 (nm.clone(), json!(list))
             })
             .collect::<Vec<_>>()
