@@ -10,7 +10,7 @@ Research codebase for a structural analogical memory (see `README.md`, `docs/DES
 ```bash
 cargo build --release                      # all crates
 cargo test --workspace -q                  # unit/property tests (fast)
-cargo run --release -p mars-bench -- e0    # experiments: e0 e2 e3 e5 e6 e7 e9, bw (see crates/mars-bench/src/main.rs)
+cargo run --release -p mars-bench -- e0    # experiments: e0 … e27, bw (see crates/mars-bench/src/main.rs)
 ./target/release/mars analogies data/examples/classic.mars --case rutherford-atom   # CLI demo
 scripts/e4_sweep.sh                        # E4 perturbation sweep
 tools/fetch_e9_corpus.sh                   # real-code corpus for E9 (PyPI; sources git-ignored)
