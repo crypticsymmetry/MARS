@@ -16,6 +16,10 @@
 //! directly to the query), reaching objects no analogue proposes. `--feedback-from
 //! combined` shows the user that ranking instead (default: the learned one,
 //! so the first two rankings are unaffected by the third).
+//!
+//! E32: `--identity λ` adds the engine's identity channel to retrieval, and a
+//! fourth ranking scores each object by the noisy-or of the support-conditioned
+//! reliabilities of its inferences (calibrated probabilities).
 
 use crate::e27::{build_queries, root_of, Query};
 use crate::metrics::mean;
@@ -52,6 +56,8 @@ pub fn run(args: &Args) -> Result<(), String> {
     let rule_min_n = args.f64("rule-min-n", 20.0);
     let rule_min_p = args.f64("rule-min-p", 0.5);
     let fb_combined = args.str("feedback-from", "learned") == "combined";
+    // E32: weight of the identity channel in retrieval (0 = off).
+    let identity = args.f64("identity", 0.0);
     let t0 = Instant::now();
 
     let mut kb = Kb::new();
@@ -64,13 +70,14 @@ pub fn run(args: &Args) -> Result<(), String> {
     let rel_names: Vec<String> = rels.iter().map(|&r| kb.name(r).to_string()).collect();
 
     // Engine over the memory (IDF epoch from the memory only); query cases retired.
-    let cfg = EngineConfig { profile: Profile::surface_only(), fac_weight: 0.5, map: MapConfig { include_attributes: true, ..Default::default() }, first_order_inferences: true, infer_from: k, sq_mode: SqMode::Pipeline { mac_k: 50 }, ..Default::default() };
+    let cfg = EngineConfig { profile: Profile::surface_only(), fac_weight: 0.5, map: MapConfig { include_attributes: true, ..Default::default() }, first_order_inferences: true, infer_from: k, sq_mode: SqMode::Pipeline { mac_k: 50 }, identity_weight: identity, ..Default::default() };
     let stats = {
         let fx = FeatureExtractor::new(&kb, FeatureConfig::default());
         let raw: Vec<Features> = mem.par_iter().map(|&c| fx.extract(c)).collect();
         FeatureStats::fit(raw.iter())
     };
-    let mut e = Engine::with_stats(kb, cfg, stats);
+    let ident_stats = (identity > 0.0).then(|| mars_engine::identity::IdentityIndex::fit(&kb, mem.iter().copied()));
+    let mut e = Engine::with_epochs(kb, cfg, stats, ident_stats);
     for q in &queries {
         e.remove_case(q.case);
     }
@@ -79,7 +86,7 @@ pub fn run(args: &Args) -> Result<(), String> {
     eprintln!("[e30] {} memory cases, {} queries in stream ({:.1?})", mem.len(), order.len(), t0.elapsed());
 
     // First-hit ranks per stream position: [learned, raw, learned + induced rules].
-    let mut ranks: Vec<[Option<usize>; 3]> = Vec::with_capacity(order.len());
+    let mut ranks: Vec<[Option<usize>; 4]> = Vec::with_capacity(order.len());
     let (mut rule_only_hits, mut n_rules_fired) = (0usize, 0usize);
     // Is some gold object present in the query case (reachable by substitution or a rule)?
     let mut in_query: Vec<bool> = Vec::with_capacity(order.len());
@@ -89,16 +96,16 @@ pub fn run(args: &Args) -> Result<(), String> {
         let r = rels[q.rel];
         let infs = e.infer(q.case, k, &[mem[q.orig]]);
         // Predictions for (r person ?y): the object, with learned and raw scores.
-        let preds: Vec<(Sym, f64, f64, &str)> = infs
+        let preds: Vec<(Sym, f64, f64, &str, f64)> = infs
             .iter()
             .filter(|i| i.functor == r && i.args.len() == 2 && i.args[0] == InfArg::Entity(q.person))
             .filter_map(|i| match i.args[1] {
-                InfArg::Entity(y) | InfArg::New(y) => Some((y, i.score, i.weight, i.text.as_str())),
+                InfArg::Entity(y) | InfArg::New(y) => Some((y, i.score, i.weight, i.text.as_str(), i.reliability)),
                 InfArg::Expr => None,
             })
             .collect();
         let (mut learned, mut raw): (FxHashMap<Sym, f64>, FxHashMap<Sym, f64>) = Default::default();
-        for &(y, s, w, _) in &preds {
+        for &(y, s, w, _, _) in &preds {
             *learned.entry(y).or_insert(0.0) += s;
             *raw.entry(y).or_insert(0.0) += w;
         }
@@ -112,7 +119,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         n_rules_fired += !rules.is_empty() as usize;
         let tot: f64 = learned.values().sum::<f64>().max(1e-9);
         let mut combined: FxHashMap<Sym, f64> = learned.iter().map(|(&y, &s)| (y, s / tot)).collect();
-        let mut text_of: FxHashMap<Sym, String> = preds.iter().map(|&(y, _, _, t)| (y, t.to_string())).collect();
+        let mut text_of: FxHashMap<Sym, String> = preds.iter().map(|&(y, _, _, t, _)| (y, t.to_string())).collect();
         for (y, rel, text) in &rules {
             let best = rules.iter().filter(|x| x.0 == *y).map(|x| x.1).fold(0.0, f64::max);
             if *rel == best {
@@ -124,13 +131,21 @@ pub fn run(args: &Args) -> Result<(), String> {
         if h_comb == Some(0) && !learned.keys().any(|y| q.gold.contains(y)) {
             rule_only_hits += 1;
         }
-        ranks.push([h_learned, first_hit(&raw, q), h_comb]);
+        // Calibrated (E32): each object's probability as the noisy-or of the
+        // support-conditioned reliabilities of its inferences; ties by raw weight.
+        let mut calib: FxHashMap<Sym, f64> = FxHashMap::default();
+        for &(y, _, _, _, rel) in &preds {
+            let e = calib.entry(y).or_insert(1.0);
+            *e *= 1.0 - rel.clamp(0.0, 1.0);
+        }
+        let calib: FxHashMap<Sym, f64> = calib.into_iter().map(|(y, p)| (y, 1.0 - p + 1e-6 * raw.get(&y).copied().unwrap_or(0.0))).collect();
+        ranks.push([h_learned, first_hit(&raw, q), h_comb, first_hit(&calib, q)]);
         in_query.push(e.kb.case_entities(q.case).iter().any(|x| q.gold.contains(x)));
         // The user checks the top suggestions (by the learned or the combined ranking).
         let mut shown: Vec<(Sym, f64, String)> = if fb_combined {
             combined.iter().map(|(&y, &s)| (y, s, text_of[&y].clone())).collect()
         } else {
-            preds.iter().map(|&(y, s, _, t)| (y, s, t.to_string())).collect()
+            preds.iter().map(|&(y, s, _, t, _)| (y, s, t.to_string())).collect()
         };
         shown.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.2.cmp(&b.2)));
         for (y, _, text) in shown.into_iter().take(fb_top) {
@@ -142,22 +157,23 @@ pub fn run(args: &Args) -> Result<(), String> {
 
     let hit = |r: &Option<usize>, n: usize| r.map(|p| p < n) == Some(true);
     let rr = |r: &Option<usize>| r.map(|p| 1.0 / (p + 1) as f64).unwrap_or(0.0);
-    let stat = |sel: &[[Option<usize>; 3]], m: usize| -> (f64, f64, f64) {
+    let stat = |sel: &[[Option<usize>; 4]], m: usize| -> (f64, f64, f64) {
         (mean(&sel.iter().map(|x| hit(&x[m], 1) as u8 as f64).collect::<Vec<_>>()), mean(&sel.iter().map(|x| hit(&x[m], 10) as u8 as f64).collect::<Vec<_>>()), mean(&sel.iter().map(|x| rr(&x[m])).collect::<Vec<_>>()))
     };
     let mut md = String::new();
     writeln!(md, "# E30: online transfer reliability in the engine ({tag})\n").unwrap();
-    writeln!(md, "Data: `{dir}` ({kg} side, {} memory cases); {} hold-out queries (relations: {}; up to {per_rel} per relation), streamed in a seeded random order (seed {seed}). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50, first-order inferences from the top-{k} analogues (the entity's own full case excluded). After each query the top-{fb_top} suggestions are checked and fed back ({n_feedback} feedback events in total).\n", mem.len(), order.len(), rel_names.join(", ")).unwrap();
+    writeln!(md, "Data: `{dir}` ({kg} side, {} memory cases); {} hold-out queries (relations: {}; up to {per_rel} per relation), streamed in a seeded random order (seed {seed}). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50 (identity channel weight {identity}), first-order inferences from the top-{k} analogues (the entity's own full case excluded). After each query the top-{fb_top} suggestions are checked and fed back ({n_feedback} feedback events in total).\n", mem.len(), order.len(), rel_names.join(", ")).unwrap();
     let (a1, a10, am) = stat(&ranks, 0);
     let (b1, b10, bm) = stat(&ranks, 1);
     let (c1, c10, cm) = stat(&ranks, 2);
-    writeln!(md, "| ranking | Hits@1 | Hits@10 | MRR |\n|---|---|---|---|\n| raw (Σ fused score of proposing analogues) | {b1:.3} | {b10:.3} | {bm:.3} |\n| learned reliability × Σ fused (online feedback) | {a1:.3} | {a10:.3} | {am:.3} |\n| learned + rules induced so far (E31) | {c1:.3} | {c10:.3} | {cm:.3} |\n").unwrap();
+    let (d1, d10, dm) = stat(&ranks, 3);
+    writeln!(md, "| ranking | Hits@1 | Hits@10 | MRR |\n|---|---|---|---|\n| raw (Σ fused score of proposing analogues) | {b1:.3} | {b10:.3} | {bm:.3} |\n| learned reliability × Σ fused (online feedback) | {a1:.3} | {a10:.3} | {am:.3} |\n| learned + rules induced so far (E31) | {c1:.3} | {c10:.3} | {cm:.3} |\n| calibrated: noisy-or of support-conditioned reliabilities (E32) | {d1:.3} | {d10:.3} | {dm:.3} |\n").unwrap();
     writeln!(md, "Induced rules (≥ {rule_min_n} outcomes, precision ≥ {rule_min_p}) fired on {n_rules_fired} queries; {rule_only_hits} queries were answered correctly at rank 1 only thanks to them (no analogue proposed a correct object). Feedback shown from the {} ranking.\n", if fb_combined { "combined" } else { "learned" }).unwrap();
-    let split = |want: bool| -> Vec<[Option<usize>; 3]> { ranks.iter().zip(&in_query).filter(|x| *x.1 == want).map(|x| *x.0).collect() };
+    let split = |want: bool| -> Vec<[Option<usize>; 4]> { ranks.iter().zip(&in_query).filter(|x| *x.1 == want).map(|x| *x.0).collect() };
     let (inq, outq) = (split(true), split(false));
-    writeln!(md, "**Where the answer is** (Hits@1 raw / learned / learned + rules):\n\n| queries | n | raw | learned | learned + rules |\n|---|---|---|---|---|").unwrap();
+    writeln!(md, "**Where the answer is** (Hits@1 raw / learned / learned + rules / calibrated):\n\n| queries | n | raw | learned | learned + rules | calibrated |\n|---|---|---|---|---|---|").unwrap();
     for (name, sel) in [("a correct object is already an entity of the query (substitution / rule reachable)", &inq), ("no correct object in the query (only copying from analogues can reach it)", &outq)] {
-        writeln!(md, "| {name} | {} | {:.3} | {:.3} | {:.3} |", sel.len(), stat(sel, 1).0, stat(sel, 0).0, stat(sel, 2).0).unwrap();
+        writeln!(md, "| {name} | {} | {:.3} | {:.3} | {:.3} | {:.3} |", sel.len(), stat(sel, 1).0, stat(sel, 0).0, stat(sel, 2).0, stat(sel, 3).0).unwrap();
     }
     writeln!(md).unwrap();
     writeln!(md, "**Learning curve** (Hits@1 per stream segment):\n\n| segment | queries | raw | learned | Δ | learned + rules |\n|---|---|---|---|---|---|").unwrap();
@@ -183,8 +199,8 @@ pub fn run(args: &Args) -> Result<(), String> {
     writeln!(md, "\nRuntime {:.1?}.", t0.elapsed()).unwrap();
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     std::fs::write(format!("{out_dir}/E30-{tag}.md"), &md).map_err(|e| e.to_string())?;
-    let cfgj = json!({"data": dir, "kg": kg, "relations": rel_names, "per_rel": per_rel, "k": k, "feedback_top": fb_top, "seed": seed, "queries": order.len(), "memory": mem.len(), "profile": "surface", "fac_weight": 0.5, "mac_k": 50, "rule_min_n": rule_min_n, "rule_min_p": rule_min_p, "feedback_from": if fb_combined { "combined" } else { "learned" }});
-    let j = json!({"config": cfgj, "raw": {"hits1": b1, "hits10": b10, "mrr": bm}, "learned": {"hits1": a1, "hits10": a10, "mrr": am}, "learned_rules": {"hits1": c1, "hits10": c10, "mrr": cm, "rule_only_top1": rule_only_hits, "queries_with_rules": n_rules_fired}, "in_query": {"n": inq.len(), "raw": stat(&inq, 1).0, "learned": stat(&inq, 0).0, "learned_rules": stat(&inq, 2).0}, "not_in_query": {"n": outq.len(), "raw": stat(&outq, 1).0, "learned": stat(&outq, 0).0, "learned_rules": stat(&outq, 2).0}, "curve": curve, "feedback_events": n_feedback, "induced_rules": rules.iter().map(|(r, p, n)| json!({"rule": r, "precision": p, "outcomes": n})).collect::<Vec<_>>()});
+    let cfgj = json!({"data": dir, "kg": kg, "relations": rel_names, "per_rel": per_rel, "k": k, "feedback_top": fb_top, "seed": seed, "queries": order.len(), "memory": mem.len(), "profile": "surface", "fac_weight": 0.5, "mac_k": 50, "identity_weight": identity, "rule_min_n": rule_min_n, "rule_min_p": rule_min_p, "feedback_from": if fb_combined { "combined" } else { "learned" }});
+    let j = json!({"config": cfgj, "raw": {"hits1": b1, "hits10": b10, "mrr": bm}, "learned": {"hits1": a1, "hits10": a10, "mrr": am}, "learned_rules": {"hits1": c1, "hits10": c10, "mrr": cm, "rule_only_top1": rule_only_hits, "queries_with_rules": n_rules_fired}, "calibrated": {"hits1": d1, "hits10": d10, "mrr": dm}, "in_query": {"n": inq.len(), "raw": stat(&inq, 1).0, "learned": stat(&inq, 0).0, "learned_rules": stat(&inq, 2).0, "calibrated": stat(&inq, 3).0}, "not_in_query": {"n": outq.len(), "raw": stat(&outq, 1).0, "learned": stat(&outq, 0).0, "learned_rules": stat(&outq, 2).0, "calibrated": stat(&outq, 3).0}, "curve": curve, "feedback_events": n_feedback, "induced_rules": rules.iter().map(|(r, p, n)| json!({"rule": r, "precision": p, "outcomes": n})).collect::<Vec<_>>()});
     std::fs::write(format!("{out_dir}/E30-{tag}.json"), serde_json::to_string_pretty(&j).unwrap()).map_err(|e| e.to_string())?;
     print!("{md}");
     Ok(())

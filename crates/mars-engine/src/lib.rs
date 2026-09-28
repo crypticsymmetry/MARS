@@ -27,6 +27,7 @@
 //!   ([`Engine::infer`], [`Engine::ranked_inferences`]) and reads as rules
 //!   induced from analogy ([`Engine::induced_rules`]).
 
+pub mod identity;
 pub mod sage;
 mod store;
 pub mod transfer;
@@ -60,6 +61,11 @@ pub struct EngineConfig {
     /// (first-order facts, e.g. knowledge-graph triples; E27–E30). Default:
     /// structurally grounded inferences only (SME-style).
     pub first_order_inferences: bool,
+    /// Weight λ of the identity channel (TF-IDF cosine over entity and
+    /// predicate names, [`identity`]) in one-off retrieval (`query`, `infer`):
+    /// score = (1 − λ)·fused + λ·identity, candidates = fingerprint ∪ identity
+    /// top-`mac_k`. 0 (default) disables it. Standing queries stay fingerprint-based.
+    pub identity_weight: f64,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -83,6 +89,7 @@ impl Default for EngineConfig {
             infer_from: 5,
             sq_mode: SqMode::Pipeline { mac_k: 64 },
             first_order_inferences: false,
+            identity_weight: 0.0,
         }
     }
 }
@@ -182,6 +189,10 @@ pub struct Engine {
     pub transfers: TransferStats,
     /// (query case, inference text) → transfer types, for feedback.
     inf_keys: FxHashMap<(CaseId, String), Vec<String>>,
+    /// (query case, inference text) → support when last drawn by `infer` / `rule_inferences`.
+    inf_support: FxHashMap<(CaseId, String), usize>,
+    /// Identity channel (built when `cfg.identity_weight > 0`).
+    ident: Option<identity::IdentityIndex>,
     pub work: Work,
     events: Vec<Event>,
     log: Option<std::io::BufWriter<std::fs::File>>,
@@ -206,6 +217,16 @@ impl Engine {
 
     /// Build with a given (e.g. persisted) IDF epoch.
     pub fn with_stats(kb: Kb, cfg: EngineConfig, stats: FeatureStats) -> Self {
+        Self::with_epochs(kb, cfg, stats, None)
+    }
+
+    /// Build with given fingerprint and identity IDF epochs (`None`: fit the
+    /// identity epoch over all cases, when the channel is enabled).
+    pub fn with_epochs(kb: Kb, cfg: EngineConfig, stats: FeatureStats, ident_stats: Option<FeatureStats>) -> Self {
+        let ident = (cfg.identity_weight > 0.0).then(|| {
+            let st = ident_stats.unwrap_or_else(|| identity::IdentityIndex::fit(&kb, (0..kb.n_cases()).map(|c| CaseId(c as u32))));
+            identity::IdentityIndex::new(&kb, st)
+        });
         let sym_hash = symbol_hashes(&kb);
         let n = kb.n_cases();
         let raw: Vec<Features> = {
@@ -243,6 +264,8 @@ impl Engine {
             inf_prov: FxHashMap::default(),
             transfers: TransferStats::default(),
             inf_keys: FxHashMap::default(),
+            inf_support: FxHashMap::default(),
+            ident,
             work: Work::default(),
             events: Vec::new(),
             log: None,
@@ -336,6 +359,15 @@ impl Engine {
         self.query_significance(q, k).0
     }
 
+    /// Identity-channel cosine of two cases (None when the channel is off).
+    pub fn identity_score(&self, a: CaseId, b: CaseId) -> Option<f64> {
+        self.ident.as_ref().map(|ix| ix.score(a, b))
+    }
+
+    pub(crate) fn identity_stats(&self) -> Option<&FeatureStats> {
+        self.ident.as_ref().map(|ix| ix.stats())
+    }
+
     /// `query` plus the significance of the top-1 analogue: the z-score of
     /// its fused score against the fused scores of the lower half of the
     /// fingerprint candidate list (a *local null*: the best chance matches
@@ -348,9 +380,26 @@ impl Engine {
             SqMode::ExactFused => 64,
         };
         let (top, _) = self.fp_top(q, mac_k + self.cfg.slack);
-        let cands = Self::pipeline_candidates(&top, mac_k);
+        let mut cands = Self::pipeline_candidates(&top, mac_k);
+        let lam = self.cfg.identity_weight;
+        if let Some(ix) = &self.ident {
+            for (c, _) in ix.top(q, mac_k, &self.alive) {
+                if !cands.contains(&c) {
+                    cands.push(c);
+                }
+            }
+        }
         let live: Vec<CaseId> = cands.into_iter().filter(|c| self.alive[c.0 as usize] && *c != q).collect();
-        let mut r: Vec<(CaseId, f64)> = live.into_iter().map(|c| (c, self.fused(q, c))).collect();
+        let mut r: Vec<(CaseId, f64)> = live
+            .into_iter()
+            .map(|c| {
+                let f = self.fused(q, c);
+                match &self.ident {
+                    Some(ix) => (c, (1.0 - lam) * f + lam * ix.score(q, c)),
+                    None => (c, f),
+                }
+            })
+            .collect();
         let z = (r.len() >= 8).then(|| {
             let tail: Vec<f64> = r[r.len() / 2..].iter().map(|x| x.1).collect();
             let m = tail.iter().sum::<f64>() / tail.len() as f64;
@@ -402,6 +451,9 @@ impl Engine {
         self.fps.push(fp);
         self.alive.push(true);
         self.self_score.push(None);
+        if let Some(ix) = self.ident.as_mut() {
+            ix.set(&self.kb, c);
+        }
         self.work.rows_written += 1;
         self.case_changed(c);
         c
@@ -479,6 +531,9 @@ impl Engine {
         let fp = self.encode(c);
         self.index.update(c.0, &fp);
         self.fps[c.0 as usize] = fp;
+        if let Some(ix) = self.ident.as_mut() {
+            ix.set(&self.kb, c);
+        }
         self.work.rows_written += 1;
         self.case_changed(c);
     }
@@ -693,9 +748,10 @@ impl Engine {
         }
         let mut v: Vec<Inference> = by_text.into_values().collect();
         for inf in &mut v {
-            inf.reliability = self.transfers.reliability(&inf.transfers);
+            inf.reliability = self.transfers.reliability_at(&inf.transfers, inf.support);
             inf.score = inf.weight * inf.reliability;
             self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
+            self.inf_support.insert((q, inf.text.clone()), inf.support);
         }
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
         v
@@ -706,8 +762,18 @@ impl Engine {
     /// transfer types; logged, so reopening a store reproduces it.
     pub fn feedback(&mut self, q: CaseId, text: &str, correct: bool) -> Result<(), String> {
         let keys = self.inf_keys.get(&(q, text.to_string())).cloned().ok_or_else(|| format!("no inference {text} drawn for this query"))?;
-        self.record_transfer(&keys, correct);
+        let support = self.support_of(q, text);
+        self.record_transfer(&transfer::outcome_keys(&keys, support), correct);
         Ok(())
+    }
+
+    /// Support of an inference drawn for `q`: from `infer` / `rule_inferences`,
+    /// else from a standing query on `q`.
+    fn support_of(&self, q: CaseId, text: &str) -> usize {
+        if let Some(&s) = self.inf_support.get(&(q, text.to_string())) {
+            return s;
+        }
+        (0..self.sqs.len()).filter(|&sq| self.sqs[sq].case == q).map(|sq| self.support(sq, text)).max().unwrap_or(1)
     }
 
     pub(crate) fn record_transfer(&mut self, keys: &[String], correct: bool) {
@@ -747,13 +813,14 @@ impl Engine {
                     continue;
                 }
                 let keys = transfer::pair_keys(&self.kb, q, head, x, y);
-                let reliability = self.transfers.reliability(&keys);
+                let reliability = self.transfers.reliability_at(&keys, 0);
                 by_text.insert(text.clone(), Inference { text, functor: f, args: vec![InfArg::Entity(x), InfArg::Entity(y)], support: 0, reliability, weight: 0.0, score: reliability, transfers: keys, analogues: Vec::new() });
             }
         }
         let mut v: Vec<Inference> = by_text.into_values().collect();
         for inf in &v {
             self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
+            self.inf_support.insert((q, inf.text.clone()), 0);
         }
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
         v
@@ -769,8 +836,8 @@ impl Engine {
                 let keys = self.inf_keys.get(&(q, t.clone())).cloned().unwrap_or_default();
                 let n = self.inf_nodes[&(sq, t.clone())];
                 let analogues: Vec<CaseId> = self.inf_prov.get(&n).map(|p| p.iter().filter(|x| self.tms.just_holds(x.2)).map(|x| x.0).collect()).unwrap_or_default();
-                let reliability = self.transfers.reliability(&keys);
                 let support = self.tms.support_count(n);
+                let reliability = self.transfers.reliability_at(&keys, support);
                 Inference { text: t, functor: Sym(0), args: Vec::new(), support, reliability, weight: support as f64, score: reliability * support as f64, transfers: keys, analogues }
             })
             .collect();
@@ -876,7 +943,7 @@ impl Engine {
         let provs = self.inf_prov.get(&n)?;
         let mut s = format!("{text}\n  believed: {} (supported by {} analogue(s))", self.tms.is_in(n), self.tms.support_count(n));
         if let Some(keys) = self.inf_keys.get(&(self.sqs[sq].case, text.to_string())) {
-            s.push_str(&format!("\n  transfer: {} (reliability {:.2})", keys.join(" | "), self.transfers.reliability(keys)));
+            s.push_str(&format!("\n  transfer: {} (reliability {:.2})", keys.join(" | "), self.transfers.reliability_at(keys, self.tms.support_count(n))));
         }
         for (a, facts, j) in provs {
             if !self.tms.just_holds(*j) {
@@ -1097,6 +1164,43 @@ mod tests {
         e.feedback(q2, &p2.text, false).unwrap();
         let r = Engine::open(&dir, cfg).unwrap();
         assert_eq!(r.transfers, e.transfers);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn identity_channel_finds_entity_overlap_and_stays_incremental() {
+        // Same star structure everywhere; only shared entities tell cases apart.
+        let mut src = String::from("(defpredicate born-in :arity 2 :kind relation)\n(defpredicate works-at :arity 2 :kind relation)\n");
+        for i in 0..20 {
+            src.push_str(&format!("(defcase p{i} (born-in p{i} city{i}) (works-at p{i} uni{i}))\n"));
+        }
+        src.push_str("(defcase q (born-in q city7) (works-at q uni7))\n");
+        let mut kb = Kb::new();
+        kb.load_str(&src).unwrap();
+        let q = kb.case_by_name("q").unwrap();
+        let p7 = kb.case_by_name("p7").unwrap();
+        let cfg = EngineConfig { identity_weight: 0.5, ..Default::default() };
+        let mut e = Engine::new(kb, cfg.clone());
+        e.remove_case(q);
+        assert_eq!(e.query(q, 1)[0].0, p7, "shared entities identify the instance");
+        let p3 = e.kb.case_by_name("p3").unwrap();
+        assert!(e.identity_score(q, p7).unwrap() > 3.0 * e.identity_score(q, p3).unwrap());
+        // Incremental: a new case sharing both entities, then one of p7's facts removed.
+        let (b, w) = (e.kb.sym("born-in"), e.kb.sym("works-at"));
+        let x = e.kb.sym("x");
+        let (c7, u7) = (e.kb.sym("city7"), e.kb.sym("uni7"));
+        let f1 = e.kb.intern_expr(b, [Term::Ent(x), Term::Ent(c7)]);
+        let f2 = e.kb.intern_expr(w, [Term::Ent(x), Term::Ent(u7)]);
+        let nx = e.add_case("x", vec![f1, f2]);
+        let p7_work = e.kb.case(p7).facts.iter().copied().find(|&f| e.kb.expr(f).functor == w).unwrap();
+        e.remove_fact(p7, p7_work);
+        assert_eq!(e.query(q, 1)[0].0, nx);
+        // Persistence: the identity epoch is frozen and reloaded.
+        let dir = std::env::temp_dir().join(format!("mars-identity-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        e.checkpoint(&dir).unwrap();
+        let mut r = Engine::open(&dir, cfg).unwrap();
+        assert_eq!(r.query(q, 3), e.query(q, 3));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

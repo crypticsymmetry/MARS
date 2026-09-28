@@ -1,0 +1,173 @@
+{
+  "calibrated": {
+    "hits1": 0.42833333333333334,
+    "hits10": 0.6408333333333334,
+    "mrr": 0.504910519138908
+  },
+  "config": {
+    "data": "data/kg-scientists → kg2mars --condition C --hop2",
+    "fac_weight": 0.5,
+    "feedback_from": "learned",
+    "feedback_top": 3,
+    "identity_weight": 0.7,
+    "k": 10,
+    "kg": "wikidata",
+    "mac_k": 50,
+    "memory": 993,
+    "per_rel": 300,
+    "profile": "surface",
+    "queries": 2400,
+    "relations": [
+      "wdt:p69",
+      "wdt:p108",
+      "wdt:p101",
+      "wdt:p27",
+      "wdt:p106",
+      "wdt:p166",
+      "wdt:p463",
+      "wdt:p1412"
+    ],
+    "rule_min_n": 20.0,
+    "rule_min_p": 0.5,
+    "seed": 1
+  },
+  "curve": [
+    {
+      "learned": 0.4533333333333333,
+      "learned_rules": 0.4533333333333333,
+      "raw": 0.44666666666666666,
+      "segment": 1
+    },
+    {
+      "learned": 0.44,
+      "learned_rules": 0.43666666666666665,
+      "raw": 0.43666666666666665,
+      "segment": 2
+    },
+    {
+      "learned": 0.44,
+      "learned_rules": 0.44,
+      "raw": 0.43333333333333335,
+      "segment": 3
+    },
+    {
+      "learned": 0.44,
+      "learned_rules": 0.44,
+      "raw": 0.45,
+      "segment": 4
+    },
+    {
+      "learned": 0.44,
+      "learned_rules": 0.44,
+      "raw": 0.43666666666666665,
+      "segment": 5
+    },
+    {
+      "learned": 0.39666666666666667,
+      "learned_rules": 0.3933333333333333,
+      "raw": 0.39666666666666667,
+      "segment": 6
+    },
+    {
+      "learned": 0.43666666666666665,
+      "learned_rules": 0.43333333333333335,
+      "raw": 0.42333333333333334,
+      "segment": 7
+    },
+    {
+      "learned": 0.4166666666666667,
+      "learned_rules": 0.4166666666666667,
+      "raw": 0.4066666666666667,
+      "segment": 8
+    }
+  ],
+  "feedback_events": 6723,
+  "in_query": {
+    "calibrated": 0.7450424929178471,
+    "learned": 0.7464589235127479,
+    "learned_rules": 0.7464589235127479,
+    "n": 706,
+    "raw": 0.7195467422096318
+  },
+  "induced_rules": [
+    {
+      "outcomes": 30.0,
+      "precision": 1.0,
+      "rule": "wdt:p1412(x, y) ⇐ wdt:p103(x, y)"
+    },
+    {
+      "outcomes": 28.0,
+      "precision": 1.0,
+      "rule": "wdt:p1412(x, y) ⇐ wdt:p6886(x, y)"
+    },
+    {
+      "outcomes": 216.0,
+      "precision": 0.7916666666666666,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p19(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 20.0,
+      "precision": 0.75,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p551(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 278.0,
+      "precision": 0.7230215827338129,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p108(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 113.0,
+      "precision": 0.7079646017699115,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p20(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 336.0,
+      "precision": 0.6815476190476191,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p69(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 128.0,
+      "precision": 0.59375,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p184(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 26.0,
+      "precision": 0.5769230769230769,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p463(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 169.0,
+      "precision": 0.5562130177514792,
+      "rule": "wdt:p69(x, y) ⇐ wdt:p184(x, z) ∧ wdt:p108(z, y)"
+    },
+    {
+      "outcomes": 20.0,
+      "precision": 0.55,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p551(x, y)"
+    }
+  ],
+  "learned": {
+    "hits1": 0.43291666666666667,
+    "hits10": 0.6420833333333333,
+    "mrr": 0.5095603359466553
+  },
+  "learned_rules": {
+    "hits1": 0.43166666666666664,
+    "hits10": 0.6441666666666667,
+    "mrr": 0.5091418504969198,
+    "queries_with_rules": 401,
+    "rule_only_top1": 0
+  },
+  "not_in_query": {
+    "calibrated": 0.29634002361275086,
+    "learned": 0.3022432113341204,
+    "learned_rules": 0.3004722550177096,
+    "n": 1694,
+    "raw": 0.307556080283353
+  },
+  "raw": {
+    "hits1": 0.42875,
+    "hits10": 0.6404166666666666,
+    "mrr": 0.5059468001768697
+  }
+}

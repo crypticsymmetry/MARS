@@ -1,0 +1,168 @@
+{
+  "calibrated": {
+    "hits1": 0.40041666666666664,
+    "hits10": 0.6275,
+    "mrr": 0.4821028441813336
+  },
+  "config": {
+    "data": "data/kg-scientists → kg2mars --condition C --hop2",
+    "fac_weight": 0.5,
+    "feedback_from": "learned",
+    "feedback_top": 3,
+    "identity_weight": 0.0,
+    "k": 10,
+    "kg": "wikidata",
+    "mac_k": 50,
+    "memory": 993,
+    "per_rel": 300,
+    "profile": "surface",
+    "queries": 2400,
+    "relations": [
+      "wdt:p69",
+      "wdt:p108",
+      "wdt:p101",
+      "wdt:p27",
+      "wdt:p106",
+      "wdt:p166",
+      "wdt:p463",
+      "wdt:p1412"
+    ],
+    "rule_min_n": 20.0,
+    "rule_min_p": 0.5,
+    "seed": 1
+  },
+  "curve": [
+    {
+      "learned": 0.46,
+      "learned_rules": 0.46,
+      "raw": 0.46,
+      "segment": 1
+    },
+    {
+      "learned": 0.41333333333333333,
+      "learned_rules": 0.41333333333333333,
+      "raw": 0.41,
+      "segment": 2
+    },
+    {
+      "learned": 0.4066666666666667,
+      "learned_rules": 0.4066666666666667,
+      "raw": 0.41,
+      "segment": 3
+    },
+    {
+      "learned": 0.39,
+      "learned_rules": 0.38333333333333336,
+      "raw": 0.38333333333333336,
+      "segment": 4
+    },
+    {
+      "learned": 0.4166666666666667,
+      "learned_rules": 0.4166666666666667,
+      "raw": 0.4,
+      "segment": 5
+    },
+    {
+      "learned": 0.37,
+      "learned_rules": 0.37333333333333335,
+      "raw": 0.37333333333333335,
+      "segment": 6
+    },
+    {
+      "learned": 0.39,
+      "learned_rules": 0.39,
+      "raw": 0.37666666666666665,
+      "segment": 7
+    },
+    {
+      "learned": 0.4066666666666667,
+      "learned_rules": 0.4,
+      "raw": 0.3933333333333333,
+      "segment": 8
+    }
+  ],
+  "feedback_events": 6885,
+  "in_query": {
+    "calibrated": 0.7308781869688386,
+    "learned": 0.7365439093484419,
+    "learned_rules": 0.7337110481586402,
+    "n": 706,
+    "raw": 0.7096317280453258
+  },
+  "induced_rules": [
+    {
+      "outcomes": 29.0,
+      "precision": 1.0,
+      "rule": "wdt:p1412(x, y) ⇐ wdt:p103(x, y)"
+    },
+    {
+      "outcomes": 29.0,
+      "precision": 1.0,
+      "rule": "wdt:p1412(x, y) ⇐ wdt:p6886(x, y)"
+    },
+    {
+      "outcomes": 221.0,
+      "precision": 0.7692307692307693,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p19(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 282.0,
+      "precision": 0.7163120567375887,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p108(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 114.0,
+      "precision": 0.7105263157894737,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p20(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 329.0,
+      "precision": 0.6869300911854104,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p69(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 130.0,
+      "precision": 0.5769230769230769,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p184(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 161.0,
+      "precision": 0.5714285714285714,
+      "rule": "wdt:p69(x, y) ⇐ wdt:p184(x, z) ∧ wdt:p108(z, y)"
+    },
+    {
+      "outcomes": 27.0,
+      "precision": 0.5555555555555556,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p463(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 20.0,
+      "precision": 0.55,
+      "rule": "wdt:p27(x, y) ⇐ wdt:p551(x, y)"
+    }
+  ],
+  "learned": {
+    "hits1": 0.4066666666666667,
+    "hits10": 0.6291666666666667,
+    "mrr": 0.48691016474237264
+  },
+  "learned_rules": {
+    "hits1": 0.40541666666666665,
+    "hits10": 0.6308333333333334,
+    "mrr": 0.48642868326089117,
+    "queries_with_rules": 403,
+    "rule_only_top1": 0
+  },
+  "not_in_query": {
+    "calibrated": 0.2626918536009445,
+    "learned": 0.269185360094451,
+    "learned_rules": 0.26859504132231404,
+    "n": 1694,
+    "raw": 0.27213695395513576
+  },
+  "raw": {
+    "hits1": 0.4008333333333333,
+    "hits10": 0.6275,
+    "mrr": 0.4822915200101764
+  }
+}

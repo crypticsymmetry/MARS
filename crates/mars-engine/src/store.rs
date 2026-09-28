@@ -4,6 +4,7 @@
 //! * `kb.mars`   — vocabulary and every case (in `CaseId` order, so ids are stable),
 //! * `meta.txt`  — engine metadata: `retire <case>` and `standing <case> <k>` lines,
 //! * `epoch.idf` — the frozen feature statistics (exact reproducibility),
+//! * `identity.idf` — the identity channel's frozen statistics (when enabled),
 //! * `log.txt`   — operations since the snapshot, one per line, replayed on open.
 //!
 //! Log records: `declare <defpredicate…>`, `add-case <defcase…>`,
@@ -74,6 +75,9 @@ impl Engine {
         write("kb.mars", kb_text.as_bytes())?;
         write("meta.txt", meta.as_bytes())?;
         write("epoch.idf", &self.stats.to_bytes())?;
+        if let Some(st) = self.identity_stats() {
+            write("identity.idf", &st.to_bytes())?;
+        }
         write("log.txt", b"")?;
         self.log = None;
         self.attach_log(&dir.join("log.txt"))
@@ -85,7 +89,11 @@ impl Engine {
         let mut kb = Kb::new();
         kb.load_str(&std::fs::read_to_string(dir.join("kb.mars")).map_err(io)?).map_err(io)?;
         let stats = FeatureStats::from_bytes(&std::fs::read(dir.join("epoch.idf")).map_err(io)?)?;
-        let mut e = Engine::with_stats(kb, cfg, stats);
+        let ident = match std::fs::read(dir.join("identity.idf")) {
+            Ok(b) => Some(FeatureStats::from_bytes(&b)?),
+            Err(_) => None,
+        };
+        let mut e = Engine::with_epochs(kb, cfg, stats, ident);
         e.replaying = true;
         for line in std::fs::read_to_string(dir.join("meta.txt")).map_err(io)?.lines() {
             e.apply(line)?;
