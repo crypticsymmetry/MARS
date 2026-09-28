@@ -69,6 +69,7 @@ impl PyEngine {
         d.set_item("text", i.text)?;
         d.set_item("support", i.support)?;
         d.set_item("reliability", i.reliability)?;
+        d.set_item("weight", i.weight)?;
         d.set_item("score", i.score)?;
         d.set_item("transfers", i.transfers)?;
         d.set_item("analogues", i.analogues.iter().map(|&c| self.name(c)).collect::<Vec<_>>())?;
@@ -251,6 +252,15 @@ impl PyEngine {
     fn feedback(&mut self, case: &str, text: &str, correct: bool) -> PyResult<()> {
         let q = self.case(case)?;
         self.e.feedback(q, text, correct).map_err(err)
+    }
+
+    /// Inferences from the rules induced so far, applied directly to `case`
+    /// (reaches objects no analogue proposes; E31). Same dicts as `suggest`, support 0.
+    #[pyo3(signature = (case, min_n = 20.0, min_precision = 0.5))]
+    fn rule_suggestions<'py>(&mut self, py: Python<'py>, case: &str, min_n: f64, min_precision: f64) -> PyResult<Vec<Bound<'py, PyDict>>> {
+        let q = self.case(case)?;
+        let infs = self.e.rule_inferences(q, min_n, min_precision);
+        infs.into_iter().map(|i| self.inference_dict(py, i)).collect()
     }
 
     /// Transfer types with ≥ `min_n` feedback outcomes and precision ≥

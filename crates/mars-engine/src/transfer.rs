@@ -30,8 +30,7 @@ pub fn transfer_keys(kb: &Kb, q: CaseId, proj: &Proj) -> Vec<String> {
         return vec![format!("{f}<=new:{}", new.join(","))];
     }
     if let [Proj::Target(Term::Ent(a)), Proj::Target(Term::Ent(b))] = args.as_slice() {
-        let p = paths(kb, q, *a, *b);
-        return if p.is_empty() { vec![format!("{f}<=unlinked")] } else { p.into_iter().map(|p| format!("{f}<={p}")).collect() };
+        return pair_keys(kb, q, f, *a, *b);
     }
     let kinds: String = args
         .iter()
@@ -44,9 +43,42 @@ pub fn transfer_keys(kb: &Kb, q: CaseId, proj: &Proj) -> Vec<String> {
     vec![format!("{f}<=[{kinds}]")]
 }
 
-/// Relation paths of length ≤ 2 from `a` to `b` among the binary relation facts of case `c`.
-fn paths(kb: &Kb, c: CaseId, a: Sym, b: Sym) -> Vec<String> {
-    // (name, from, to) with both directions.
+/// Transfer types of a binary fact `f(a, b)` between query entities.
+pub fn pair_keys(kb: &Kb, q: CaseId, f: &str, a: Sym, b: Sym) -> Vec<String> {
+    let p = paths(kb, q, a, b);
+    if p.is_empty() {
+        vec![format!("{f}<=unlinked")]
+    } else {
+        p.into_iter().map(|p| format!("{f}<={p}")).collect()
+    }
+}
+
+/// Entity pairs (x, y) of case `c` linked by a rule body (`g`, `g~`, `g.h`, …).
+pub fn rule_pairs(kb: &Kb, c: CaseId, body: &str) -> Vec<(Sym, Sym)> {
+    let st = steps(kb, c);
+    let parts: Vec<&str> = body.split('.').collect();
+    let mut out: FxHashSet<(Sym, Sym)> = FxHashSet::default();
+    match parts.as_slice() {
+        [g] => out.extend(st.iter().filter(|s| s.0 == *g).map(|s| (s.1, s.2))),
+        [g, h] => {
+            for (_, x, z) in st.iter().filter(|s| s.0 == *g) {
+                for (_, _, y) in st.iter().filter(|s| s.0 == *h && s.1 == *z) {
+                    if y != x {
+                        out.insert((*x, *y));
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+    let mut v: Vec<(Sym, Sym)> = out.into_iter().collect();
+    v.sort();
+    v
+}
+
+/// Binary relation steps of case `c` as (name, from, to), each fact in both
+/// directions (`name~` backwards).
+fn steps(kb: &Kb, c: CaseId) -> Vec<(String, Sym, Sym)> {
     let mut steps: Vec<(String, Sym, Sym)> = Vec::new();
     for &f in &kb.case(c).facts {
         let e = kb.expr(f);
@@ -59,6 +91,12 @@ fn paths(kb: &Kb, c: CaseId, a: Sym, b: Sym) -> Vec<String> {
             steps.push((format!("{n}~"), *y, *x));
         }
     }
+    steps
+}
+
+/// Relation paths of length ≤ 2 from `a` to `b` among the binary relation facts of case `c`.
+fn paths(kb: &Kb, c: CaseId, a: Sym, b: Sym) -> Vec<String> {
+    let steps = steps(kb, c);
     let mut out: FxHashSet<String> = FxHashSet::default();
     for (n1, x, z) in &steps {
         if *x != a {

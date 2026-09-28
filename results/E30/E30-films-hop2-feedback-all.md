@@ -6,19 +6,29 @@ Data: `data/kg-films → kg2mars --condition C --hop2` (wikidata side, 992 memor
 |---|---|---|---|
 | raw (Σ fused score of proposing analogues) | 0.360 | 0.486 | 0.408 |
 | learned reliability × Σ fused (online feedback) | 0.372 | 0.488 | 0.417 |
+| learned + rules induced so far (E31) | 0.377 | 0.490 | 0.419 |
+
+Induced rules (≥ 20 outcomes, precision ≥ 0.5) fired on 908 queries; 5 queries were answered correctly at rank 1 only thanks to them (no analogue proposed a correct object). Feedback shown from the learned ranking.
+
+**Where the answer is** (Hits@1 raw / learned / learned + rules):
+
+| queries | n | raw | learned | learned + rules |
+|---|---|---|---|---|
+| a correct object is already an entity of the query (substitution / rule reachable) | 1160 | 0.771 | 0.823 | 0.839 |
+| no correct object in the query (only copying from analogues can reach it) | 1840 | 0.102 | 0.087 | 0.085 |
 
 **Learning curve** (Hits@1 per stream segment):
 
-| segment | queries | raw | learned | Δ |
-|---|---|---|---|---|
-| 1 | 1–375 | 0.376 | 0.389 | +0.013 |
-| 2 | 376–750 | 0.355 | 0.363 | +0.008 |
-| 3 | 751–1125 | 0.352 | 0.363 | +0.011 |
-| 4 | 1126–1500 | 0.373 | 0.387 | +0.013 |
-| 5 | 1501–1875 | 0.373 | 0.389 | +0.016 |
-| 6 | 1876–2250 | 0.357 | 0.363 | +0.005 |
-| 7 | 2251–2625 | 0.349 | 0.360 | +0.011 |
-| 8 | 2626–3000 | 0.347 | 0.363 | +0.016 |
+| segment | queries | raw | learned | Δ | learned + rules |
+|---|---|---|---|---|---|
+| 1 | 1–375 | 0.376 | 0.389 | +0.013 | 0.389 |
+| 2 | 376–750 | 0.355 | 0.363 | +0.008 | 0.368 |
+| 3 | 751–1125 | 0.352 | 0.363 | +0.011 | 0.363 |
+| 4 | 1126–1500 | 0.373 | 0.387 | +0.013 | 0.395 |
+| 5 | 1501–1875 | 0.373 | 0.389 | +0.016 | 0.392 |
+| 6 | 1876–2250 | 0.357 | 0.363 | +0.005 | 0.368 |
+| 7 | 2251–2625 | 0.349 | 0.360 | +0.011 | 0.368 |
+| 8 | 2626–3000 | 0.347 | 0.363 | +0.016 | 0.371 |
 
 **Rules induced from analogy by the end of the stream** (transfer types with ≥ 20 feedback outcomes and precision ≥ 0.5; 20 in total, top 20):
 
@@ -55,4 +65,4 @@ Data: `data/kg-films → kg2mars --condition C --hop2` (wikidata side, 992 memor
 | `wdt:p86<=wdt:p161` | 0.000 | 32 |
 | `wdt:p344<=wdt:p495.wdt:p27~` | 0.000 | 38 |
 
-Runtime 44.8s.
+Runtime 46.5s.

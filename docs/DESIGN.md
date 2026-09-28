@@ -36,7 +36,9 @@ Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars 
 
 Also built: Python bindings (`mars-py`, §12.4), LLM front ends (`tools/llm2mars.py`), KG front ends (`tools/kg_*.py`, `tools/kg2mars.py`), near-miss diagnostics in SAGE (E20), and transfer-reliability learning in the engine (E30).
 
-Not yet built: cascade/MIH indexes, Mode H transition memory, and applying induced rules directly / storing them as schema cases.
+Also built: applying induced rules directly (`Engine::rule_inferences`; E31: little gain, since analogy already covers them).
+
+Not yet built: cascade/MIH indexes, Mode H transition memory, storing induced rules as schema cases, and an identity (entity-overlap) channel in engine retrieval (E27/E31 point to it for new-value prediction).
 
 ---
 

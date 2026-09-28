@@ -91,6 +91,7 @@ def test_feedback_learns_which_transfers_to_trust():
     for _ in range(10):
         e.feedback("q2", "(writer q2 dq2)", True)
     assert e.induced_rules(min_n=5, min_precision=0.9)[0][0] == "writer(x, y) ⇐ director(x, y)"
+    assert [i["text"] for i in e.rule_suggestions("q1", min_n=5, min_precision=0.9)] == ["(writer q1 dq1)"]
     with tempfile.TemporaryDirectory() as d:
         e.checkpoint(d)
         e.feedback("q2", "(writer q2 dq2)", True)

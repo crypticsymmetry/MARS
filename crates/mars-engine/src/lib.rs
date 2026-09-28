@@ -145,7 +145,9 @@ pub struct Inference {
     pub support: usize,
     /// Learned precision of its transfer type (the global prior before any feedback).
     pub reliability: f64,
-    /// Ranking score: reliability × Σ fused score of the proposing analogues.
+    /// Σ fused score of the proposing analogues (raw analogical evidence).
+    pub weight: f64,
+    /// Ranking score: reliability × weight.
     pub score: f64,
     pub transfers: Vec<String>,
     pub analogues: Vec<CaseId>,
@@ -681,18 +683,18 @@ impl Engine {
         let mut by_text: FxHashMap<String, Inference> = FxHashMap::default();
         for ((a, items), &(_, w)) in self.analogue_inferences(q, &analogues).into_iter().zip(hits.iter()) {
             for it in items {
-                let e = by_text.entry(it.text.clone()).or_insert_with(|| Inference { text: it.text.clone(), functor: it.functor, args: it.args.clone(), support: 0, reliability: 0.0, score: 0.0, transfers: it.keys.clone(), analogues: Vec::new() });
+                let e = by_text.entry(it.text.clone()).or_insert_with(|| Inference { text: it.text.clone(), functor: it.functor, args: it.args.clone(), support: 0, reliability: 0.0, weight: 0.0, score: 0.0, transfers: it.keys.clone(), analogues: Vec::new() });
                 if !e.analogues.contains(&a) {
                     e.analogues.push(a);
                     e.support += 1;
-                    e.score += w.max(1e-3);
+                    e.weight += w.max(1e-3);
                 }
             }
         }
         let mut v: Vec<Inference> = by_text.into_values().collect();
         for inf in &mut v {
             inf.reliability = self.transfers.reliability(&inf.transfers);
-            inf.score *= inf.reliability;
+            inf.score = inf.weight * inf.reliability;
             self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
         }
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
@@ -719,6 +721,44 @@ impl Engine {
         self.transfers.table(min_n).into_iter().filter(|x| x.1 >= min_precision).map(|(k, p, n)| (transfer::render_rule(&k), p, n)).collect()
     }
 
+    /// Inferences from induced rules applied directly to query case `q`: every
+    /// transfer type with ≥ `min_n` outcomes and precision ≥ `min_precision`
+    /// whose body is a relation path is used as a rule, and fires on every
+    /// entity pair of `q` its body links (facts already in `q` are skipped).
+    /// Reaches objects no analogue proposes. Support 0, no analogues; score =
+    /// reliability. Feedback works as for analogical inferences.
+    pub fn rule_inferences(&mut self, q: CaseId, min_n: f64, min_precision: f64) -> Vec<Inference> {
+        let mut by_text: FxHashMap<String, Inference> = FxHashMap::default();
+        for (key, p, _) in self.transfers.table(min_n) {
+            if p < min_precision {
+                continue;
+            }
+            let Some((head, body)) = key.split_once("<=") else { continue };
+            if body.starts_with("new:") || body.starts_with('[') || body == "unlinked" {
+                continue;
+            }
+            let Some(f) = self.kb.interner.get(head) else { continue };
+            for (x, y) in transfer::rule_pairs(&self.kb, q, body) {
+                if self.kb.find_expr(f, &[Term::Ent(x), Term::Ent(y)]).is_some_and(|e| self.kb.case(q).facts.contains(&e)) {
+                    continue;
+                }
+                let text = format!("({head} {} {})", self.kb.name(x), self.kb.name(y));
+                if by_text.contains_key(&text) {
+                    continue;
+                }
+                let keys = transfer::pair_keys(&self.kb, q, head, x, y);
+                let reliability = self.transfers.reliability(&keys);
+                by_text.insert(text.clone(), Inference { text, functor: f, args: vec![InfArg::Entity(x), InfArg::Entity(y)], support: 0, reliability, weight: 0.0, score: reliability, transfers: keys, analogues: Vec::new() });
+            }
+        }
+        let mut v: Vec<Inference> = by_text.into_values().collect();
+        for inf in &v {
+            self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
+        }
+        v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
+        v
+    }
+
     /// Believed inferences of a standing query, ranked by reliability × support.
     pub fn ranked_inferences(&self, sq: usize) -> Vec<Inference> {
         let q = self.sqs[sq].case;
@@ -731,7 +771,7 @@ impl Engine {
                 let analogues: Vec<CaseId> = self.inf_prov.get(&n).map(|p| p.iter().filter(|x| self.tms.just_holds(x.2)).map(|x| x.0).collect()).unwrap_or_default();
                 let reliability = self.transfers.reliability(&keys);
                 let support = self.tms.support_count(n);
-                Inference { text: t, functor: Sym(0), args: Vec::new(), support, reliability, score: reliability * support as f64, transfers: keys, analogues }
+                Inference { text: t, functor: Sym(0), args: Vec::new(), support, reliability, weight: support as f64, score: reliability * support as f64, transfers: keys, analogues }
             })
             .collect();
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
@@ -1044,6 +1084,12 @@ mod tests {
         }
         let rules = e.induced_rules(5.0, 0.9);
         assert_eq!(rules[0].0, "writer(x, y) ⇐ director(x, y)");
+        // Induced rules apply directly, with no analogue involved.
+        let by_rule = e.rule_inferences(q1, 5.0, 0.9);
+        assert_eq!(by_rule.len(), 1);
+        assert_eq!((by_rule[0].text.as_str(), by_rule[0].support), ("(writer q1 dq1)", 0));
+        assert!(by_rule[0].reliability > 0.9);
+        e.feedback(q1, "(writer q1 dq1)", true).unwrap();
         // Persistence: counts survive a checkpoint, logged feedback survives reopening.
         let dir = std::env::temp_dir().join(format!("mars-transfer-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);

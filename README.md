@@ -24,7 +24,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 ## Status
 
-**Working research prototype** (Rust workspace, 11 crates incl. Python bindings; 30 experiments, all reproducible from versioned data). Current results:
+**Working research prototype** (Rust workspace, 11 crates incl. Python bindings; 31 experiments, all reproducible from versioned data). Current results:
 
 | hypothesis | result | evidence |
 |---|---|---|
@@ -36,6 +36,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 | H5 structure beats surface on adversarial / real data | ✅ synthetic; partial on real code (MRR 0.33 vs 0.15 lexical) | [E4](results/E4/README.md), [E9](results/E9/README.md) |
 | Works on natural language via an LLM front end | ✅ partial: on StoryAnalogy, MARS resists same-topic look-alikes that fool text similarity (0.51 vs 0.13–0.18, chance 0.25) but an LLM judging 4 candidates directly is better (0.79); abstraction-first prompting and ensembles lift MARS to 0.59–0.61; at scale, fusing MARS with pattern embeddings and lexical retrieval nearly doubles recall | [E23](results/E23/README.md), [E24](results/E24/README.md), [E25](results/E25/README.md) |
 | Candidate inference works on real data | ✅ on knowledge graphs, partial on code. Wikidata completion (5,400 held-out relations): projecting through the mapping beats copying from the same analogues, and the gain grows with relational depth (+0.03 → +0.08 Hits@1 on scientists); at 2 hops, analogy without rule mining matches mined length-≤2 rules + kNN. On real code, analogues restore deleted statements ~10× above chance, but exact restoration is rare (7.6%) | [E27](results/E27/README.md), [E28](results/E28/README.md), [E17](results/E17/README.md) |
+| KG completion: which part MARS solves | ✅ relational inference (answer already linked in the query, 29–39% of queries): Hits@1 0.71–0.77, 0.75–0.84 with learned reliability; new-value prediction (61–71%) is recommendation-like (0.10–0.27) and needs better instance retrieval, not rules; rules induced from analogy add little when applied directly (analogy already covers them) | [E31](results/E31/README.md) |
 | The memory learns which analogical transfers to trust | ✅ inferences are typed by how they relate to the query; feedback learns each type's precision (online, persisted). +0.008 / +0.015 Hits@1 on a query stream, and the learned types read as rules induced from analogy ("studied where the doctoral advisor worked", "film's country = director's citizenship") | [E29](results/E29/README.md), [E30](results/E30/README.md) |
 | MARS knows when no analogue exists (open-set abstention) | ✅ local-null significance keeps precision 0.90–0.95 from 10³ to 10⁶ cases with one fixed threshold (raw scores: 0.90 → 0.44) | [E16](results/E16/README.md) |
 | Inference confidence (corroboration across analogues) is calibrated | ✅ precision 0.07 → 0.86 as support goes 1 → 5 | [E11](results/E11/README.md) |
@@ -102,7 +103,7 @@ On raw natural language, MARS needs an LLM front end and is best used as a short
 |---|---|
 | [docs/DESIGN.md](docs/DESIGN.md) | The full concept and system design: representation, encoding, retrieval modes, structure mapping, truth maintenance, consolidation, interfaces, implementation plan, hypotheses, roadmap, risks |
 | [docs/CONCEPT_REVIEW.md](docs/CONCEPT_REVIEW.md) | A critique of the original idea: what was kept, fixed or changed, and why |
-| [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) | The synthetic generator, metrics, baseline ladder, planned experiments E0–E9, decision gates, and an index of every experiment run (E0–E30) |
+| [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) | The synthetic generator, metrics, baseline ladder, planned experiments E0–E9, decision gates, and an index of every experiment run (E0–E31) |
 | [docs/PRIOR_ART.md](docs/PRIOR_ART.md) | Annotated bibliography and novelty map |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | Working document: task board, decision log, experiment log |
 | [results/](results/) | One directory per experiment: README summary + raw tables/JSON |
@@ -130,7 +131,7 @@ crates/
   mars-engine   incremental memory, standing queries, TMS inferences, SAGE generalization,
                 transfer reliability learned from feedback
   mars-gen      synthetic analogy generator (Gentner classes, perturbations, ground truth)
-  mars-bench    experiment runners (E0–E30)
+  mars-bench    experiment runners (E0–E31)
   mars-cli      `mars` command-line tool
   mars-py       Python bindings (PyO3; `import mars`)
 tools/          front ends and data: py2mars.py / js2mars.py (code → cases), llm2mars.py (text → cases via an LLM),

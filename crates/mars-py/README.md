@@ -27,7 +27,8 @@ The `extension-module` feature is turned on only by maturin (`pyproject.toml`), 
 | `sq = e.watch(case, k=5)` | id of a standing query maintained incrementally |
 | `e.top(sq)`, `e.infer(sq, min_support=1)`, `e.explain(sq, fact)`, `e.events()` | its current analogues, corroborated inferences (support = number of agreeing analogues, E11), JTMS provenance, drained change events |
 
-| `e.suggest(case, k=5, exclude=[])` | one-off candidate inferences from the top-k analogues: dicts with `text`, `support`, `reliability`, `score`, `transfers`, `analogues`, best first |
+| `e.suggest(case, k=5, exclude=[])` | one-off candidate inferences from the top-k analogues: dicts with `text`, `support`, `weight` (Σ fused score of the proposing analogues), `reliability`, `score` (= reliability × weight), `transfers`, `analogues`, best first |
+| `e.rule_suggestions(case, min_n=20, min_precision=0.5)` | inferences from the induced rules applied directly (support 0) |
 | `e.ranked(sq)` | a standing query's inferences as the same dicts, ranked by reliability × support |
 | `e.feedback(case, text, correct)` | tell the memory whether an inference was right; it learns the reliability of that kind of transfer (E30). Persisted |
 | `e.induced_rules(min_n=10, min_precision=0.5)` | what it has learned, as rules: `[(rule, precision, outcomes)]`, e.g. `writer(x, y) ⇐ director(x, y)` |

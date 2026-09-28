@@ -227,4 +227,5 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E28](../results/E28/README.md) | Relational depth | analogy's gain grows with depth; matches mined length-≤2 rules without mining |
 | [E29](../results/E29/README.md) | Learning which transfers to trust (offline) | gated analogy ≈ rules + analogy; readable induced rules |
 | [E30](../results/E30/README.md) | … online, in the engine, from feedback | +0.008 / +0.015 Hits@1 over a query stream; persisted |
+| [E31](../results/E31/README.md) | Applying induced rules; where completion errors are | rules add little; errors are new-value prediction (answer not in the query), not relational inference |
 | [bw](../results/bw/) | Memory bandwidth of Mode K | batched 3.7 ms per query at 10⁶ (kernel v2) |
