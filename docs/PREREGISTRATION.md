@@ -4,7 +4,7 @@ Written 2026-09-28, **before** any test-set run of the evaluations below. It is 
 
 ## Frozen system
 
-- **Version:** git tag `v0.1`, the commit that passed CI (run 3, commit `78fdc34`) before this document was added.
+- **Version:** commit `78fdc34` (tagged `v0.1` locally; this session can push only its branch, so the tag is not on GitHub yet), the commit that passed CI (run 3) before this document was added.
 - **Frozen components:** the engine, encoder, index and mapper crates (`mars-hv`, `mars-rel`, `mars-encode`, `mars-index`, `mars-map`, `mars-tms`, `mars-engine`) and the Python front end `tools/py2mars.py`.
 - **Allowed after the tag:** evaluation harnesses (data loading, conversion adapters, metrics) and their baselines, written before test results are seen.
 - **Bugs.** If a bug in a frozen component is found during evaluation, it is *reported*, not silently fixed. Results with and without a fix are labelled.
