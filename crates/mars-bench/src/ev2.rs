@@ -50,6 +50,32 @@ pub fn run(args: &Args) -> Result<(), String> {
     let mapper = Mapper::new(&kb, MapConfig::default());
     let self_s: Vec<f64> = cases.par_iter().map(|&c| mapper.score(c, c) as f64).collect();
     eprintln!("[ev2] {n} programs encoded ({:.1?})", t0.elapsed());
+    let fac = |q: usize, c: usize| -> f64 {
+        let raw = mapper.score(cases[c], cases[q]) as f64;
+        if raw == 0.0 || self_s[c] == 0.0 || self_s[q] == 0.0 {
+            0.0
+        } else {
+            (raw / (self_s[q] * self_s[c]).sqrt()).min(1.0)
+        }
+    };
+    // E34 arm A2: FAC scores for externally supplied candidate lists (e.g. a code
+    // embedding's top-100): WORK/<cands> = {case: [case, …]} -> WORK/fac_cands.json.
+    let cands_file = args.str("cands", "");
+    if !cands_file.is_empty() {
+        let cj: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(format!("{dir}/{cands_file}")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        let pos: std::collections::HashMap<&str, usize> = names.iter().enumerate().map(|(i, s)| (s.as_str(), i)).collect();
+        let out: serde_json::Map<String, serde_json::Value> = names
+            .par_iter()
+            .enumerate()
+            .map(|(q, nm)| {
+                let list: Vec<f64> = cj[nm].as_array().map(|a| a.iter().filter_map(|x| x.as_str().and_then(|s| pos.get(s)).map(|&c| fac(q, c))).collect()).unwrap_or_default();
+                (nm.clone(), json!(list))
+            })
+            .collect();
+        std::fs::write(format!("{dir}/fac_cands.json"), serde_json::to_string(&out).unwrap()).map_err(|e| e.to_string())?;
+        eprintln!("[ev2] FAC for supplied candidates done ({:.1?})", t0.elapsed());
+        return Ok(());
+    }
     let mut fp_rank: Vec<Vec<usize>> = Vec::with_capacity(n);
     let mut fused_rank: Vec<Vec<usize>> = Vec::with_capacity(n);
     let ids: Vec<usize> = (0..n).collect();
@@ -63,11 +89,7 @@ pub fn run(args: &Args) -> Result<(), String> {
                 let fp: Vec<(usize, f64)> = h.iter().filter(|x| x.id as usize != q).take(depth).map(|x| (x.id as usize, x.score as f64)).collect();
                 let mut fu: Vec<(usize, f64)> = fp
                     .iter()
-                    .map(|&(c, s)| {
-                        let raw = mapper.score(cases[c], cases[q]) as f64;
-                        let fac = if raw == 0.0 || self_s[c] == 0.0 || self_s[q] == 0.0 { 0.0 } else { (raw / (self_s[q] * self_s[c]).sqrt()).min(1.0) };
-                        (c, fac_w * fac + (1.0 - fac_w) * s)
-                    })
+                    .map(|&(c, s)| (c, fac_w * fac(q, c) + (1.0 - fac_w) * s))
                     .collect();
                 fu.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
                 (fp.iter().map(|x| x.0).collect(), fu.iter().map(|x| x.0).collect())

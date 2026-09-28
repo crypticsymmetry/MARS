@@ -3,6 +3,7 @@
 Project CodeNet Python800.
 
     python3 tools/ev2_codenet.py prepare WORK [--problems 200] [--per 30] [--seed 1]
+            [--frontend mars|pdg] [--exclude-seed S] [--same-as WORK0]   # E34 (pre-registration addendum A)
     mars-bench ev2 --data WORK                 # MARS rankings -> WORK/mars_rankings.json
     python3 tools/ev2_codenet.py evaluate WORK OUT_DIR
 
@@ -30,6 +31,7 @@ from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(__file__))
 import py2mars  # noqa: E402  (frozen front end)
+import py2pdg  # noqa: E402  (E34 dataflow front end)
 
 TAR = "data/external/codenet/Python800.tar.gz"  # extracted once: tar -xzf … -C data/external/codenet
 ROOT = "data/external/codenet/Project_CodeNet_Python800"
@@ -43,24 +45,40 @@ def encode_script(src):
     return py2mars.FuncEncoder("solution", module_funcs).encode(fn, py2mars.INLINE)
 
 
-def prepare(work, n_problems, per, seed):
+def prepare(work, n_problems, per, seed, frontend="mars", exclude_seed=0, same_as=""):
     os.makedirs(work, exist_ok=True)
     root = ROOT
     rng = random.Random(seed)
     problems = sorted(d for d in os.listdir(root) if os.path.isdir(os.path.join(root, d)))
+    if exclude_seed:  # E34 development sample: problems outside the sample drawn with exclude_seed (EV2's = 1)
+        held = set(random.Random(exclude_seed).sample(problems, n_problems))
+        problems = [p for p in problems if p not in held]
+    names_used = set()
     chosen = sorted(rng.sample(problems, n_problems))
+    fixed = None
+    if same_as:  # re-encode exactly the programs of another prepared sample (paired front-end comparison)
+        m0 = json.load(open(f"{same_as}/manifest.json"))
+        chosen, per, seed = m0["problems"], m0["per"], m0["seed"]
+        fixed = defaultdict(list)
+        for m in m0["cases"]:
+            fixed[m["problem"]].append(m["file"].split("/", 1)[1])
     cases, manifest, sources = [], [], []
     skipped = 0
     for p in chosen:
         files = sorted(f for f in os.listdir(os.path.join(root, p)) if f.endswith(".py"))
         rng.shuffle(files)
+        if fixed is not None:
+            files = fixed[p]
         taken = 0
         for fn in files:
             if taken == per:
                 break
             src = open(os.path.join(root, p, fn), encoding="utf-8", errors="replace").read()
             try:
-                facts = encode_script(src)
+                if frontend == "pdg":
+                    facts, nm = py2pdg.encode_script(src)
+                else:
+                    facts, nm = encode_script(src), set()
             except (SyntaxError, ValueError, RecursionError, KeyError, AttributeError, TypeError):
                 skipped += 1
                 continue
@@ -71,17 +89,24 @@ def prepare(work, n_problems, per, seed):
             cases.append(f"(defcase {name}\n  " + "\n  ".join(facts) + ")")
             manifest.append({"case": name, "problem": p, "file": f"{p}/{fn}", "n_facts": len(facts)})
             sources.append({"case": name, "src": src})
+            names_used |= nm
             taken += 1
     with open(f"{work}/vocab.mars", "w") as f:
-        f.write(py2mars.VOCAB)
-        for p in py2mars.EXTRA_PREDS:
-            f.write(f"(defpredicate {p} :arity * :kind function)\n")
+        if frontend == "pdg":
+            f.write(py2pdg.vocab())
+            for a in sorted(names_used):
+                f.write(f"(defpredicate {a} :arity 1 :kind attribute)\n")
+        else:
+            f.write(py2mars.VOCAB)
+            for p in py2mars.EXTRA_PREDS:
+                f.write(f"(defpredicate {p} :arity * :kind function)\n")
     with open(f"{work}/cases.mars", "w") as f:
-        f.write(";; tools/ev2_codenet.py prepare (py2mars, script adapter)\n")
-        for rp in sorted(py2mars.RAW_USED):
-            f.write(f"(defpredicate {rp} :arity * :kind relation :canonical nil)\n")
+        f.write(f";; tools/ev2_codenet.py prepare ({'py2pdg' if frontend == 'pdg' else 'py2mars'}, script adapter)\n")
+        if frontend != "pdg":
+            for rp in sorted(py2mars.RAW_USED):
+                f.write(f"(defpredicate {rp} :arity * :kind relation :canonical nil)\n")
         f.write("\n".join(cases) + "\n")
-    json.dump({"seed": seed, "problems": chosen, "per": per, "skipped": skipped, "cases": manifest}, open(f"{work}/manifest.json", "w"), indent=0)
+    json.dump({"seed": seed, "frontend": frontend, "exclude_seed": exclude_seed, "same_as": same_as, "problems": chosen, "per": per, "skipped": skipped, "cases": manifest}, open(f"{work}/manifest.json", "w"), indent=0)
     with open(f"{work}/sources.jsonl", "w") as f:
         for s in sources:
             f.write(json.dumps(s) + "\n")
@@ -196,6 +221,6 @@ if __name__ == "__main__":
     cmd = sys.argv[1]
     arg = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
     if cmd == "prepare":
-        prepare(sys.argv[2], arg("--problems", 200), arg("--per", 30), arg("--seed", 1))
+        prepare(sys.argv[2], arg("--problems", 200), arg("--per", 30), arg("--seed", 1), arg("--frontend", "mars"), arg("--exclude-seed", 0), arg("--same-as", ""))
     elif cmd == "evaluate":
         evaluate(sys.argv[2], sys.argv[3])
