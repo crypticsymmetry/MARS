@@ -138,3 +138,31 @@ E33's task is synthetic and was designed by us, so EV3 checks *baseline strength
 - **Where:** results go in `results/EV1`, `results/EV2` and `results/EV3`, with configs, seeds, checksums, chosen settings and the validation grid.
 - **Scoring:** each prediction P1–P9 is marked **confirmed / not confirmed / inconclusive**.
 - **Deviations** are listed at the top of each results README.
+
+---
+
+## Addendum A (2026-09-28, after EV1–EV3): E34, a dataflow front end for code
+
+Written before any E34 run.
+
+**Motivation.** EV2 found MARS's syntactic code representation (`tools/py2mars.py`) far below a pretrained code embedding: MAP@R 0.211 vs 0.473. E34 tests the first representation upgrade: a **dataflow front end**, `tools/py2pdg.py`.
+- Expressions are flattened into single-operation facts over value entities: each operation's result is a fresh value.
+- Variables resolve to their reaching definition. Loop-carried values get explicit `(phi new before in-loop)` facts, so accumulators and swaps become visible as dataflow.
+- Control structure is kept as loop and guard context.
+- Structure is thereby independent of variable names, expression nesting and statement grouping.
+
+**Development and test separation.**
+- **Development:** all front-end changes and settings use a *development sample* of 200 CodeNet Python800 problems drawn with seed 2 from the 600 problems *not* in EV2's sample, with the same sampling and skip rules as EV2.
+- **Test:** EV2's sample (seed 1), run once with the final front end.
+- The retrieval pipeline is EV2's (frozen v0.1 components, ½FAC + ½FP-literal over the FP top-100); only the front end changes.
+
+**Arms** (test, MAP@R primary, paired over queries):
+- **A1:** MARS with py2pdg vs MARS with py2mars (EV2's number, recomputed on the same programs).
+- **A2 (secondary, division of labour):** the code embedding's top-100 re-ranked by ½ embedding cosine + ½ MARS FAC (the best front end on development), vs the code embedding alone. The weights are fixed here, not tuned.
+
+**Predictions:**
+- **P10:** py2pdg > py2mars on MAP@R.
+- **P11:** MARS with py2pdg is still below the code embedding.
+- **P12** (weak): embedding + MARS re-rank ≥ embedding alone.
+
+Scored with `tools/ev_report.py`'s criteria ("A > B": CI of the difference above 0; "A ≥ B": point estimate ≥ 0 and CI not entirely below 0).
