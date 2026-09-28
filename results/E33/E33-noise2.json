@@ -1,0 +1,233 @@
+{
+ "config": {
+  "seed": 1,
+  "noise": 2,
+  "templates": 40,
+  "novel": 10,
+  "incidents": 600,
+  "seed_episodes": 60,
+  "k": 5,
+  "feedback_top": 3,
+  "hidden_root_rate": 0.5
+ },
+ "results": {
+  "MARS (structure)": {
+   "fix_top1_learned": 0.7610169491525424,
+   "fix_top1_raw": 0.7322033898305085,
+   "fix_top3_learned": 0.8355932203389831,
+   "root_observed_top1": 0.9535714285714286,
+   "root_hidden_top1": 0.5870967741935483,
+   "top_analogue_same_mechanism": 0.6457627118644068,
+   "n_known": 590,
+   "n_novel_first": 10,
+   "novel_first_top1": 0.3,
+   "curve_top1": [
+    0.7414965986394558,
+    0.7619047619047619,
+    0.7414965986394558,
+    0.7959183673469388
+   ],
+   "abstention": {
+    "3.0": {
+     "coverage_known": 1.0,
+     "precision_accepted": 0.7610169491525424,
+     "novel_abstained": 0.0
+    },
+    "5.0": {
+     "coverage_known": 0.9559322033898305,
+     "precision_accepted": 0.7624113475177305,
+     "novel_abstained": 0.0
+    },
+    "9.0": {
+     "coverage_known": 0.4576271186440678,
+     "precision_accepted": 0.8222222222222222,
+     "novel_abstained": 0.6
+    }
+   }
+  },
+  "MARS + names (identity 0.3)": {
+   "fix_top1_learned": 0.7220338983050848,
+   "fix_top1_raw": 0.6661016949152543,
+   "fix_top3_learned": 0.7915254237288135,
+   "root_observed_top1": 0.9214285714285714,
+   "root_hidden_top1": 0.5419354838709678,
+   "top_analogue_same_mechanism": 0.535593220338983,
+   "n_known": 590,
+   "n_novel_first": 10,
+   "novel_first_top1": 0.2,
+   "curve_top1": [
+    0.7074829931972789,
+    0.7142857142857143,
+    0.7074829931972789,
+    0.7551020408163265
+   ],
+   "abstention": {
+    "3.0": {
+     "coverage_known": 0.9949152542372881,
+     "precision_accepted": 0.7223168654173765,
+     "novel_abstained": 0.0
+    },
+    "5.0": {
+     "coverage_known": 0.7186440677966102,
+     "precision_accepted": 0.7476415094339622,
+     "novel_abstained": 0.3
+    },
+    "9.0": {
+     "coverage_known": 0.07457627118644068,
+     "precision_accepted": 0.8863636363636364,
+     "novel_abstained": 1.0
+    }
+   }
+  },
+  "recall by names (identity only)": {
+   "fix_top1_learned": 0.3152542372881356,
+   "fix_top1_raw": 0.21016949152542372,
+   "fix_top3_learned": 0.4,
+   "root_observed_top1": 0.43214285714285716,
+   "root_hidden_top1": 0.20967741935483872,
+   "top_analogue_same_mechanism": 0.09491525423728814,
+   "n_known": 590,
+   "n_novel_first": 10,
+   "novel_first_top1": 0.1,
+   "curve_top1": [
+    0.29931972789115646,
+    0.30612244897959184,
+    0.3333333333333333,
+    0.32653061224489793
+   ],
+   "abstention": {
+    "3.0": {
+     "coverage_known": 0.3169491525423729,
+     "precision_accepted": 0.34759358288770054,
+     "novel_abstained": 0.6
+    },
+    "5.0": {
+     "coverage_known": 0.010169491525423728,
+     "precision_accepted": 0.3333333333333333,
+     "novel_abstained": 1.0
+    },
+    "9.0": {
+     "coverage_known": 0.0,
+     "precision_accepted": NaN,
+     "novel_abstained": 1.0
+    }
+   }
+  },
+  "popularity baseline": {
+   "fix_top1_learned": 0.07796610169491526,
+   "fix_top1_raw": 0.07796610169491526,
+   "fix_top3_learned": 0.07796610169491526,
+   "root_observed_top1": 0.08571428571428572,
+   "root_hidden_top1": 0.07096774193548387,
+   "top_analogue_same_mechanism": 0.6457627118644068,
+   "n_known": 590,
+   "n_novel_first": 10,
+   "novel_first_top1": 0.0,
+   "curve_top1": [
+    0.047619047619047616,
+    0.09523809523809523,
+    0.08163265306122448,
+    0.08163265306122448
+   ],
+   "abstention": {
+    "3.0": {
+     "coverage_known": 1.0,
+     "precision_accepted": 0.07796610169491526,
+     "novel_abstained": 0.0
+    },
+    "5.0": {
+     "coverage_known": 0.9559322033898305,
+     "precision_accepted": 0.07446808510638298,
+     "novel_abstained": 0.0
+    },
+    "9.0": {
+     "coverage_known": 0.4576271186440678,
+     "precision_accepted": 0.05925925925925926,
+     "novel_abstained": 0.6
+    }
+   }
+  }
+ },
+ "induced_rules": [
+  [
+   "remedy-resync-clock(x, y) \u21d0 alerted-on(x, z) \u2227 runs-on(z, y)",
+   0.8974358974358975,
+   39.0
+  ],
+  [
+   "remedy-warm-cache(x, y) \u21d0 alerted-on(x, z) \u2227 reads-cache(z, y)",
+   0.8823529411764706,
+   17.0
+  ],
+  [
+   "remedy-dead-letter(x, y) \u21d0 alerted-on(x, z) \u2227 consumes(z, y)",
+   0.8727272727272727,
+   55.0
+  ],
+  [
+   "remedy-renew-cert(x, y) \u21d0 alerted-on(x, z) \u2227 serves-cert(z, y)",
+   0.8666666666666667,
+   15.0
+  ],
+  [
+   "remedy-replace-disk(x, y) \u21d0 alerted-on(x, z) \u2227 writes-to(z, y)",
+   0.8292682926829268,
+   41.0
+  ],
+  [
+   "remedy-resize-cache(x, y) \u21d0 alerted-on(x, z) \u2227 reads-cache(z, y)",
+   0.8181818181818182,
+   11.0
+  ],
+  [
+   "remedy-failover-db(x, y) \u21d0 alerted-on(x, z) \u2227 uses-db(z, y)",
+   0.8,
+   15.0
+  ],
+  [
+   "remedy-reroute-traffic(x, y) \u21d0 alerted-on(x, z) \u2227 routes-via(z, y)",
+   0.7916666666666666,
+   48.0
+  ],
+  [
+   "remedy-reboot-host(x, y) \u21d0 alerted-on(x, z) \u2227 runs-on(z, y)",
+   0.75,
+   24.0
+  ],
+  [
+   "remedy-free-disk(x, y) \u21d0 alerted-on(x, z) \u2227 writes-to(z, y)",
+   0.6896551724137931,
+   29.0
+  ],
+  [
+   "remedy-failover-db: unlinked",
+   0.68,
+   25.0
+  ],
+  [
+   "remedy-fix-dns(x, y) \u21d0 alerted-on(x, z) \u2227 routes-via(z, y)",
+   0.6575342465753424,
+   73.0
+  ],
+  [
+   "remedy-add-consumers(x, y) \u21d0 alerted-on(x, z) \u2227 consumes(z, y)",
+   0.65,
+   20.0
+  ],
+  [
+   "remedy-reissue-cert: unlinked",
+   0.5652173913043478,
+   46.0
+  ],
+  [
+   "remedy-resync-clock: unlinked",
+   0.53125,
+   32.0
+  ],
+  [
+   "remedy-scale-out: unlinked",
+   0.5238095238095238,
+   21.0
+  ]
+ ]
+}

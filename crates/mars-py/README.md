@@ -49,3 +49,8 @@ sq = e.watch("rutherford-atom", k=2)
 e.add_case("(defcase binary-star (attracts star-a star-b) (revolve-around star-b star-a))")
 print(e.top(sq), e.events())
 ```
+
+## A worked use case: agent memory
+
+[`tools/e33_agent_memory.py`](../../tools/e33_agent_memory.py) uses MARS as the episodic memory of an incident-response agent: store resolved incidents, recall analogous ones, infer the hidden root cause and the remedy (kind and target), abstain on novel incidents by significance, and learn from feedback. `python3 tools/e33_agent_memory.py --demo` narrates a few incidents; results are in [results/E33](../../results/E33/README.md).
+

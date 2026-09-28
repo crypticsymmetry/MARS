@@ -1,0 +1,21 @@
+{
+ "config": {
+  "seed": 1,
+  "noise": 2,
+  "n_eval": 150,
+  "incidents": 600,
+  "templates": 40,
+  "novel": 10
+ },
+ "results": {
+  "n": 150,
+  "MARS alone": 0.78,
+  "LLM + names-retrieved episodes": 0.3466666666666667,
+  "LLM + MARS-retrieved episodes": 0.66,
+  "tokens": 806868,
+  "cost_usd": 0.2956,
+  "failed_calls": 0,
+  "model": "z-ai/glm-5.3-flash",
+  "reasoning": "low"
+ }
+}

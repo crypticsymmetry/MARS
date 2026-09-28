@@ -229,4 +229,5 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E30](../results/E30/README.md) | … online, in the engine, from feedback | +0.008 / +0.015 Hits@1 over a query stream; persisted |
 | [E31](../results/E31/README.md) | Applying induced rules; where completion errors are | rules add little; errors are new-value prediction (answer not in the query), not relational inference |
 | [E32](../results/E32/README.md) | An identity (entity-overlap) channel in engine retrieval | scientists +0.036 Hits@1 (new values 0.27 → 0.32); films small; fusion beats identity alone |
+| [E33](../results/E33/README.md) | MARS as an agent's episodic memory (incident response) | remedy + target 0.995 → 0.65 with noise vs names 0.48 → 0.23; better retriever for an LLM agent (0.66 vs 0.35) and better alone (0.78) |
 | [bw](../results/bw/) | Memory bandwidth of Mode K | batched 3.7 ms per query at 10⁶ (kernel v2) |
