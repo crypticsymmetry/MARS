@@ -87,26 +87,20 @@ def predict(w, X, mu, sd):
 
 
 def ltt_threshold(conf, correct, alpha=ALPHA, delta=DELTA, grid=GRID):
-    """Learn-then-Test, fixed-sequence over thresholds from high to low confidence:
-    H0(λ): error rate among answered (conf ≥ λ) > alpha; exact binomial p-value.
-    Returns the lowest threshold whose null (and all before it) is rejected at delta.
-    The sequence starts at the first threshold with enough answered queries for a
-    zero-error sample to be significant, n ≥ ln δ / ln(1 − α) (amendment to addendum B:
-    this depends on confidences only, never on correctness, so validity is kept)."""
-    n_min = int(np.ceil(np.log(delta) / np.log(1 - alpha)))
+    """Learn-then-Test with a Bonferroni correction over the threshold grid
+    (amendment B.2; the fixed-sequence variant of amendment B.1 stopped at a small
+    local dip near the top of the confidence ranking and never answered).
+    H0(λ): error rate among answered (conf ≥ λ) > alpha; exact binomial p-value;
+    reject when p ≤ delta / |grid|. Returns the lowest rejected threshold (largest
+    coverage); inf if none. Valid for any grid chosen without the labels."""
     lams = np.unique(np.quantile(conf, np.linspace(1, 0, grid)))[::-1]
     chosen = np.inf
     for lam in lams:
         ans = conf >= lam
         n = int(ans.sum())
-        if n < n_min:
-            continue
         err = int((~correct[ans]).sum())
-        pval = binom.cdf(err, n, alpha)
-        if pval <= delta:
-            chosen = lam
-        else:
-            break
+        if n and binom.cdf(err, n, alpha) <= delta / len(lams):
+            chosen = min(chosen, lam)
     return float(chosen)
 
 
@@ -163,7 +157,7 @@ def main():
     L = ["# E36: learned fusion and conformal selective retrieval (code)", "",
          f"Pre-registered in docs/PREREGISTRATION.md, addendum B. Logistic ranker (C = {C}) fit on development pairs; features: {', '.join(FEATURES)}.",
          f"Weights (standardized features, then intercept): {', '.join(f'{x:+.3f}' for x in w)}.",
-         f"Conformal (Learn-then-Test, fixed sequence, exact binomial; α = {ALPHA}, δ = {DELTA}, {GRID}-point grid): threshold on learned confidence {lam_l:.4f}; on embedding top-1 cosine {lam_e:.4f}.", ""]
+         f"Conformal (Learn-then-Test, Bonferroni over the grid, exact binomial; α = {ALPHA}, δ = {DELTA}, {GRID}-point grid): threshold on learned confidence {lam_l:.4f}; on embedding top-1 cosine {lam_e:.4f}.", ""]
     dL, dres, dper = evaluate("Development (fit and calibration data: in-sample)", dq, drk)
     L += dL
     rec = {"config": {"alpha": ALPHA, "delta": DELTA, "grid": GRID, "C": C, "features": FEATURES, "weights": w.tolist(), "mu": mu.tolist(), "sd": sd.tolist(),
