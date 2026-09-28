@@ -28,11 +28,15 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Accepting an analogue | score threshold | **local-null significance**: z of the top-1 fused score against the lower half of its fingerprint candidate list; accept at z ≥ 9, else abstain. Memory-size invariant, unlike raw thresholds | E16 |
 | Representation granularity | one encoding per case | one view per case in the engine. Views (`mars_rel::views`) trade fingerprint vs mapper strength; score-level fusion of views does not help, but *role-specialized* views do modestly (rank/map in flat, project from nested). The fusion weight depends on the view | E18, E19 |
 | Natural-language input | LLM front end (planned) | `tools/llm2mars.py`: conceptual-dependency vocabulary + canonical higher-order relations; vocabulary adherence of the front end matters (1.6% vs 44% off-vocabulary between models). MAC fuses MARS with a lexical signal; an LLM verifies the short list; analogy scores discount the surface channel. Abstraction-first prompting (pattern sentence, then facts) and several pooled conversions per story are the main front-end levers | E23, E24, E25 |
-| Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best) | E9 |
+| Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best). In knowledge graphs, labels identify instances (surface profile for neighbours) while structure identifies schemas and roles; structure-aware neighbours overtake identity overlap as cases get richer (2-hop) | E9, E26, E27, E28 |
+| Candidate inferences | structurally grounded (SME-style) only | also **first-order** inferences (`EngineConfig::first_order_inferences`) for flat facts such as KG triples. An inference is either a *substitution* (a query entity reached through the correspondences) or a *copy* (skolem for the analogue's entity); substitutions carry relational regularities and their benefit grows with relational depth | E27, E28 |
+| Inference ranking | heuristic confidence | **learned transfer reliability**: each inference is typed by how it relates to the query (paths linking its arguments, or `new`); feedback learns per-type precision online (persisted), which weights inferences; reliable types read as rules induced from analogy (`Engine::induced_rules`) | E29, E30 |
 
 Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).
 
-Not yet built: cascade/MIH indexes, Mode H transition memory, near-miss memory, Python bindings, and LLM front ends.
+Also built: Python bindings (`mars-py`, §12.4), LLM front ends (`tools/llm2mars.py`), KG front ends (`tools/kg_*.py`, `tools/kg2mars.py`), near-miss diagnostics in SAGE (E20), and transfer-reliability learning in the engine (E30).
+
+Not yet built: cascade/MIH indexes, Mode H transition memory, and applying induced rules directly / storing them as schema cases.
 
 ---
 
@@ -506,6 +510,14 @@ Analogical inferences are **hypotheses**, never facts.
 
 **Confidence** is a documented heuristic: normalized mapping score × structural support of the inference × corroboration. It is **not** presented as a probability. Calibration is an experiment (E7), not an assumption.
 
+*As built (E11, E27–E30):* corroboration (the number of analogues proposing an inference) is the calibrated signal. Precision rises monotonically with support, on synthetic data and on real KGs (0.07 → 0.66–0.73).
+
+On top of that, each inference has a **transfer type** (`mars_engine::transfer`), defined against the query rather than the analogue:
+- a binary fact between query entities is typed by the relation paths (length ≤ 2) that link them in the query;
+- a fact about a hypothesized entity is typed as a copy (`new`).
+
+`Engine::feedback` records whether an inference was right. The smoothed precision of its types is its **reliability**, and inferences rank by reliability × Σ fused score of the proposing analogues. This moves inferences toward `Accepted` / `Rejected` by *kind*, not one at a time. Types with enough evidence are rules induced from analogy, reported with precision and outcome counts (`Engine::induced_rules`).
+
 ---
 
 ## 10. Provenance, truth maintenance and incrementality
@@ -658,6 +670,14 @@ mars consolidate data/ --budget 10m
 ### 12.4 Python bindings
 
 A `mars-py` crate (PyO3 + maturin) exposes the engine to the evaluation harness. The harness hosts the baselines (BM25, sentence embeddings, FAISS binary, WL kernels, GraphHD, SMTB via CRE) and the plots. The Rust core never depends on Python.
+
+*As built:* `import mars` gives `Engine` (from text, files or a store; `first_order`, `profile`, `fac_weight`), with these calls:
+- retrieval and mapping: `query` (with significance z), `map`, `fac`;
+- standing queries: `watch` / `top` / `infer` / `explain` / `events`;
+- inference with feedback: `suggest`, `ranked`, `feedback`, `induced_rules`;
+- mutations and `checkpoint` / `open`.
+
+See [crates/mars-py/README.md](../crates/mars-py/README.md).
 
 ---
 

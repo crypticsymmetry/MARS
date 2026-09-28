@@ -4,18 +4,20 @@ This is the working document: current status, the task board, the decision log a
 
 ## Current focus
 
-**Reliability of analogical judgments at scale.**
-- H0–H4 hold on synthetic data. The engine is persistent and served (`mars serve`).
-- Real code (E9, E12, E14) shows structure beats lexical retrieval, and vocabulary alignment is not the bottleneck there.
-- Recent results are about *trusting* an analogy as memory grows:
-  - corroboration is the calibrated confidence (E11, E15);
-  - schemas complement instances but don't replace them (E15);
-  - a local-null significance makes accept/abstain decisions memory-size invariant (E16).
-
-Latest:
-- Mode K kernel v2: 1.8× batched throughput, bit-identical results.
-- Real-code inference works well above chance, though exact restoration is rare (E17).
-- Representation granularity trades fingerprint strength against mapper strength, and different views restore different inferences (E18).
+**From analogy to learning: inference on real knowledge, and a memory that improves with use.**
+- H0–H4 hold on synthetic data. The engine is persistent, incremental and served (`mars serve`, Python `import mars`).
+- Trusting analogies at scale:
+  - corroboration is the calibrated confidence (E11, and on real KGs in E27–E28);
+  - local-null significance makes accept/abstain memory-size invariant (E16).
+- Real knowledge graphs:
+  - analogy learns vocabulary alignment with label anchors (E26, two domains);
+  - analogical inference beats copying from neighbours, and the gain grows with relational depth (E27, E28);
+  - learned transfer reliability matches mined rules + analogy without mining (E29);
+  - the engine learns online from feedback and states what it learned as rules (E30).
+- Weak spots:
+  - raw natural language, where an LLM front end is needed and an LLM judge is still better (E23–E25);
+  - exact inference on code (E17);
+  - coverage: most KG completion errors are "no analogue proposes the right answer".
 
 Candidate next steps:
 1. Front ends: pattern-first prompting and ensembles done (E25); next, typed entities or schema-guided extraction, and cheaper ensembles.

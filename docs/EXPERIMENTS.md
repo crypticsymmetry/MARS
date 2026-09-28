@@ -191,3 +191,40 @@ E2 ──────┘      ├──▶ E5 (SDM gate)
 ```
 
 E0 and E2 can run in parallel. Nothing after E3 is started until G1 passes.
+
+---
+
+## 7. Index of experiments as run
+
+The plan above (E0–E9) was written before the work began. The table lists every experiment actually run; each results README records the protocol, config, seed and reproduction commands.
+
+| Exp | Question | Result |
+|---|---|---|
+| [E0](../results/E0/README.md) | Do structural fingerprints separate true analogues from look-alikes? | yes (≥ 0.995; content vectors / lexical 0.000) |
+| [E2](../results/E2/README.md) | Is the mapper correct and fast? | entity correspondences P ≈ 1.0; 16–38 µs per pair |
+| [E3](../results/E3/README.md) | Does MAC → FAC scale to 10⁶? | true analogue in top-64 100%; ≈ exhaustive accuracy at 1/1100 of the cost |
+| [E4](../results/E4/README.md) | Robustness to structural perturbation | fused MAC + FAC ≥ either alone |
+| [E5](../results/E5/README.md) | Does SDM add value? | no: dropped from the core (k-means buckets kept) |
+| [E6](../results/E6/README.md) | Are updates proportional to change? | ~300 µs per update, flat from 10⁴ to 10⁶; exact |
+| [E7](../results/E7/README.md) | Do SAGE schemas help? | few-shot inference +41% |
+| [E9](../results/E9/README.md) | Program analogy on real code | fused MRR 0.33 vs lexical 0.15 |
+| [E10](../results/E10/README.md) | Scoring variants, fusion weight, case size | w = 0.3; cases need ~10 connected facts at 10⁶ |
+| [E11](../results/E11/README.md) | Is corroboration a calibrated confidence? | precision 0.07 → 0.86 with support 1 → 5 |
+| [E12](../results/E12/README.md) | Cross-language program analogy | structure ≈ 2× lexical |
+| [E13](../results/E13/README.md) | Can analogy learn vocabulary alignment? | synthetic: precision 1.000, retrieval 0.15 → 0.99 |
+| [E14](../results/E14/README.md) | … on real code? | frequent pairs only; alignment barely matters there |
+| [E15](../results/E15/README.md) | Schemas vs instances as memory grows | schemas complement instances; schema-only degrades |
+| [E16](../results/E16/README.md) | Knowing when no analogue exists | local-null z keeps precision 0.90–0.95 from 10³ to 10⁶ |
+| [E17](../results/E17/README.md) | Candidate inference on real code | ~10× chance; exact restoration rare (7.6%) |
+| [E18](../results/E18/README.md), [E19](../results/E19/README.md) | Representation views (nested vs flat) | granularity trades fingerprint vs mapper strength; views have roles |
+| [E20](../results/E20/README.md) | Near-misses | soft emphasis from 1–2 near-misses beats 1-NN |
+| [E21](../results/E21/README.md), [E22](../results/E22/README.md) | Schema hierarchies, membership scores | negative (identifiability limit) |
+| [E23](../results/E23/README.md) | Natural language (StoryAnalogy) via an LLM front end | MARS resists look-alikes (0.51 vs ≤ 0.18); an LLM judging directly is better (0.79) |
+| [E24](../results/E24/README.md) | Retrieval at scale + LLM verifier | MARS shortlists cleanest; RRF with lexical best |
+| [E25](../results/E25/README.md) | Better LLM front ends | abstraction-first prompting and ensembles: 0.59–0.61 |
+| [E26](../results/E26/README.md) | Vocabulary alignment on real KGs (DBpedia ↔ Wikidata) | with label anchors: 14/16 (films), 0/15 wrong (scientists) |
+| [E27](../results/E27/README.md) | KG completion by analogy | analogy > copying; ≈ copying + mined length-1 rules |
+| [E28](../results/E28/README.md) | Relational depth | analogy's gain grows with depth; matches mined length-≤2 rules without mining |
+| [E29](../results/E29/README.md) | Learning which transfers to trust (offline) | gated analogy ≈ rules + analogy; readable induced rules |
+| [E30](../results/E30/README.md) | … online, in the engine, from feedback | +0.008 / +0.015 Hits@1 over a query stream; persisted |
+| [bw](../results/bw/) | Memory bandwidth of Mode K | batched 3.7 ms per query at 10⁶ (kernel v2) |
