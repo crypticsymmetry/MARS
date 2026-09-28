@@ -99,6 +99,14 @@ def test_feedback_learns_which_transfers_to_trust():
         assert r.induced_rules(min_n=5) == e.induced_rules(min_n=5)
 
 
+def test_identity_channel_finds_shared_entities():
+    decl = "(defpredicate born-in :arity 2 :kind relation)(defpredicate works-at :arity 2 :kind relation)"
+    cases = "".join(f"(defcase p{i} (born-in p{i} city{i}) (works-at p{i} uni{i}))" for i in range(20))
+    e = mars.Engine(decl + cases + "(defcase q (born-in q city7) (works-at q uni7))", identity_weight=0.5)
+    e.remove_case("q")
+    assert e.query("q", k=1)[0][0][0] == "p7"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

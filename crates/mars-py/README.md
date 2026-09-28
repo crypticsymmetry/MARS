@@ -17,7 +17,7 @@ The `extension-module` feature is turned on only by maturin (`pyproject.toml`), 
 
 | call | returns |
 |---|---|
-| `Engine(source="", first_order=False, profile="analogy", fac_weight=None)`, `Engine.from_files([paths], ...)`, `Engine.open(dir, ...)` | an engine over `.mars` text / files / a checkpointed store. `first_order=True` also infers first-order facts (e.g. KG triples); `profile="surface"` for label-identified instances |
+| `Engine(source="", first_order=False, profile="analogy", fac_weight=None, identity_weight=0.0)`, `Engine.from_files([paths], ...)`, `Engine.open(dir, ...)` | an engine over `.mars` text / files / a checkpointed store. `first_order=True` also infers first-order facts (e.g. KG triples); `profile="surface"` for label-identified instances; `identity_weight=λ` fuses an entity-overlap channel into one-off retrieval (E32) |
 | `e.checkpoint(dir)` | writes a snapshot, then logs every later mutation there |
 | `e.add_case("(defcase ...)")`, `e.add_fact(case, "(pred a b)")`, `e.remove_fact(...)`, `e.remove_case(case)`, `e.apply(record)` | mutations (the same records as `mars serve`) |
 | `e.cases()`, `e.render(case)`, `len(e)` | live case names, `.mars` text of a case, number of live cases |

@@ -35,8 +35,8 @@ fn err(e: impl std::fmt::Display) -> PyErr {
 }
 
 /// Engine configuration from keyword arguments.
-fn config(first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<EngineConfig> {
-    let mut cfg = EngineConfig { first_order_inferences: first_order, ..Default::default() };
+fn config(first_order: bool, profile: &str, fac_weight: Option<f64>, identity_weight: f64) -> PyResult<EngineConfig> {
+    let mut cfg = EngineConfig { first_order_inferences: first_order, identity_weight, ..Default::default() };
     cfg.profile = match profile {
         "analogy" => Profile::analogy(),
         "literal" => Profile::literal(),
@@ -90,33 +90,35 @@ impl PyEngine {
     /// `first_order=True` also draws inferences for first-order facts (e.g.
     /// knowledge-graph triples); `profile` is the fingerprint profile
     /// (`analogy`, `literal`, or `surface` for label-identified instances);
-    /// `fac_weight` the weight of the structural score in retrieval.
+    /// `fac_weight` the weight of the structural score in retrieval;
+    /// `identity_weight` the weight of the entity-overlap identity channel in
+    /// one-off retrieval (E32: helps when instances share entities, e.g. KGs).
     #[new]
-    #[pyo3(signature = (source = "", first_order = false, profile = "analogy", fac_weight = None))]
-    fn new(source: &str, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
+    #[pyo3(signature = (source = "", first_order = false, profile = "analogy", fac_weight = None, identity_weight = 0.0))]
+    fn new(source: &str, first_order: bool, profile: &str, fac_weight: Option<f64>, identity_weight: f64) -> PyResult<Self> {
         let mut kb = Kb::new();
         kb.load_str(source).map_err(err)?;
-        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight)?) })
+        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight, identity_weight)?) })
     }
 
     /// Build an engine from `.mars` files (same keyword arguments as `Engine()`).
     #[staticmethod]
-    #[pyo3(signature = (paths, first_order = false, profile = "analogy", fac_weight = None))]
-    fn from_files(paths: Vec<String>, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
+    #[pyo3(signature = (paths, first_order = false, profile = "analogy", fac_weight = None, identity_weight = 0.0))]
+    fn from_files(paths: Vec<String>, first_order: bool, profile: &str, fac_weight: Option<f64>, identity_weight: f64) -> PyResult<Self> {
         let mut kb = Kb::new();
         for p in &paths {
             let src = std::fs::read_to_string(p).map_err(|e| err(format!("{p}: {e}")))?;
             kb.load_str(&src).map_err(|e| err(format!("{p}: {e}")))?;
         }
-        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight)?) })
+        Ok(PyEngine { e: Engine::new(kb, config(first_order, profile, fac_weight, identity_weight)?) })
     }
 
     /// Open a checkpointed store directory (snapshot + frozen IDF epoch + log;
     /// learned transfer reliability included). Pass the configuration it was built with.
     #[staticmethod]
-    #[pyo3(signature = (dir, first_order = false, profile = "analogy", fac_weight = None))]
-    fn open(dir: &str, first_order: bool, profile: &str, fac_weight: Option<f64>) -> PyResult<Self> {
-        Ok(PyEngine { e: Engine::open(Path::new(dir), config(first_order, profile, fac_weight)?).map_err(err)? })
+    #[pyo3(signature = (dir, first_order = false, profile = "analogy", fac_weight = None, identity_weight = 0.0))]
+    fn open(dir: &str, first_order: bool, profile: &str, fac_weight: Option<f64>, identity_weight: f64) -> PyResult<Self> {
+        Ok(PyEngine { e: Engine::open(Path::new(dir), config(first_order, profile, fac_weight, identity_weight)?).map_err(err)? })
     }
 
     /// Write a snapshot to `dir` and log subsequent mutations there.

@@ -30,6 +30,7 @@ This summary is maintained against [PROGRESS.md](PROGRESS.md); the detailed evid
 | Natural-language input | LLM front end (planned) | `tools/llm2mars.py`: conceptual-dependency vocabulary + canonical higher-order relations; vocabulary adherence of the front end matters (1.6% vs 44% off-vocabulary between models). MAC fuses MARS with a lexical signal; an LLM verifies the short list; analogy scores discount the surface channel. Abstraction-first prompting (pattern sentence, then facts) and several pooled conversions per story are the main front-end levers | E23, E24, E25 |
 | Profiles | fixed analogy profile | **domain-dependent**: in code, identifier names are informative (literal profile + FAC fusion best). In knowledge graphs, labels identify instances (surface profile for neighbours) while structure identifies schemas and roles; structure-aware neighbours overtake identity overlap as cases get richer (2-hop) | E9, E26, E27, E28 |
 | Candidate inferences | structurally grounded (SME-style) only | also **first-order** inferences (`EngineConfig::first_order_inferences`) for flat facts such as KG triples. An inference is either a *substitution* (a query entity reached through the correspondences) or a *copy* (skolem for the analogue's entity); substitutions carry relational regularities and their benefit grows with relational depth | E27, E28 |
+| Instance retrieval | entity-anonymous fingerprints only | fingerprints + FAC, optionally fused with an **identity channel** (TF-IDF over entity names; incremental, frozen IDF, persisted) for one-off retrieval where instances share entities; weight domain-dependent (λ ≈ 0.85 scientists, ≈ 0.3–0.5 films) | E27, E32 |
 | Inference ranking | heuristic confidence | **learned transfer reliability**: each inference is typed by how it relates to the query (paths linking its arguments, or `new`); feedback learns per-type precision online (persisted), which weights inferences; reliable types read as rules induced from analogy (`Engine::induced_rules`) | E29, E30 |
 
 Also built since: persistence (snapshot + frozen IDF epoch + op log), the `mars serve` line protocol, and corroborated inferences (top-3 analogues as separate JTMS justifications).
@@ -38,7 +39,7 @@ Also built: Python bindings (`mars-py`, §12.4), LLM front ends (`tools/llm2mars
 
 Also built: applying induced rules directly (`Engine::rule_inferences`; E31: little gain, since analogy already covers them).
 
-Not yet built: cascade/MIH indexes, Mode H transition memory, storing induced rules as schema cases, and an identity (entity-overlap) channel in engine retrieval (E27/E31 point to it for new-value prediction).
+Not yet built: cascade/MIH indexes, Mode H transition memory, and storing induced rules as schema cases. Also built: an identity (entity-overlap TF-IDF) channel fused into one-off retrieval (`EngineConfig::identity_weight`, E32), opt-in and domain-dependent.
 
 ---
 

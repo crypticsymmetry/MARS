@@ -1,0 +1,203 @@
+{
+  "config": {
+    "data": "data/kg-films → kg2mars --condition C --hop2",
+    "fac_weight": 0.5,
+    "feedback_from": "learned",
+    "feedback_top": 3,
+    "identity_weight": 1.0,
+    "k": 10,
+    "kg": "wikidata",
+    "mac_k": 50,
+    "memory": 992,
+    "per_rel": 300,
+    "profile": "surface",
+    "queries": 3000,
+    "relations": [
+      "wdt:p57",
+      "wdt:p161",
+      "wdt:p58",
+      "wdt:p162",
+      "wdt:p86",
+      "wdt:p344",
+      "wdt:p136",
+      "wdt:p495",
+      "wdt:p364",
+      "wdt:p272"
+    ],
+    "rule_min_n": 20.0,
+    "rule_min_p": 0.5,
+    "seed": 1
+  },
+  "curve": [
+    {
+      "learned": 0.37333333333333335,
+      "learned_rules": 0.376,
+      "raw": 0.34933333333333333,
+      "segment": 1
+    },
+    {
+      "learned": 0.3333333333333333,
+      "learned_rules": 0.3626666666666667,
+      "raw": 0.33866666666666667,
+      "segment": 2
+    },
+    {
+      "learned": 0.3333333333333333,
+      "learned_rules": 0.3413333333333333,
+      "raw": 0.31733333333333336,
+      "segment": 3
+    },
+    {
+      "learned": 0.35733333333333334,
+      "learned_rules": 0.37066666666666664,
+      "raw": 0.35733333333333334,
+      "segment": 4
+    },
+    {
+      "learned": 0.35733333333333334,
+      "learned_rules": 0.38666666666666666,
+      "raw": 0.31466666666666665,
+      "segment": 5
+    },
+    {
+      "learned": 0.3333333333333333,
+      "learned_rules": 0.35733333333333334,
+      "raw": 0.30933333333333335,
+      "segment": 6
+    },
+    {
+      "learned": 0.31733333333333336,
+      "learned_rules": 0.3333333333333333,
+      "raw": 0.312,
+      "segment": 7
+    },
+    {
+      "learned": 0.3253333333333333,
+      "learned_rules": 0.35733333333333334,
+      "raw": 0.3333333333333333,
+      "segment": 8
+    }
+  ],
+  "feedback_events": 6507,
+  "in_query": {
+    "learned": 0.728448275862069,
+    "learned_rules": 0.7887931034482759,
+    "n": 1160,
+    "raw": 0.6801724137931034
+  },
+  "induced_rules": [
+    {
+      "outcomes": 145.0,
+      "precision": 1.0,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p364(x, z) ∧ wdt:p37(y, z)"
+    },
+    {
+      "outcomes": 69.0,
+      "precision": 0.9710144927536232,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p272(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 41.0,
+      "precision": 0.9512195121951219,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p161(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 199.0,
+      "precision": 0.9396984924623115,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p58(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 275.0,
+      "precision": 0.9381818181818182,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p57(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 140.0,
+      "precision": 0.9357142857142857,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p162(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 151.0,
+      "precision": 0.9139072847682119,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p58(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 148.0,
+      "precision": 0.9121621621621622,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p86(x, z) ∧ wdt:p27(z, y)"
+    },
+    {
+      "outcomes": 42.0,
+      "precision": 0.9047619047619048,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p750(x, z) ∧ wdt:p495(z, y)"
+    },
+    {
+      "outcomes": 220.0,
+      "precision": 0.9,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p57(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 78.0,
+      "precision": 0.8974358974358975,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p750(x, z) ∧ wdt:p17(z, y)"
+    },
+    {
+      "outcomes": 122.0,
+      "precision": 0.8688524590163934,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p86(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 117.0,
+      "precision": 0.8632478632478633,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p162(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 45.0,
+      "precision": 0.8,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p161(x, z) ∧ wdt:p1412(z, y)"
+    },
+    {
+      "outcomes": 223.0,
+      "precision": 0.672645739910314,
+      "rule": "wdt:p364(x, y) ⇐ wdt:p495(x, z) ∧ wdt:p37(z, y)"
+    },
+    {
+      "outcomes": 191.0,
+      "precision": 0.6387434554973822,
+      "rule": "wdt:p58(x, y) ⇐ wdt:p57(x, y)"
+    },
+    {
+      "outcomes": 95.0,
+      "precision": 0.6210526315789474,
+      "rule": "wdt:p272(x, y) ⇐ wdt:p495(x, z) ∧ wdt:p17(y, z)"
+    },
+    {
+      "outcomes": 33.0,
+      "precision": 0.6060606060606061,
+      "rule": "wdt:p495(x, y) ⇐ wdt:p840(x, y)"
+    }
+  ],
+  "learned": {
+    "hits1": 0.3413333333333333,
+    "hits10": 0.44533333333333336,
+    "mrr": 0.381772573781989
+  },
+  "learned_rules": {
+    "hits1": 0.3606666666666667,
+    "hits10": 0.47333333333333333,
+    "mrr": 0.4035483674327826,
+    "queries_with_rules": 1063,
+    "rule_only_top1": 50
+  },
+  "not_in_query": {
+    "learned": 0.09728260869565217,
+    "learned_rules": 0.0907608695652174,
+    "n": 1840,
+    "raw": 0.10760869565217392
+  },
+  "raw": {
+    "hits1": 0.329,
+    "hits10": 0.44466666666666665,
+    "mrr": 0.3734903772672302
+  }
+}

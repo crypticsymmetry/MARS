@@ -189,8 +189,6 @@ pub struct Engine {
     pub transfers: TransferStats,
     /// (query case, inference text) → transfer types, for feedback.
     inf_keys: FxHashMap<(CaseId, String), Vec<String>>,
-    /// (query case, inference text) → support when last drawn by `infer` / `rule_inferences`.
-    inf_support: FxHashMap<(CaseId, String), usize>,
     /// Identity channel (built when `cfg.identity_weight > 0`).
     ident: Option<identity::IdentityIndex>,
     pub work: Work,
@@ -264,7 +262,6 @@ impl Engine {
             inf_prov: FxHashMap::default(),
             transfers: TransferStats::default(),
             inf_keys: FxHashMap::default(),
-            inf_support: FxHashMap::default(),
             ident,
             work: Work::default(),
             events: Vec::new(),
@@ -748,10 +745,9 @@ impl Engine {
         }
         let mut v: Vec<Inference> = by_text.into_values().collect();
         for inf in &mut v {
-            inf.reliability = self.transfers.reliability_at(&inf.transfers, inf.support);
+            inf.reliability = self.transfers.reliability(&inf.transfers);
             inf.score = inf.weight * inf.reliability;
             self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
-            self.inf_support.insert((q, inf.text.clone()), inf.support);
         }
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
         v
@@ -762,18 +758,8 @@ impl Engine {
     /// transfer types; logged, so reopening a store reproduces it.
     pub fn feedback(&mut self, q: CaseId, text: &str, correct: bool) -> Result<(), String> {
         let keys = self.inf_keys.get(&(q, text.to_string())).cloned().ok_or_else(|| format!("no inference {text} drawn for this query"))?;
-        let support = self.support_of(q, text);
-        self.record_transfer(&transfer::outcome_keys(&keys, support), correct);
+        self.record_transfer(&keys, correct);
         Ok(())
-    }
-
-    /// Support of an inference drawn for `q`: from `infer` / `rule_inferences`,
-    /// else from a standing query on `q`.
-    fn support_of(&self, q: CaseId, text: &str) -> usize {
-        if let Some(&s) = self.inf_support.get(&(q, text.to_string())) {
-            return s;
-        }
-        (0..self.sqs.len()).filter(|&sq| self.sqs[sq].case == q).map(|sq| self.support(sq, text)).max().unwrap_or(1)
     }
 
     pub(crate) fn record_transfer(&mut self, keys: &[String], correct: bool) {
@@ -813,14 +799,13 @@ impl Engine {
                     continue;
                 }
                 let keys = transfer::pair_keys(&self.kb, q, head, x, y);
-                let reliability = self.transfers.reliability_at(&keys, 0);
+                let reliability = self.transfers.reliability(&keys);
                 by_text.insert(text.clone(), Inference { text, functor: f, args: vec![InfArg::Entity(x), InfArg::Entity(y)], support: 0, reliability, weight: 0.0, score: reliability, transfers: keys, analogues: Vec::new() });
             }
         }
         let mut v: Vec<Inference> = by_text.into_values().collect();
         for inf in &v {
             self.inf_keys.insert((q, inf.text.clone()), inf.transfers.clone());
-            self.inf_support.insert((q, inf.text.clone()), 0);
         }
         v.sort_by(|a, b| b.score.total_cmp(&a.score).then(a.text.cmp(&b.text)));
         v
@@ -836,8 +821,8 @@ impl Engine {
                 let keys = self.inf_keys.get(&(q, t.clone())).cloned().unwrap_or_default();
                 let n = self.inf_nodes[&(sq, t.clone())];
                 let analogues: Vec<CaseId> = self.inf_prov.get(&n).map(|p| p.iter().filter(|x| self.tms.just_holds(x.2)).map(|x| x.0).collect()).unwrap_or_default();
+                let reliability = self.transfers.reliability(&keys);
                 let support = self.tms.support_count(n);
-                let reliability = self.transfers.reliability_at(&keys, support);
                 Inference { text: t, functor: Sym(0), args: Vec::new(), support, reliability, weight: support as f64, score: reliability * support as f64, transfers: keys, analogues }
             })
             .collect();
@@ -943,7 +928,7 @@ impl Engine {
         let provs = self.inf_prov.get(&n)?;
         let mut s = format!("{text}\n  believed: {} (supported by {} analogue(s))", self.tms.is_in(n), self.tms.support_count(n));
         if let Some(keys) = self.inf_keys.get(&(self.sqs[sq].case, text.to_string())) {
-            s.push_str(&format!("\n  transfer: {} (reliability {:.2})", keys.join(" | "), self.transfers.reliability_at(keys, self.tms.support_count(n))));
+            s.push_str(&format!("\n  transfer: {} (reliability {:.2})", keys.join(" | "), self.transfers.reliability(keys)));
         }
         for (a, facts, j) in provs {
             if !self.tms.just_holds(*j) {

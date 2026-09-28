@@ -228,4 +228,5 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E29](../results/E29/README.md) | Learning which transfers to trust (offline) | gated analogy ≈ rules + analogy; readable induced rules |
 | [E30](../results/E30/README.md) | … online, in the engine, from feedback | +0.008 / +0.015 Hits@1 over a query stream; persisted |
 | [E31](../results/E31/README.md) | Applying induced rules; where completion errors are | rules add little; errors are new-value prediction (answer not in the query), not relational inference |
+| [E32](../results/E32/README.md) | An identity (entity-overlap) channel in engine retrieval | scientists +0.036 Hits@1 (new values 0.27 → 0.32); films small; fusion beats identity alone |
 | [bw](../results/bw/) | Memory bandwidth of Mode K | batched 3.7 ms per query at 10⁶ (kernel v2) |

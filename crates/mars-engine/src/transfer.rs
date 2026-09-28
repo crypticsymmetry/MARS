@@ -21,21 +21,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// Pseudo-votes of the prior (the global precision) in each type's estimate.
 pub const PRIOR_WEIGHT: f64 = 5.0;
 
-/// Support is bucketed as 0 (rule, no analogue), 1, 2, 3, 4, 5+.
-pub const MAX_SUPPORT_BUCKET: usize = 5;
-
-/// A type's key conditioned on support (`key#s`).
-pub fn support_key(key: &str, support: usize) -> String {
-    format!("{key}#{}", support.min(MAX_SUPPORT_BUCKET))
-}
-
-/// The keys recorded for one outcome: the types and their support-conditioned
-/// versions (E32: corroboration is calibrated, so a copy proposed by 5
-/// analogues is far more reliable than one proposed by 1).
-pub fn outcome_keys(keys: &[String], support: usize) -> Vec<String> {
-    keys.iter().cloned().chain(keys.iter().map(|k| support_key(k, support))).collect()
-}
-
 /// Transfer types of a projected inference against query case `q`.
 pub fn transfer_keys(kb: &Kb, q: CaseId, proj: &Proj) -> Vec<String> {
     let Proj::Expr { functor, args } = proj else { return vec!["other".into()] };
@@ -164,21 +149,6 @@ impl TransferStats {
         self.counts.get(key).map(|&(h, n)| (h + PRIOR_WEIGHT * p0) / (n + PRIOR_WEIGHT)).unwrap_or(p0)
     }
 
-    /// Reliability of an inference with this support: for each type, the
-    /// precision at this support level, smoothed towards the type's precision
-    /// (hierarchical back-off: support level → type → global); the best over types.
-    pub fn reliability_at(&self, keys: &[String], support: usize) -> f64 {
-        if keys.is_empty() {
-            return self.prior();
-        }
-        keys.iter()
-            .map(|k| {
-                let pt = self.precision(k);
-                self.counts.get(&support_key(k, support)).map(|&(h, n)| (h + PRIOR_WEIGHT * pt) / (n + PRIOR_WEIGHT)).unwrap_or(pt)
-            })
-            .fold(0.0, f64::max)
-    }
-
     /// Reliability of an inference: the best precision among its types.
     pub fn reliability(&self, keys: &[String]) -> f64 {
         if keys.is_empty() {
@@ -189,7 +159,7 @@ impl TransferStats {
 
     /// (type, raw precision, count) for types with at least `min_n` outcomes, best first.
     pub fn table(&self, min_n: f64) -> Vec<(String, f64, f64)> {
-        let mut v: Vec<(String, f64, f64)> = self.counts.iter().filter(|(k, c)| c.1 >= min_n && !k.contains('#')).map(|(k, &(h, n))| (k.clone(), h / n, n)).collect();
+        let mut v: Vec<(String, f64, f64)> = self.counts.iter().filter(|(_, c)| c.1 >= min_n).map(|(k, &(h, n))| (k.clone(), h / n, n)).collect();
         v.sort_by(|a, b| b.1.total_cmp(&a.1).then(b.2.total_cmp(&a.2)).then(a.0.cmp(&b.0)));
         v
     }
