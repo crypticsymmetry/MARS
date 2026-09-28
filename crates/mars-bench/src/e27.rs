@@ -28,6 +28,13 @@
 //! origin's official language). Only the root entity's own facts of the relation
 //! are held out, and the query keeps only facts still reachable from the root,
 //! so a removed object cannot survive as the subject of its own claims.
+//!
+//! E29 (learning which transfers to trust): every analogical vote is typed as a
+//! copy or a substitution via a query path (r1, or r1 · r2). The precision of
+//! each (relation, type) is learned from the system's own transfer outcomes on
+//! the other fold (2-fold by entity) and weights the votes ("gated analogy").
+//! The learned table is reported: rules induced from analogy, next to the mined
+//! confidence of the same pattern.
 //! Metrics: Hits@1, Hits@10 and MRR (first correct object), per relation;
 //! calibration of the top-1 by support (number of analogues voting for it).
 
@@ -104,6 +111,16 @@ impl RuleCounts {
             *self.body2.entry(*k).or_insert(0.0) += sign * v;
         }
     }
+}
+
+/// How an analogical vote reached its object: a copy of the analogue's own object
+/// (skolem), or a substitution to a query entity reached from the root by the
+/// relation path r1 (· r2). E29 learns per (relation, transfer) precision.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+enum Transfer {
+    Copy,
+    Path(Sym, Option<Sym>),
+    Other,
 }
 
 /// Two-step paths from `x` in case `c`: (r1, r2) → objects y with r1(x,z) ∧ r2(z,y), y ≠ x.
@@ -309,6 +326,7 @@ pub fn run(args: &Args) -> Result<(), String> {
         ana_hyb: Vec<Vec<Vote>>,   // hybrid analogues: analogy votes
         rules: Vec<Vote>,          // length-1 rule predictions (confidence as weight)
         rules2: Vec<Vote>,         // length ≤ 2 rule predictions
+        ypaths: FxHashMap<Sym, Vec<Transfer>>, // query entity → paths reaching it from the root
     }
     let res: Vec<Res> = queries
         .par_iter()
@@ -401,10 +419,69 @@ pub fn run(args: &Args) -> Result<(), String> {
             }
             let rules = best1.into_iter().map(|(y, c)| (y, c, true)).collect();
             let rules2 = best2.into_iter().map(|(y, c)| (y, c, true)).collect();
-            Res { copy, ana: analogy(&fused), ana_lex: analogy(&lexs), ana_hyb: analogy(&hybrid), rules, rules2 }
+            let mut ypaths: FxHashMap<Sym, Vec<Transfer>> = FxHashMap::default();
+            for &f in &kb.case(q.case).facts {
+                if let (true, Some(y)) = (own(&kb, f, q.person), obj(&kb, f)) {
+                    ypaths.entry(y).or_default().push(Transfer::Path(kb.expr(f).functor, None));
+                }
+            }
+            for ((a, b), ys) in paths(&kb, q.case, q.person) {
+                for y in ys {
+                    ypaths.entry(y).or_default().push(Transfer::Path(a, Some(b)));
+                }
+            }
+            Res { copy, ana: analogy(&fused), ana_lex: analogy(&lexs), ana_hyb: analogy(&hybrid), rules, rules2, ypaths }
         })
         .collect();
     eprintln!("[e27] mapped ({:.1?})", t0.elapsed());
+
+    // E29: learn which transfers to trust. Each analogical vote has a type (copy,
+    // or substitution via a query path); the precision of (relation, type) is
+    // learned from the outcomes of the system's own transfers on the other fold
+    // (2-fold by entity) and weights the vote. Smoothed towards the fold's mean
+    // vote precision (k = 5 pseudo-votes).
+    let fold = |qi: usize| queries[qi].orig % 2;
+    let types = |r: &Res, v: &Vote| -> Vec<Transfer> {
+        if !v.2 {
+            vec![Transfer::Copy]
+        } else {
+            r.ypaths.get(&v.0).cloned().unwrap_or_else(|| vec![Transfer::Other])
+        }
+    };
+    type Gate = (FxHashMap<(usize, Transfer), (f64, f64)>, f64);
+    let learn = |sel: &dyn Fn(&Res) -> &Vec<Vec<Vote>>, keep: &dyn Fn(usize) -> bool| -> Gate {
+        let mut t: FxHashMap<(usize, Transfer), (f64, f64)> = FxHashMap::default();
+        let (mut h, mut n_all) = (0.0, 0.0);
+        for (qi, r) in res.iter().enumerate().filter(|(qi, _)| keep(*qi)) {
+            let q = &queries[qi];
+            for v in sel(r).iter().take(m_max).flatten() {
+                let ok = q.gold.contains(&v.0) as u8 as f64;
+                h += ok;
+                n_all += 1.0;
+                for ty in types(r, v) {
+                    let e = t.entry((q.rel, ty)).or_insert((0.0, 0.0));
+                    e.0 += ok;
+                    e.1 += 1.0;
+                }
+            }
+        }
+        (t, if n_all > 0.0 { h / n_all } else { 0.0 })
+    };
+    let gates_ana: [Gate; 2] = [learn(&|r| &r.ana, &|qi| fold(qi) == 0), learn(&|r| &r.ana, &|qi| fold(qi) == 1)];
+    let gates_hyb: [Gate; 2] = [learn(&|r| &r.ana_hyb, &|qi| fold(qi) == 0), learn(&|r| &r.ana_hyb, &|qi| fold(qi) == 1)];
+    let gated = |qi: usize, r: &Res, votes: &[Vec<Vote>], gates: &[Gate; 2], m: usize| -> Vec<Vote> {
+        let (t, p0) = &gates[1 - fold(qi)];
+        let rel = queries[qi].rel;
+        votes
+            .iter()
+            .take(m)
+            .flatten()
+            .map(|v| {
+                let p = types(r, v).iter().map(|ty| t.get(&(rel, *ty)).map(|&(h, n)| (h + 5.0 * p0) / (n + 5.0)).unwrap_or(*p0)).fold(0.0, f64::max);
+                (v.0, v.1 * p, v.2)
+            })
+            .collect()
+    };
 
     // Methods: name → per-query ranking at m analogues.
     let flat = |v: &[Vec<Vote>], m: usize| -> Vec<Vote> { v.iter().take(m).flatten().copied().collect() };
@@ -430,6 +507,9 @@ pub fn run(args: &Args) -> Result<(), String> {
         ("rules ≤ 2 (length-1 and 2-path)".into(), Box::new(|qi, r, _| rank(&r.rules2, &pops[queries[qi].rel]))),
         ("rules ≤ 2 + copy · lexical".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.copy[2], m), &r.rules2), &pops[queries[qi].rel]))),
         ("rules ≤ 2 + analogy · hybrid".into(), Box::new(|qi, r, m| rank(&share_plus(&flat(&r.ana_hyb, m), &r.rules2), &pops[queries[qi].rel]))),
+        ("gated analogy · MARS fused (E29)".into(), Box::new(|qi, r, m| rank(&gated(qi, r, &r.ana, &gates_ana, m), &pops[queries[qi].rel]))),
+        ("gated analogy · hybrid (E29)".into(), Box::new(|qi, r, m| rank(&gated(qi, r, &r.ana_hyb, &gates_hyb, m), &pops[queries[qi].rel]))),
+        ("rules ≤ 2 + gated analogy · hybrid (E29)".into(), Box::new(|qi, r, m| rank(&share_plus(&gated(qi, r, &r.ana_hyb, &gates_hyb, m), &r.rules2), &pops[queries[qi].rel]))),
     ];
     let rel_names: Vec<String> = rels.iter().map(|&r| kb.name(r).to_string()).collect();
     let mut md = String::new();
@@ -498,13 +578,42 @@ pub fn run(args: &Args) -> Result<(), String> {
     for (s, &(a, b)) in calib.iter().enumerate().skip(1) {
         writeln!(md, "| {}{} | {a} | {:.3} |", s, if s == 5 { "+" } else { "" }, pct(b, a)).unwrap();
     }
+    // Transfers learned from analogy (all queries, MARS analogues): the induced
+    // "rules", with the mined rule confidence of the same pattern for comparison.
+    let (learned, p0_all) = learn(&|r| &r.ana, &|_| true);
+    let name_t = |ty: &Transfer| match ty {
+        Transfer::Copy => "copy (analogue's own object)".to_string(),
+        Transfer::Path(a, None) => kb.name(*a).to_string(),
+        Transfer::Path(a, Some(b)) => format!("{} · {}", kb.name(*a), kb.name(*b)),
+        Transfer::Other => "other substitution".to_string(),
+    };
+    let mined = |rel: usize, ty: &Transfer| -> Option<f64> {
+        let r = rels[rel];
+        match ty {
+            Transfer::Path(a, None) => Some(all_rules.pair1.get(&(*a, r)).copied().unwrap_or(0.0) / all_rules.body1.get(a).copied().unwrap_or(f64::INFINITY)),
+            Transfer::Path(a, Some(b)) => Some(all_rules.pair2.get(&(*a, *b, r)).copied().unwrap_or(0.0) / all_rules.body2.get(&(*a, *b)).copied().unwrap_or(f64::INFINITY)),
+            _ => None,
+        }
+    };
+    let mut lt: Vec<(&(usize, Transfer), &(f64, f64))> = learned.iter().filter(|(_, v)| v.1 >= 30.0).collect();
+    lt.sort_by(|a, b| a.0 .0.cmp(&b.0 .0).then((b.1 .0 / b.1 .1).total_cmp(&(a.1 .0 / a.1 .1))).then(a.0 .1.cmp(&b.0 .1)));
+    writeln!(md, "\n## Transfers learned from analogy (E29)\n\nPrecision of analogical votes by (relation, transfer type), MARS analogues, all queries (vote-level precision overall {p0_all:.3}); transfer types with ≥ 30 votes, top 4 per relation. `mined` is the confidence of the same pattern as an explicitly mined rule.\n\n| relation | transfer | votes | precision | mined rule confidence |\n|---|---|---|---|---|").unwrap();
+    let mut per_rel_count = vec![0usize; rels.len()];
+    let mut lj = Vec::new();
+    for ((rel, ty), (h, n)) in lt {
+        lj.push(json!({"relation": rel_names[*rel], "transfer": name_t(ty), "votes": n, "precision": h / n, "mined": mined(*rel, ty)}));
+        if per_rel_count[*rel] < 4 {
+            per_rel_count[*rel] += 1;
+            writeln!(md, "| {} | {} | {} | {:.3} | {} |", rel_names[*rel], name_t(ty), n, h / n, mined(*rel, ty).map(|x| format!("{x:.3}")).unwrap_or("—".into())).unwrap();
+        }
+    }
     writeln!(md, "\nRuntime {:.1?}.", t0.elapsed()).unwrap();
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     std::fs::write(format!("{out_dir}/E27-{tag}.md"), &md).map_err(|e| e.to_string())?;
     let cal: Vec<_> = calib.iter().enumerate().skip(1).map(|(s, &(a, b))| json!({"support": s, "n": a, "precision": pct(b, a)})).collect();
     let spr: Vec<_> = rel_names.iter().zip(&sub_per_rel).map(|(r, &(a, b))| json!({"relation": r, "n": a, "correct": b})).collect();
     let cfg = json!({"data": dir, "kg": kg, "relations": rel_names, "per_rel": per_rel, "k": k, "m": m_max, "profile": prof_name, "fac_weight": fac_w, "seed": seed, "queries": nq, "memory": n});
-    let j = json!({"config": cfg, "tables": tables, "substitution": {"n": n_sub, "correct": sub_ok, "other_n": n_copy, "other_correct": copy_ok, "per_relation": spr}, "disagreements": {"n": dis, "analogy_right": dis_ana, "copy_right": dis_copy}, "calibration": cal});
+    let j = json!({"config": cfg, "tables": tables, "substitution": {"n": n_sub, "correct": sub_ok, "other_n": n_copy, "other_correct": copy_ok, "per_relation": spr}, "disagreements": {"n": dis, "analogy_right": dis_ana, "copy_right": dis_copy}, "calibration": cal, "learned_transfers": lj});
     std::fs::write(format!("{out_dir}/E27-{tag}.json"), serde_json::to_string_pretty(&j).unwrap()).map_err(|e| e.to_string())?;
     print!("{md}");
     Ok(())
