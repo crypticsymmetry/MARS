@@ -1,6 +1,6 @@
 # E30: online transfer reliability in the engine (films-hop2)
 
-Data: `data/kg-films → kg2mars --condition C --hop2` (wikidata side, 992 memory cases); 3000 hold-out queries (relations: wdt:p57, wdt:p161, wdt:p58, wdt:p162, wdt:p86, wdt:p344, wdt:p136, wdt:p495, wdt:p364, wdt:p272; up to 300 per relation), streamed in a seeded random order (seed 1). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50, first-order inferences from the top-10 analogues (the entity's own full case excluded). After each query the top-3 suggestions are checked and fed back (7897 feedback events in total).
+Data: `data/kg-films → kg2mars --condition C --hop2` (wikidata side, 992 memory cases); 3000 hold-out queries (relations: wdt:p57, wdt:p161, wdt:p58, wdt:p162, wdt:p86, wdt:p344, wdt:p136, wdt:p495, wdt:p364, wdt:p272; up to 300 per relation), streamed in a seeded random order (seed 1). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50 (identity channel weight 0), first-order inferences from the top-10 analogues (the entity's own full case excluded). After each query the top-3 suggestions are checked and fed back (7897 feedback events in total).
 
 | ranking | Hits@1 | Hits@10 | MRR |
 |---|---|---|---|
@@ -65,4 +65,4 @@ Induced rules (≥ 20 outcomes, precision ≥ 0.5) fired on 947 queries; 5 queri
 | `wdt:p86<=wdt:p161` | 0.000 | 26 |
 | `wdt:p344<=wdt:p495.wdt:p27~` | 0.000 | 38 |
 
-Runtime 46.6s.
+Runtime 59.5s.

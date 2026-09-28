@@ -24,7 +24,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 ## Status
 
-**Working research prototype**: a Rust workspace of 11 crates, including Python bindings, and 33 experiments reproducible from versioned data. The evidence is summarized below by how well each claim holds, failures included. Details are in each `results/E*/README.md`.
+**Working research prototype**: a Rust workspace of 11 crates, including Python bindings, and 33 experiments reproducible from versioned data. The evidence is summarized below by how well each claim holds, failures included. Details are in each `results/E*/README.md`. Paired 95% confidence intervals and p-values for the headline comparisons: [results/STATS.md](results/STATS.md) (`python3 tools/stats.py`).
 
 ### Works (strong evidence, mostly on controlled synthetic data)
 
@@ -43,7 +43,7 @@ It is a modern, persistent, large-scale take on the MAC/FAC architecture (Forbus
 
 | claim | result | evidence |
 |---|---|---|
-| Structure beats surface on real code | cross-author algorithm retrieval MRR 0.33 vs lexical 0.15 (33 queries); cross-language 0.17 vs 0.09 (52 queries). Different *strategies* for the same algorithm are not found: the representation is too syntactic | [E9](results/E9/README.md), [E12](results/E12/README.md) |
+| Structure beats surface on real code | cross-author algorithm retrieval MRR 0.33 vs lexical 0.15 (33 queries; paired difference +0.19, 95% CI [+0.04, +0.33]); cross-language R@10 0.37 vs 0.17 (significant), but MRR 0.17 vs 0.09 is not significant at 52 queries. Different *strategies* for the same algorithm are not found: the representation is too syntactic | [E9](results/E9/README.md), [E12](results/E12/README.md) |
 | Candidate inference on real data | KGs: projecting through the mapping beats copying from the same analogues, more so with relational depth (E27, E28). It works where the answer is already linked in the query (Hits@1 0.71–0.84, 29–39% of queries); "new value" prediction is recommendation-like (0.10–0.32). Code: ~10× chance, but exact restoration is rare (7.6%) | [E27](results/E27/README.md), [E28](results/E28/README.md), [E31](results/E31/README.md), [E17](results/E17/README.md) |
 | Learning which transfers to trust | feedback learns per-transfer-type precision online (persisted): +0.008 / +0.015 Hits@1; the learned types read as rules ("studied where the doctoral advisor worked") | [E29](results/E29/README.md), [E30](results/E30/README.md) |
 | Vocabulary alignment by analogy | synthetic: precision 1.000. DBpedia ↔ Wikidata: 14/16 (films) and 15/15 (scientists) property pairs plausible, *given* entity-label anchors. On real code only frequent pairs are learned | [E13](results/E13/README.md), [E26](results/E26/README.md), [E14](results/E14/README.md) |
@@ -130,7 +130,7 @@ On raw natural language, MARS needs an LLM front end and is best used as a short
 |---|---|
 | [docs/DESIGN.md](docs/DESIGN.md) | The full concept and system design: representation, encoding, retrieval modes, structure mapping, truth maintenance, consolidation, interfaces, implementation plan, hypotheses, roadmap, risks |
 | [docs/CONCEPT_REVIEW.md](docs/CONCEPT_REVIEW.md) | A critique of the original idea: what was kept, fixed or changed, and why |
-| [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) | The synthetic generator, metrics, baseline ladder, planned experiments E0–E9, decision gates, and an index of every experiment run (E0–E33) |
+| [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md) | The synthetic generator, metrics, baseline ladder, planned experiments E0–E9, decision gates, and an index of every experiment run (E0–E33, plus STATS) |
 | [docs/PRIOR_ART.md](docs/PRIOR_ART.md) | Annotated bibliography and novelty map |
 | [docs/PROGRESS.md](docs/PROGRESS.md) | Working document: task board, decision log, experiment log |
 | [results/](results/) | One directory per experiment: README summary + raw tables/JSON |
@@ -158,7 +158,7 @@ crates/
   mars-engine   incremental memory, standing queries, TMS inferences, SAGE generalization,
                 transfer reliability learned from feedback, identity (entity-overlap) channel
   mars-gen      synthetic analogy generator (Gentner classes, perturbations, ground truth)
-  mars-bench    experiment runners (E0–E33)
+  mars-bench    experiment runners (E0–E33, plus STATS)
   mars-cli      `mars` command-line tool
   mars-py       Python bindings (PyO3; `import mars`)
 tools/          front ends and data: py2mars.py / js2mars.py (code → cases), llm2mars.py (text → cases via an LLM),

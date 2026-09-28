@@ -126,4 +126,4 @@ Precision of analogical votes by (relation, transfer type), MARS analogues, all 
 | wdt:p272 | wdt:p750 | 728 | 0.485 | 0.140 |
 | wdt:p272 | copy (analogue's own object) | 1387 | 0.056 | — |
 
-Runtime 17.3s.
+Runtime 58.4s.

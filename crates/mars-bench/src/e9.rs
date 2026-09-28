@@ -157,7 +157,9 @@ pub fn run(args: &Args) -> Result<(), String> {
             per_query[i].push(*r);
         }
         writeln!(md, "| {name} | {:.3} | {:.3} | {:.3} | {:.3} |", recall_at(&ranks, 1), recall_at(&ranks, 5), recall_at(&ranks, 10), mrr(&ranks)).unwrap();
-        ja.push(json!({"method": name, "r1": recall_at(&ranks, 1), "r5": recall_at(&ranks, 5), "r10": recall_at(&ranks, 10), "mrr": mrr(&ranks)}));
+        // Per-query rank of the first correct counterpart (null = not found), for paired statistics.
+        let per: Vec<Option<usize>> = ranks.iter().map(|&r| (r < usize::MAX / 4).then_some(r)).collect();
+        ja.push(json!({"method": name, "r1": recall_at(&ranks, 1), "r5": recall_at(&ranks, 5), "r10": recall_at(&ranks, 10), "mrr": mrr(&ranks), "ranks": per}));
     }
     writeln!(md, "\nPer-query rank of the first correct counterpart (0 = top):\n").unwrap();
     write!(md, "| query |").unwrap();
@@ -191,7 +193,8 @@ pub fn run(args: &Args) -> Result<(), String> {
         let (p1, p5): (Vec<f64>, Vec<f64>) = res.iter().map(|x| (x.0, x.1)).unzip();
         let ranks: Vec<usize> = res.iter().map(|x| x.2).collect();
         writeln!(md, "| {name} | {:.3} | {:.3} | {:.3} |", mean(&p1), mean(&p5), mrr(&ranks)).unwrap();
-        jb.push(json!({"method": name, "p1": mean(&p1), "p5": mean(&p5), "mrr": mrr(&ranks)}));
+        let per: Vec<Option<usize>> = ranks.iter().map(|&r| (r < usize::MAX / 4).then_some(r)).collect();
+        jb.push(json!({"method": name, "p1": mean(&p1), "p5": mean(&p5), "mrr": mrr(&ranks), "p1_per_query": p1, "ranks": per}));
     }
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     let stem_out = if cross_lang { "E12" } else { "E9" };

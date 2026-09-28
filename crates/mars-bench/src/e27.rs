@@ -551,7 +551,12 @@ pub fn run(args: &Args) -> Result<(), String> {
             let all = |_: usize| true;
             let per: Vec<f64> = (0..rels.len()).map(|ri| col(0, &|qi| queries[qi].rel == ri)).collect();
             writeln!(md, "| {name} | {:.3} | {:.3} | {:.3} | {:.3} | {} |", col(0, &all), col(1, &all), col(2, &all), col(3, &all), per.iter().map(|x| format!("{x:.2}")).collect::<Vec<_>>().join(" / ")).unwrap();
-            out.push(json!({"method": name, "hits1": col(0, &all), "hits10": col(1, &all), "mrr": col(2, &all), "coverage": col(3, &all), "per_relation_hits1": rel_names.iter().cloned().zip(per.iter().copied()).collect::<FxHashMap<String, f64>>()}));
+            let mut row = json!({"method": name, "hits1": col(0, &all), "hits10": col(1, &all), "mrr": col(2, &all), "coverage": col(3, &all), "per_relation_hits1": rel_names.iter().cloned().zip(per.iter().copied()).collect::<FxHashMap<String, f64>>()});
+            if m == m_max {
+                // Per-query reciprocal rank (0 = miss), for paired statistics.
+                row["rr"] = json!(sc.iter().map(|s| s[2]).collect::<Vec<_>>());
+            }
+            out.push(row);
         }
         writeln!(md).unwrap();
         json!({"m": m, "methods": out})

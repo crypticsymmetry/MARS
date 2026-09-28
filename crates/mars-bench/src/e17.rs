@@ -361,7 +361,15 @@ pub fn run(args: &Args) -> Result<(), String> {
     }
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
     std::fs::write(format!("{out_dir}/E17.md"), &md).map_err(|e| e.to_string())?;
-    std::fs::write(format!("{out_dir}/E17.json"), serde_json::to_string_pretty(&json!({"seed": seed, "per_func": per_func, "k": k, "queries": nq, "rows": rows, "corroboration": corr, "author_split": split})).unwrap()).map_err(|e| e.to_string())?;
+    // Per-query outcomes (exact recovery, best shape overlap; null = no such analogue), for paired statistics.
+    let per_q: Vec<serde_json::Value> = conds
+        .iter()
+        .map(|(cn, sel)| {
+            let v: Vec<Option<(bool, f64)>> = res.iter().map(|r| sel(r).map(|p| (p.iter().any(|x| x.2), p.iter().map(|x| x.5).fold(0.0, f64::max)))).collect();
+            json!({"analogue": cn, "exact": v.iter().map(|x| x.map(|y| y.0)).collect::<Vec<_>>(), "shape": v.iter().map(|x| x.map(|y| y.1)).collect::<Vec<_>>()})
+        })
+        .collect();
+    std::fs::write(format!("{out_dir}/E17.json"), serde_json::to_string_pretty(&json!({"seed": seed, "per_func": per_func, "k": k, "queries": nq, "rows": rows, "corroboration": corr, "author_split": split, "per_query": per_q})).unwrap()).map_err(|e| e.to_string())?;
     println!("{md}");
     Ok(())
 }

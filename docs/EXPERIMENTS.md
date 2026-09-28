@@ -210,7 +210,7 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E9](../results/E9/README.md) | Program analogy on real code | fused MRR 0.33 vs lexical 0.15 |
 | [E10](../results/E10/README.md) | Scoring variants, fusion weight, case size | w = 0.3; cases need ~10 connected facts at 10⁶ |
 | [E11](../results/E11/README.md) | Is corroboration a calibrated confidence? | precision 0.07 → 0.86 with support 1 → 5 |
-| [E12](../results/E12/README.md) | Cross-language program analogy | structure ≈ 2× lexical |
+| [E12](../results/E12/README.md) | Cross-language program analogy | R@10 0.37 vs lexical 0.17 (significant); MRR 0.17 vs 0.09 not significant at 52 queries |
 | [E13](../results/E13/README.md) | Can analogy learn vocabulary alignment? | synthetic: precision 1.000, retrieval 0.15 → 0.99 |
 | [E14](../results/E14/README.md) | … on real code? | frequent pairs only; alignment barely matters there |
 | [E15](../results/E15/README.md) | Schemas vs instances as memory grows | schemas complement instances; schema-only degrades |
@@ -230,4 +230,5 @@ The plan above (E0–E9) was written before the work began. The table lists ever
 | [E31](../results/E31/README.md) | Applying induced rules; where completion errors are | rules add little; errors are new-value prediction (answer not in the query), not relational inference |
 | [E32](../results/E32/README.md) | An identity (entity-overlap) channel in engine retrieval | scientists +0.036 Hits@1 (new values 0.27 → 0.32); films small; fusion beats identity alone |
 | [E33](../results/E33/README.md) | MARS as an agent's episodic memory (incident response) | remedy + target 0.995 → 0.65 with noise vs names 0.48 → 0.23; better retriever for an LLM agent (0.66 vs 0.35) and better alone (0.78) |
+| [STATS](../results/STATS.md) | Paired 95% CIs and permutation tests for headline comparisons (E9–E33) | E12 MRR and E28's scientists combination not significant; everything else in the table holds |
 | [bw](../results/bw/) | Memory bandwidth of Mode K | batched 3.7 ms per query at 10⁶ (kernel v2) |

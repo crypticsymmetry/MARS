@@ -65,4 +65,4 @@ Induced rules (≥ 20 outcomes, precision ≥ 0.5) fired on 998 queries; 9 queri
 | `wdt:p344<=wdt:p495.wdt:p27~` | 0.000 | 35 |
 | `wdt:p86<=wdt:p162` | 0.000 | 149 |
 
-Runtime 64.1s.
+Runtime 116.8s.

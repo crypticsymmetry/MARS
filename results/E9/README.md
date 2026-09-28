@@ -59,3 +59,5 @@ Ablated individually and together (inlining depth 1 and 2) on both tasks, none i
 **Conclusion:** local syntactic canonicalization is not the bottleneck. The missed pairs (e.g. in-place Lomuto quicksort vs list-comprehension quicksort; slice-based vs index-based merge sort) differ at the level of *algorithmic strategy*. Matching them needs semantic abstraction (e.g. recognizing "partition around a pivot" as a unit) or learned re-representation. The passes remain available but are off by default.
 
 With the E10 fusion weight (0.3·FAC + 0.7·fingerprint, literal profile), results match the ½/½ fusion within noise (see E9.md).
+
+**Statistics (added 2026-09-28, [STATS](../STATS.md)):** paired over the 33 queries, fused ½FAC+½FP-literal vs lexical: MRR +0.187 (95% bootstrap CI [+0.043, +0.329], p = 0.017), R@10 +0.242 ([+0.091, +0.394]). Significant, but the intervals are wide; one query moves MRR by ~0.03.

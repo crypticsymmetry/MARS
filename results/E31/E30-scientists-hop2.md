@@ -1,6 +1,6 @@
 # E30: online transfer reliability in the engine (scientists-hop2)
 
-Data: `data/kg-scientists → kg2mars --condition C --hop2` (wikidata side, 993 memory cases); 2400 hold-out queries (relations: wdt:p69, wdt:p108, wdt:p101, wdt:p27, wdt:p106, wdt:p166, wdt:p463, wdt:p1412; up to 300 per relation), streamed in a seeded random order (seed 1). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50, first-order inferences from the top-10 analogues (the entity's own full case excluded). After each query the top-3 suggestions are checked and fed back (6885 feedback events in total).
+Data: `data/kg-scientists → kg2mars --condition C --hop2` (wikidata side, 993 memory cases); 2400 hold-out queries (relations: wdt:p69, wdt:p108, wdt:p101, wdt:p27, wdt:p106, wdt:p166, wdt:p463, wdt:p1412; up to 300 per relation), streamed in a seeded random order (seed 1). Engine: surface profile, ½FAC + ½FP over the fingerprint top-50 (identity channel weight 0), first-order inferences from the top-10 analogues (the entity's own full case excluded). After each query the top-3 suggestions are checked and fed back (6885 feedback events in total).
 
 | ranking | Hits@1 | Hits@10 | MRR |
 |---|---|---|---|
@@ -56,4 +56,4 @@ Induced rules (≥ 20 outcomes, precision ≥ 0.5) fired on 402 queries; 0 queri
 | `wdt:p69<=wdt:p20` | 0.000 | 58 |
 | `wdt:p69<=new:1` | 0.031 | 226 |
 
-Runtime 33.9s.
+Runtime 44.8s.

@@ -3,6 +3,7 @@
 
     python3 tools/e33_agent_memory.py OUT_DIR [--incidents 600] [--templates 40] [--novel 10] [--noise 0] [--seed 1]
     python3 tools/e33_agent_memory.py --demo      # narrated walk-through of a few incidents
+    python3 tools/e33_agent_memory.py OUT_DIR --seeds 1,2,3,4,5   # all noise levels × seeds (mean ± sd; per-incident outcomes)
     python3 tools/e33_agent_memory.py OUT_DIR --llm 150 --noise 2   # + LLM agent baselines (GLM-5.3-Flash via OpenRouter)
 
 An agent resolves a stream of incidents (outages) with MARS (Python bindings)
@@ -226,6 +227,8 @@ def summarize(recs):
 def main():
     if "--demo" in sys.argv:
         return demo()
+    if "--seeds" in sys.argv:
+        return seeds_eval(sys.argv[1], [int(x) for x in sys.argv[sys.argv.index("--seeds") + 1].split(",")])
     if "--llm" in sys.argv:
         a = lambda k, d: type(d)(sys.argv[sys.argv.index(k) + 1]) if k in sys.argv else d
         return llm_eval(sys.argv[1], a("--noise", 2), a("--llm", 150), a("--seed", 1))
@@ -340,6 +343,31 @@ def llm_eval(out_dir, noise, n_eval, seed, n_t=40, n_nov=10, n_inc=600):
     os.makedirs(out_dir, exist_ok=True)
     json.dump({"config": {"seed": seed, "noise": noise, "n_eval": n_eval, "incidents": n_inc, "templates": n_t, "novel": n_nov}, "results": r}, open(f"{out_dir}/E33-llm-noise{noise}.json", "w"), indent=1)
     print(json.dumps(r, indent=1))
+
+
+def seeds_eval(out_dir, seed_list, noises=(0, 1, 2, 3)):
+    """Each seed = an independent set of mechanisms, stream and noise. Reports fix@1 on known
+    mechanisms (mean ± sd over seeds) and keeps seed-1 per-incident outcomes for paired tests."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from stats import seeds as msd
+    configs = [("MARS (structure)", 0.0, False), ("MARS + names (identity 0.3)", 0.3, False), ("recall by names (identity only)", 1.0, False), ("popularity baseline", 0.0, True)]
+    across, paired = {}, {}
+    for noise in noises:
+        vals = defaultdict(list)
+        for sd in seed_list:
+            templates, novel_ids, seed_eps, stream = build(sd, 40, 10, 600, noise)
+            for name, lam, pop in configs:
+                recs, _ = run(templates, novel_ids, stream, seed_eps, lam, pop)
+                known = [r for r in recs if not r["novel_first"]]
+                vals[name].append(sum(r["learned_top1"] for r in known) / len(known))
+                if sd == seed_list[0]:
+                    paired.setdefault(str(noise), {})[name] = [float(r["learned_top1"]) for r in known]
+            print(f"[e33] noise {noise} seed {sd} done", file=sys.stderr, flush=True)
+        across[str(noise)] = {name: msd(v) for name, v in vals.items()}
+    os.makedirs(out_dir, exist_ok=True)
+    json.dump({"seeds": seed_list, "memories": [c[0] for c in configs], "across_seeds": across, "paired": paired, "config": {"templates": 40, "novel": 10, "incidents": 600, "hidden_root_rate": 0.5}}, open(f"{out_dir}/E33-seeds.json", "w"), indent=1)
+    for noise, v in across.items():
+        print(noise, {k: f"{m:.3f}±{s:.3f}" for k, (m, s) in v.items()})
 
 
 def demo():

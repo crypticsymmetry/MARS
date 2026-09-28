@@ -28,3 +28,5 @@ Full tables with per-query ranks: [E12.md](E12.md). Reproduce with `tools/fetch_
    Cross-language program analogy needs representations above the syntax level (see E9).
 3. **The literal-profile advantage from E9 shrinks.** Identifier conventions differ across languages (`camelCase` vs `snake_case`, `a` vs `array`), so names carry less signal. The best fusion weight shifts back toward the structural score: ½ beats 0.3 here, whereas 0.3 won within one language. **The right fusion weight is domain-dependent, like the profile.**
 4. **One-level helper inlining in JS had no effect:** the npm package rarely calls module-local helpers.
+
+**Statistics (added 2026-09-28, [STATS](../STATS.md)):** paired over the 52 queries, fused vs lexical MRR is +0.079 (95% bootstrap CI [−0.003, +0.164], p = 0.075): *not significant*. R@10 is +0.192 ([+0.058, +0.327]), significant. Fused vs MAC content vectors is not significant (MRR +0.054, [−0.023, +0.130]).
